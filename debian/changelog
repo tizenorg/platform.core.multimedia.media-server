@@ -1,3 +1,11 @@
+media-server (0.1.52) unstable; urgency=low
+
+  * for beta release
+  * Git : pkgs/m/media-server
+  * Tag : media-server_0.1.52
+
+ -- Yong Yeon Kim <yy9875.kim@samsung.com>  Fri, 10 Feb 2012 15:01:20 +0900
+
 media-server (0.1.51) unstable; urgency=low
 
   * Initial debinization edition.
