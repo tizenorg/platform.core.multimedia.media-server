@@ -28,10 +28,11 @@
  * @brief
  */
 
-#ifndef _FEXPLORER_ENGINE_INOTI_H_
-#define _FEXPLORER_ENGINE_INOTI_H_
+#ifndef _MEDIA_SERVER_INOTI_H_
+#define _MEDIA_SERVER_INOTI_H_
 
 #include <glib.h>
+#include "media-server-global.h"
 
 typedef struct ms_ignore_file_info {
 	char *path;
@@ -60,4 +61,4 @@ int ms_inoti_delete_ignore_file(ms_ignore_file_info * delete_node);
 ms_ignore_file_info *ms_inoti_find_ignore_file(const char *path);
 
 void ms_inoti_delete_mmc_ignore_file(void);
-#endif				/* _FEXPLORER_ENGINE_INOTI_H_ */
+#endif/* _MEDIA_SERVER_INOTI_H_ */

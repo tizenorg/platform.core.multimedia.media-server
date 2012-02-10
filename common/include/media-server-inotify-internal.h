@@ -48,8 +48,6 @@ int _ms_inoti_delete_create_file_list(ms_create_file_info *node);
 
 ms_create_file_info *_ms_inoti_find_create_file_list(int wd, char *name);
 
-int _fex_is_default_path(const char *path);
-
 bool _ms_inoti_full_path(int wd, char *name, char *path, int sizeofpath);
 
 bool _ms_inoti_get_full_path(int wd, char *name, char *path, int sizeofpath);

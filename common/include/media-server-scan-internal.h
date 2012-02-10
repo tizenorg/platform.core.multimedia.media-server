@@ -32,7 +32,7 @@
 
 #ifdef PROGRESS
 struct quickpanel;
-void _ms_dir_scan(ms_scan_data_t * scan_data, struct quickpanel *ms_quickpanel);
+void _ms_dir_scan(MediaSvcHandle *handle, ms_scan_data_t * scan_data, struct quickpanel *ms_quickpanel);
 #else
-void _ms_dir_scan(ms_scan_data_t * scan_data);
+void _ms_dir_scan(MediaSvcHandle *handle, ms_scan_data_t * scan_data);
 #endif

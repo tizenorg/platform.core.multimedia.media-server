@@ -28,10 +28,11 @@
  * @brief
  */
 #include <vconf.h>
-#include <minfo-types.h>
+#include <media-svc-types.h>
 
-#include "media-server-common.h"
-#include "media-server-thumb.h"
+#include "media-server-utils.h"
+#include "media-server-db-svc.h"
+#include "media-server-external-storage.h"
 #include "media-server-scan-internal.h"
 #include "media-server-scan.h"
 
@@ -85,6 +86,7 @@ gboolean ms_scan_thread(void *data)
 	bool res;
 	int length;
 	int err;
+	MediaSvcHandle *handle = NULL;
 
 #ifdef PROGRESS
 	struct quickpanel *ms_quickpanel = NULL;
@@ -115,16 +117,9 @@ gboolean ms_scan_thread(void *data)
 			continue;
 		}
 
-		if (scan_data->scan_type == end_thread) {
-			MS_DBG("RECEIVE END THREAD");
-			free(scan_data);
-
-			if(garray) g_array_free (garray, TRUE);
-
-			return false;
-		} else if (scan_data->scan_type != MS_SCAN_VALID) {
+		if (scan_data->scan_type != MS_SCAN_VALID) {
 			/*connect to media db, if conneting is failed, db updating is stopped*/
-			err = ms_media_db_open();
+			err = ms_media_db_open(&handle);
 			if (err != MS_ERR_NONE)
 				continue;
 
@@ -148,7 +143,7 @@ gboolean ms_scan_thread(void *data)
 			}
 
 			if (scan_data->scan_type == MS_SCAN_ALL) {
-				res = ms_delete_all_record(scan_data->db_type);
+				res = ms_delete_all_record(handle, scan_data->db_type);
 				if (res != true) {
 					MS_DBG("ms_delete_all_record fails");
 				}
@@ -160,11 +155,11 @@ gboolean ms_scan_thread(void *data)
 			}
 #endif
 			/*call for bundle commit*/
-			ms_register_start();
+			ms_register_start(handle);
 
 #ifdef PROGRESS
 			/*add inotify watch and insert data into media db */
-			_ms_dir_scan(scan_data, ms_quickpanel);
+			_ms_dir_scan(handle, scan_data, ms_quickpanel);
 
 			if (ms_quickpanel != NULL) {
 				ms_delete_quickpanel(ms_quickpanel);
@@ -173,10 +168,10 @@ gboolean ms_scan_thread(void *data)
 			}
 #else
 			/*add inotify watch and insert data into media db */
-			_ms_dir_scan(scan_data);
+			_ms_dir_scan(handle, scan_data);
 #endif
 			/*call for bundle commit*/
-			ms_register_end();
+			ms_register_end(handle);
 
 #ifdef FMS_PERF
 			if (scan_data->db_type == MS_MMC) {
@@ -190,18 +185,8 @@ gboolean ms_scan_thread(void *data)
 				ms_set_db_status(MS_DB_UPDATED);
 
 			/*disconnect form media db*/
-			ms_media_db_close();
-#ifdef THUMB_THREAD
-			/*create making thumbnail thread*/
-			if (scan_data->scan_type == MS_SCAN_ALL) {
-				minfo_folder_type db;
-				if(scan_data->db_type == MS_PHONE)
-					db = MINFO_CLUSTER_TYPE_LOCAL_PHONE;
-				else
-					db = MINFO_CLUSTER_TYPE_LOCAL_MMC;
-				g_thread_create((GThreadFunc) ms_thumb_thread, &db, TRUE, NULL);
-			}
-#endif
+			ms_media_db_close(handle);
+
 			/*Active flush */
 			sqlite3_release_memory(-1);
 
@@ -210,19 +195,19 @@ gboolean ms_scan_thread(void *data)
 			}
 		} else  {
 			/*connect to media db, if conneting is failed, db updating is stopped*/
-			err = ms_media_db_open();
+			err = ms_media_db_open(&handle);
 			if (err != MS_ERR_NONE)
 				continue;
 
 			/*update just valid type*/
-			err = ms_change_valid_type(scan_data->db_type, false);
+			err = ms_change_valid_type(handle, scan_data->db_type, false);
 			if (err != MS_ERR_NONE)
 				MS_DBG("ms_change_valid_type fail");
 
 			ms_set_db_status(MS_DB_UPDATED);
 
 			/*disconnect form media db*/
-			ms_media_db_close();
+			ms_media_db_close(handle);
 
 			/*Active flush */
 			sqlite3_release_memory(-1);

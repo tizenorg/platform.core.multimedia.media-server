@@ -6,7 +6,6 @@ Uploaders:
 Build-Depends: debhelper (>= 5), autotools-dev,
                libglib2.0-dev,
                libslp-setting-dev,
-               libheynoti-dev,
                libmedia-service-dev,
                dlog-dev,
                drm-service-dev,

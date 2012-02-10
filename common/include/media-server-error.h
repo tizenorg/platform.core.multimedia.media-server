@@ -28,8 +28,8 @@
  * @brief		
  */
 
-#ifndef _FEXPLORER_ENGINE_ERROR_H_
-#define _FEXPLORER_ENGINE_ERROR_H_
+#ifndef _MEDIA_SERVER_ERROR_H_
+#define _MEDIA_SERVER_ERROR_H_
 
 #define ERROR_MASKL16       0xFFFF
 #define ERROR(X)        (X & ERROR_MASKL16)
@@ -84,8 +84,8 @@
 #define MS_ERR_VCONF_GET_FAIL				(MID_CONTENTS_MGR_ERROR - ERROR(0x63))	 /**< vconf get fail*/
 #define MS_ERR_NOT_MEDIA_FILE				(MID_CONTENTS_MGR_ERROR - ERROR(0x64))	 /**< not media file*/
 
-#define MS_ERR_MAX							(MID_CONTENTS_MGR_ERROR - ERROR(0xff))	 /**< Max count*/
-#endif				/* _FEXPLORER_ENGINE_ERROR_H_ */
+#define MS_ERR_MAX							(MID_CONTENTS_MGR_ERROR - ERROR(0xff))	 /**< not media file*/
+#endif/* _MEDIA_SERVER_ERROR_H_ */
 /**
  * @}
  */

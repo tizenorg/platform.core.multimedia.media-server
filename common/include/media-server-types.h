@@ -31,8 +31,8 @@
 #include <stdbool.h>
 #include <glib.h>
 
-#ifndef _FEXPLORER_TYPES_H_
-#define _FEXPLORER_TYPES_H_
+#ifndef _MEDIA_SERVER_TYPES_H_
+#define _MEDIA_SERVER_TYPES_H_
 
 #if !defined(__TYPEDEF_INT64__)
 #define __TYPEDEF_INT64__
@@ -96,4 +96,4 @@ typedef struct ms_dir_data {
  * @}
  */
 
-#endif /*_FEXPLORER_TYPES_H_*/
+#endif /*_MEDIA_SERVER_TYPES_H_*/

@@ -27,8 +27,7 @@
  * @version	1.0
  * @brief23
  */
-#include "media-server-global.h"
-#include "media-server-common.h"
+#include "media-server-utils.h"
 #include "media-server-inotify-internal.h"
 
 int inoti_fd;
@@ -89,25 +88,6 @@ ms_create_file_info *_ms_inoti_find_create_file_list(int wd, char *name)
 	}
 
 	return NULL;
-}
-
-int _fex_is_default_path(const char *path)
-{
-	int ret = false;
-
-	if ((strcmp(path, "Images and videos") == 0) ||
-	    (strcmp(path, "Sounds and music") == 0) ||
-	    (strcmp(path, "Downloads") == 0) ||
-	    (strcmp(path, "Camera shots") == 0) ||
-	    (strcmp(path, "Wallpapers") == 0) ||
-	    (strcmp(path, "Music") == 0) ||
-	    (strcmp(path, "Ringtones and Alerts") == 0) ||
-	    (strcmp(path, "FM Radio") == 0) ||
-	    (strcmp(path, "Voice recorder") == 0)) {
-		ret = true;
-	}
-
-	return ret;
 }
 
 bool _ms_inoti_get_full_path(int wd, char *name, char *path, int sizeofpath)

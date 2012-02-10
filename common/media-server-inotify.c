@@ -27,8 +27,8 @@
  * @version	1.0
  * @brief
  */
-#include "media-server-global.h"
-#include "media-server-common.h"
+#include "media-server-utils.h"
+#include "media-server-db-svc.h"
 #include "media-server-inotify-internal.h"
 #include "media-server-inotify.h"
 
@@ -36,7 +36,7 @@ extern int inoti_fd;
 ms_dir_data *first_inoti_node;
 ms_ignore_file_info *latest_ignore_file;
 
-int _ms_inoti_directory_scan_and_register_file(char *dir_path)
+int _ms_inoti_directory_scan_and_register_file(MediaSvcHandle *handle, char *dir_path)
 {
 	MS_DBG_START();
 	struct dirent ent;
@@ -71,10 +71,10 @@ int _ms_inoti_directory_scan_and_register_file(char *dir_path)
 
 		/*in case of directory */
 		if (ent.d_type == DT_DIR) {
-			_ms_inoti_directory_scan_and_register_file(path);
+			_ms_inoti_directory_scan_and_register_file(handle, path);
 		} else {
 
-			err = ms_register_file(path, NULL);
+			err = ms_register_file(handle, path, NULL);
 			if (err != MS_ERR_NONE) {
 				MS_DBG("ms_register_file error : %d", err);
 				continue;
@@ -89,7 +89,7 @@ int _ms_inoti_directory_scan_and_register_file(char *dir_path)
 	return 0;
 }
 
-int _ms_inoti_scan_renamed_folder(char *org_path, char *chg_path)
+int _ms_inoti_scan_renamed_folder(MediaSvcHandle *handle, char *org_path, char *chg_path)
 {
 	if (org_path == NULL || chg_path == NULL) {
 		MS_DBG("Parameter is wrong");
@@ -138,7 +138,7 @@ int _ms_inoti_scan_renamed_folder(char *org_path, char *chg_path)
 
 		/*in case of directory */
 		if (ent.d_type == DT_DIR) {
-			_ms_inoti_scan_renamed_folder(path_from, path_to);
+			_ms_inoti_scan_renamed_folder(handle, path_from, path_to);
 		}
 
 		/*in case of file */
@@ -148,7 +148,7 @@ int _ms_inoti_scan_renamed_folder(char *org_path, char *chg_path)
 
 			if ((src_storage != MS_ERR_INVALID_FILE_PATH)
 			    && (des_storage != MS_ERR_INVALID_FILE_PATH))
-				ms_media_db_move(src_storage, des_storage, path_from, path_to);
+				ms_media_db_move(handle, src_storage, des_storage, path_from, path_to);
 			else {
 				MS_DBG("ms_get_store_type_by_full error");
 			}
@@ -476,10 +476,11 @@ gboolean ms_inoti_thread(void *data)
 	char buffer[INOTI_BUF_LEN] = { 0 };
 	char path[MS_FILE_PATH_LEN_MAX] = { 0 };
 	struct inotify_event *event;
+	MediaSvcHandle *handle = NULL;
 
 	MS_DBG("START INOTIFY");
 
-	err = ms_media_db_open();
+	err = ms_media_db_open(&handle);
 	if (err != MS_ERR_NONE) {
 		MS_DBG(" INOTIFY : sqlite3_open: ret = %d", err);
 		return false;
@@ -499,15 +500,7 @@ gboolean ms_inoti_thread(void *data)
 			/*it's possible that ums lets reset phone data... */
 			event = (struct inotify_event *)&buffer[i];
 
-			/*stop this threadfor hibernation */
-			if (strcmp(event->name, "_HIBERNATION_END") == 0) {
-				/*db close before capture hibernatio image */
-				err = ms_media_db_close();
-				if (err != MS_ERR_NONE) {
-					MS_DBG("failed ms_media_db_close : ret = (%d)", err);
-				}
-				return false;
-			} else if(strcmp(event->name, "_FILEOPERATION_END") == 0) {
+			if(strcmp(event->name, "_FILEOPERATION_END") == 0) {
 				/*file operation is end*/
 				/* announce db is updated*/
 				ms_set_db_status(MS_DB_UPDATED);
@@ -566,41 +559,26 @@ gboolean ms_inoti_thread(void *data)
 							goto NEXT_INOTI_EVENT;
 						}
 						/*enable bundle commit*/
-						ms_media_db_move_start();
+						ms_media_db_move_start(handle);
 
 						/*need update file information under renamed directory */
-						_ms_inoti_scan_renamed_folder(full_path_from, path);
+						_ms_inoti_scan_renamed_folder(handle, full_path_from, path);
 
 						/*disable bundle commit*/
-						ms_media_db_move_end();
+						ms_media_db_move_end(handle);
 
-						if (_fex_is_default_path(prev_name)) {
-							if (strstr(path, MS_PHONE_ROOT_PATH)) {
-								fex_make_default_path();
-							} else {
-								fex_make_default_path_mmc();
-							}
-						}
 						prev_mask = prev_wd = 0;	/*reset */
 					}
 					else if (event->mask & IN_CREATE) {
 						MS_DBG("CREATE");
 
-						_ms_inoti_directory_scan_and_register_file(path);
+						_ms_inoti_directory_scan_and_register_file(handle, path);
 						prev_mask = event->mask;
 					}
 					else if (event->mask & IN_DELETE) {
 						MS_DBG("DELETE");
 
 						ms_inoti_remove_watch(path);
-
-						if (_fex_is_default_path(name)) {
-							if (strstr(path, MS_PHONE_ROOT_PATH)) {
-								fex_make_default_path();
-							} else {
-								fex_make_default_path_mmc();
-							}
-						}
 					}
 				}
 				else {
@@ -609,7 +587,7 @@ gboolean ms_inoti_thread(void *data)
 					if (event->mask & IN_MOVED_FROM) {
 						MS_DBG("MOVED_FROM");
 
-						err = ms_media_db_delete(path);
+						err = ms_media_db_delete(handle, path);
 						if (err != MS_ERR_NONE) {
 							MS_DBG("ms_media_db_delete fail error : %d", err);
 						}
@@ -617,7 +595,7 @@ gboolean ms_inoti_thread(void *data)
 					else if (event->mask & IN_MOVED_TO) {
 						MS_DBG("MOVED_TO");
 
-						err = ms_register_file(path, NULL);
+						err = ms_register_file(handle, path, NULL);
 						if (err != MS_ERR_NONE) {
 							MS_DBG("ms_register_file error : %d", err);
 						}
@@ -630,7 +608,7 @@ gboolean ms_inoti_thread(void *data)
 					else if (event->mask & IN_DELETE) {
 						MS_DBG("DELETE");
 						
-						err = ms_media_db_delete(path);
+						err = ms_media_db_delete(handle, path);
 						if (err != MS_ERR_NONE) {
 							MS_DBG("ms_media_db_delete error : %d", err);
 						}
@@ -643,7 +621,7 @@ gboolean ms_inoti_thread(void *data)
 
 						if (node != NULL || ((prev_mask & IN_ISDIR) & IN_CREATE)) {
 
-							err = ms_register_file(path, NULL);
+							err = ms_register_file(handle, path, NULL);
 							if (err != MS_ERR_NONE) {
 								MS_DBG("ms_register_file error : %d", err);
 							}
@@ -657,12 +635,12 @@ gboolean ms_inoti_thread(void *data)
 
 							ignore_file = ms_inoti_find_ignore_file(path);
 							if (ignore_file == NULL) {
-								err = ms_media_db_delete(path);
+								err = ms_media_db_delete(handle, path);
 								if (err != MS_ERR_NONE) {
 									MS_DBG("ms_media_db_delete error : %d", err);
 								}
 								/*update = delete + regitster */
-								err = ms_register_file(path, NULL);
+								err = ms_register_file(handle, path, NULL);
 								if (err != MS_ERR_NONE) {
 									MS_DBG("ms_register_file error : %d", err);
 									goto NEXT_INOTI_EVENT;
@@ -696,7 +674,7 @@ gboolean ms_inoti_thread(void *data)
 
 	close(inoti_fd);
 
-	err = ms_media_db_close();
+	err = ms_media_db_close(handle);
 	if (err != MS_ERR_NONE) {
 		MS_DBG("ms_media_db_close error : %d", err);
 		return false;

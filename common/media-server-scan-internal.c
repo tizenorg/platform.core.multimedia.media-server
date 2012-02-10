@@ -29,10 +29,9 @@
  */
 
 #include <vconf.h>
-#include <audio-svc-error.h>
-#include <audio-svc.h>
-#include <media-svc.h>
-#include "media-server-common.h"
+
+#include "media-server-utils.h"
+#include "media-server-db-svc.h"
 #include "media-server-inotify.h"
 #include "media-server-scan-internal.h"
 
@@ -245,9 +244,9 @@ FREE_RESOURCES:
 }
 
 #ifdef PROGRESS
-void _ms_dir_scan(ms_scan_data_t * scan_data, struct quickpanel *ms_quickpanel)
+void _ms_dir_scan(MediaSvcHandle *handle, ms_scan_data_t * scan_data, struct quickpanel *ms_quickpanel)
 #else
-void _ms_dir_scan(ms_scan_data_t * scan_data)
+void _ms_dir_scan(MediaSvcHandle *handle, ms_scan_data_t * scan_data)
 #endif
 {
 	MS_DBG_START();
@@ -301,7 +300,7 @@ void _ms_dir_scan(ms_scan_data_t * scan_data)
 #endif
 		if (scan_data->scan_type == MS_SCAN_PART) {
 			/*enable bundle commit*/
-			ms_update_valid_type_start();
+			ms_update_valid_type_start(handle);
 		}
 
 		while (node != NULL) {
@@ -351,9 +350,9 @@ void _ms_dir_scan(ms_scan_data_t * scan_data)
 							}
 
 							if (scan_data->scan_type == MS_SCAN_PART)	
-								err = ms_update_valid_type(path);
+								err = ms_update_valid_type(handle,path);
 							else
-								err = ms_register_scanfile(path);
+								err = ms_register_scanfile(handle, path);
 
 							if (err < 0) {
 								MS_DBG("failed to update db : %d , %d\n", err, scan_data->scan_type);
@@ -380,10 +379,9 @@ void _ms_dir_scan(ms_scan_data_t * scan_data)
 
 		if (scan_data->scan_type == MS_SCAN_PART) {
 			/*disable bundle commit*/
-			ms_update_valid_type_end();
+			ms_update_valid_type_end(handle);
 
-			audio_svc_delete_invalid_items(scan_data->db_type);
-			minfo_delete_invalid_media_records(scan_data->db_type);
+			ms_delete_invalid_records(handle, scan_data->db_type);
 		}
 	} else {
 		node = first_inoti_node;

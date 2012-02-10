@@ -22,35 +22,30 @@
 /**
  * This file defines api utilities of contents manager engines.
  *
- * @file		media-server-mainl.c
+ * @file		media-server-main.c
  * @author	Yong Yeon Kim(yy9875.kim@samsung.com)
  * @version	1.0
  * @brief
  */
 #include <vconf.h>
+#include <drm-service.h>
 
-#include "media-server-common.h"
-#include "media-server-hibernation.h"
+#include "media-server-utils.h"
+#include "media-server-external-storage.h"
+#include "media-server-db-svc.h"
 #include "media-server-inotify.h"
 #include "media-server-scan.h"
 #include "media-server-socket.h"
-#ifdef THUMB_THREAD
-#include "media-server-thumb.h"
-#endif
-
-#include <heynoti.h>
 
 #define APP_NAME "media-server"
 
-#ifdef _USE_HIB
-int hib_fd = 0;
-#endif
 extern GAsyncQueue *scan_queue;
 extern GAsyncQueue* ret_queue;
 extern GMutex *db_mutex;
 extern GMutex *list_mutex;
 extern GMutex *queue_mutex;
 extern GArray *reg_list;
+extern int mmc_state;
 
 bool check_process(pid_t current_pid)
 {
@@ -115,17 +110,18 @@ void init_process()
 }
 
 static bool _db_clear(void)
-	{
+{
 	int err;
 	int db_status;
 	int usb_status;
 	bool need_db_create = false;
+	MediaSvcHandle *handle = NULL;
 
 	/*connect to media db, if conneting is failed, db updating is stopped*/
-	ms_media_db_open();
+	ms_media_db_open(&handle);
 
 	/*update just valid type*/
-	err = ms_change_valid_type(MS_MMC, false);
+	err = ms_change_valid_type(handle, MS_MMC, false);
 	if (err != MS_ERR_NONE)
 		MS_DBG("ms_change_valid_type fail");
 
@@ -140,7 +136,7 @@ static bool _db_clear(void)
 
 		need_db_create = true;
 
-		err = ms_change_valid_type(MS_PHONE, false);
+		err = ms_change_valid_type(handle, MS_PHONE, false);
 		if (err != MS_ERR_NONE)
 			MS_DBG("ms_change_valid_type fail");
 	}
@@ -148,7 +144,7 @@ static bool _db_clear(void)
 	ms_set_db_status(MS_DB_UPDATED);
 
 	/*disconnect form media db*/
-	ms_media_db_close();
+	ms_media_db_close(handle);
 
 	return need_db_create;
 }
@@ -161,9 +157,12 @@ int main(int argc, char **argv)
 
 	GMainLoop *mainloop = NULL;
 	pid_t current_pid = 0;
-	bool check_result = false;
 	int err;
+	bool check_result = false;
 	bool need_db_create;
+
+	ms_scan_data_t *phone_scan_data;
+	ms_scan_data_t *mmc_scan_data;
 
 	current_pid = getpid();
 	check_result = check_process(current_pid);
@@ -178,12 +177,9 @@ int main(int argc, char **argv)
 	if (!db_mutex)
 		db_mutex = g_mutex_new();
 
+	/*clear previous data of sdcard on media database and check db status for updating*/
 	need_db_create = _db_clear();
 	
-#ifdef _USE_HIB
-	_hibernation_initialize();
-#endif
-
 	MS_DBG("MEDIA SERVER START");
 
 	if (!scan_queue)
@@ -199,18 +195,68 @@ int main(int argc, char **argv)
 	if (!reg_list)
 		reg_list = g_array_new(TRUE, TRUE, sizeof(char*));
 
+	/*inotify setup */
 	ms_inoti_init();
 
 	ms_inoti_add_watch(MS_DB_UPDATE_NOTI_PATH);
 
-	/*inotify setup */
+	/*create each threads*/
 	inoti_tid = g_thread_create((GThreadFunc) ms_inoti_thread, NULL, FALSE, NULL);
 	scan_tid = g_thread_create((GThreadFunc) ms_scan_thread, NULL, TRUE, NULL);
 	scoket_tid  = g_thread_create((GThreadFunc) ms_socket_thread, NULL, TRUE, NULL);
 
+	/*Init main loop*/
 	mainloop = g_main_loop_new(NULL, FALSE);
 
-	ms_start(need_db_create);
+	/*set vconf callback function*/
+	err = vconf_notify_key_changed(VCONFKEY_SYSMAN_MMC_STATUS,
+				     (vconf_callback_fn) ms_mmc_vconf_cb, NULL);
+	if (err == -1)
+		MS_DBG("add call back function for event %s fails", VCONFKEY_SYSMAN_MMC_STATUS);
+
+	err = vconf_notify_key_changed(VCONFKEY_USB_STORAGE_STATUS,
+				     (vconf_callback_fn) ms_usb_vconf_cb, NULL);
+	if (err == -1)
+		MS_DBG("add call back function for event %s fails", VCONFKEY_USB_STORAGE_STATUS);
+
+	phone_scan_data = malloc(sizeof(ms_scan_data_t));
+	mmc_scan_data = malloc(sizeof(ms_scan_data_t));
+	MS_DBG("*********************************************************");
+	MS_DBG("*** Begin to check tables of file manager in database ***");
+	MS_DBG("*********************************************************");
+
+	phone_scan_data->db_type = MS_PHONE;
+
+	if (need_db_create) {
+		/*insert records*/
+		MS_DBG("Create DB");
+		phone_scan_data->scan_type = MS_SCAN_ALL;
+	} else {
+		MS_DBG("JUST ADD WATCH");
+		phone_scan_data->scan_type = MS_SCAN_NONE;
+	}
+
+	/*push data to fex_dir_scan_cb */
+	g_async_queue_push(scan_queue, GINT_TO_POINTER(phone_scan_data));
+
+	if (ms_is_mmc_inserted()) {
+		mmc_state = VCONFKEY_SYSMAN_MMC_MOUNTED;
+
+		if (drm_svc_insert_ext_memory() == DRM_RESULT_SUCCESS)
+			MS_DBG
+			    ("fex_db_service_init : drm_svc_insert_ext_memory OK");
+
+		ms_make_default_path_mmc();
+
+		mmc_scan_data->scan_type = ms_get_mmc_state();
+		mmc_scan_data->db_type = MS_MMC;
+
+		MS_DBG("ms_get_mmc_state is %d", mmc_scan_data->scan_type);
+
+		g_async_queue_push(scan_queue, GINT_TO_POINTER(mmc_scan_data));
+	}
+
+	malloc_trim(0);
 
 	MS_DBG("*****************************************");
 	MS_DBG("*** Server of File Manager is running ***");
@@ -230,11 +276,16 @@ int main(int argc, char **argv)
 	if(reg_list)
 		g_array_free(reg_list, true);
 
-	ms_end();
+	/***********
+	**remove call back functions
+	************/
+	vconf_ignore_key_changed(VCONFKEY_SYSMAN_MMC_STATUS,
+				 (vconf_callback_fn) ms_mmc_vconf_cb);
+	vconf_ignore_key_changed(VCONFKEY_USB_STORAGE_STATUS,
+				 (vconf_callback_fn) ms_usb_vconf_cb);
 
-#ifdef _USE_HIB
-	_hibernation_fianalize();
-#endif
+	/*Clear db mutex variable*/
+	g_mutex_free (db_mutex);
 
 	exit(0);
 }

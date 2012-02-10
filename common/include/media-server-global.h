@@ -28,8 +28,8 @@
  * @brief		
  */
 
-#ifndef _FEXPLORER_ENGINEGLOBAL_H_
-#define _FEXPLORER_ENGINEGLOBAL_H_
+#ifndef _MEDIA_SERVER_GLOBAL_H_
+#define _MEDIA_SERVER_GLOBAL_H_
 #include <malloc.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -55,26 +55,11 @@
 #include "media-server-error.h"
 #include "media-server-types.h"
 
-#define _WITH_MP_PB_
-#define _WITH_DRM_SERVICE_     /*drm-servic3 */
-#define _WITH_SETTING_AND_NOTI_	/*replace gconf-dbus */
 #define FMS_PERF
-
-/* To enable hibernation callback */
-/*#define _USE_HIB*/
 
 /* To enable progress bar in quickpanel */
 /*#define PROGRESS*/
 
-/* To enable thumbnail thread*/
-/*#define THUMB_THREAD*/
-
-#define FEXPLORER_DEBUG
-#ifndef DEPRECATED		/*temp definition for deprecated */
-#define DEPRECATED __attribute__((deprecated))
-#endif
-
-#ifdef FEXPLORER_DEBUG
 #ifdef LOG_TAG
 #undef LOG_TAG
 #endif
@@ -83,15 +68,6 @@
 #define MS_DBG_END()                  LOGD("[%d, %s-%d] ========[  END  ]========\n" ,syscall(__NR_gettid), __func__ , __LINE__);
 #define MS_DBG_FUNC_LINE()      LOGD("[%s-%d] debug\n" , __func__ , __LINE__);
 #define MS_DBG(fmt, args...)        LOGD("[%d, %s-%d] " fmt "\n" , syscall(__NR_gettid), __func__ , __LINE__ , ##args);
-#endif				/*FEXPLORER_DEBUG */
-
-#define MS_DRM_CONTENT_TYPE_LENGTH 100
-#define MS_REGISTER_COUNT 100 /*For bundle commit*/
-#define MS_VALID_COUNT 100 /*For bundle commit*/
-#define MS_MOVE_COUNT 100 /*For bundle commit*/
-
-/* in case of 32 bytes machine*/
-#define DUMMY_FIELD_LEN_32(n)           ((((n-1) / 8 + 1) * 2) / sizeof(long) + 6)
 
 #define MALLOC(a) malloc(a)
 #define FREE(a) free(a)
@@ -100,24 +76,18 @@
 #define MS_MMC_ROOT_PATH		"opt/storage/sdcard"
 #define MS_DB_UPDATE_NOTI_PATH "/opt/data/file-manager-service"
 
-#define end_thread 100
-
 /*This macro is used to check the lastest usb mode*/
 #define MS_USB_MODE_KEY "db/Apps/mediaserver/usbmode"
 enum {
 	MS_VCONFKEY_NORMAL_MODE = 0x00,
 	MS_VCONFKEY_MASS_STORAGE_MODE = 0x01
 };
+
+/*This macro is used to save and check information of inserted memory card*/
 #define MS_MMC_INFO_KEY "db/Apps/mediaserver/mmc_info"
 
-#define MS_THUMB_STATUS "db/Apps/mediaserver/thumb_status"
-enum {
-	MS_VCONFKEY_THUMB_NONE = 0x00,
-	MS_VCONFKEY_THUMB_PAUSE = 0x01,
-	MS_VCONFKEY_THUMB_RESUME = 0x02
-};
 /**
  * @}
  */
 
-#endif /*_FEXPLORER_ENGINEGLOBAL_H_*/
+#endif /*_MEDIA_SERVER_GLOBAL_H_*/
