@@ -35,6 +35,7 @@
 #include <fcntl.h>
 #include <sys/socket.h>
 #include <string.h>
+#include <stdbool.h>
 
 #include <media-svc.h>
 #include <audio-svc.h>

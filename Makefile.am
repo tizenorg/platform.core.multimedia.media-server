@@ -43,8 +43,9 @@ libmedia_utils_la_LIBADD  =  $(MEDIA_INFO_LIBS) \
 ### file-manager-server ###
 bin_PROGRAMS = media-server
 
-media_server_SOURCES = common/media-server-common.c \
-                       common/media-server-thumb.c \
+media_server_SOURCES = common/media-server-utils.c \
+                       common/media-server-db-svc.c \
+                       common/media-server-external-storage.c \
                        common/media-server-inotify-internal.c \
                        common/media-server-inotify.c \
                        common/media-server-scan-internal.c \
