@@ -27,15 +27,11 @@
  * @version	1.0
  * @brief       This file implements main database operation.
  */
-#include <db-util.h>
+
+#include <dlfcn.h>
+
+#include <aul/aul.h>
 #include <drm-service.h>
-#include <media-thumbnail.h>
-#include <visual-svc-error.h>
-#include <visual-svc-types.h>
-#include <visual-svc.h>
-#include <audio-svc-error.h>
-#include <audio-svc-types.h>
-#include <audio-svc.h>
 
 #include "media-server-utils.h"
 #include "media-server-inotify.h"
@@ -53,7 +49,55 @@ GMutex *queue_mutex;
 #define MS_VALID_COUNT 100 /*For bundle commit*/
 #define MS_MOVE_COUNT 100 /*For bundle commit*/
 
-void _ms_insert_reg_list(const char *path)
+void **func_handle = NULL; /*dlopen handel*/
+
+CHECK_ITEM f_check;
+CONNECT f_connect;
+DISCONNECT f_disconnect;
+CHECK_ITEM_EXIST f_exist;
+INSERT_ITEM_BEGIN f_insert_begin;
+INSERT_ITEM_END f_insert_end;
+INSERT_ITEM f_insert_batch;
+INSERT_ITEM_IMMEDIATELY f_insert;
+MOVE_ITEM_BEGIN f_move_begin;
+MOVE_ITEM_END f_move_end;
+MOVE_ITEM f_move;
+SET_ALL_STORAGE_ITEMS_VALIDITY f_set_all_validity;
+SET_ITEM_VALIDITY_BEGIN f_set_validity_begin;
+SET_ITEM_VALIDITY_END f_set_validity_end;
+SET_ITEM_VALIDITY f_set_validity;
+DELETE_ITEM f_delete;
+DELETE_ALL_ITEMS_IN_STORAGE f_delete_all;
+DELETE_ALL_INVALID_ITMES_IN_STORAGE f_delete_invalid_items;
+UPDATE_BEGIN f_update_begin;
+UPDATE_END f_update_end;
+
+enum func_list {
+	eCHECK,
+	eCONNECT,
+	eDISCONNECT,
+	eEXIST,
+	eINSERT_BEGIN,
+	eINSERT_END,
+	eINSERT_BATCH,
+	eINSERT,
+	eMOVE_BEGIN,
+	eMOVE_END,
+	eMOVE,
+	eSET_ALL_VALIDITY,
+	eSET_VALIDITY_BEGIN,
+	eSET_VALIDITY_END,
+	eSET_VALIDITY,
+	eDELETE,
+	eDELETE_ALL,
+	eDELETE_INVALID_ITEMS,
+	eUPDATE_BEGIN,
+	eUPDATE_END,
+	eFUNC_MAX
+};
+
+static void
+_ms_insert_reg_list(const char *path)
 {
 	char *reg_path = strdup(path);
 
@@ -64,43 +108,45 @@ void _ms_insert_reg_list(const char *path)
 	g_mutex_unlock(list_mutex);
 }
 
-bool _ms_find_reg_list(const char *path)
+static bool
+_ms_find_reg_list(const char *path)
 {
-	int i;
+	int list_index;
 	int len = reg_list->len;
 	char *data;
-	bool ret = false;
+	bool res = false;
 
 	g_mutex_lock(list_mutex);
 	MS_DBG("array length : %d", len);
 
-	for(i = 0; i < len; i++) {
-		data = g_array_index (reg_list, char*, i);
+	for(list_index = 0; list_index < len; list_index++) {
+		data = g_array_index (reg_list, char*, list_index);
 		if(!strcmp(data, path))
-			ret = true;
+			res = true;
 	}
 
 	g_mutex_unlock(list_mutex);
 
-	return ret;
+	return res;
 }
 
-void _ms_delete_reg_list(const char *path)
+static void
+_ms_delete_reg_list(const char *path)
 {
-	int i;
+	int list_index;
 	int len = reg_list->len;
 	char *data;
 
 	MS_DBG("Delete : %s", path);
 	g_mutex_lock(list_mutex);
 
-	for(i = 0; i < len; i++) {
-		data = g_array_index (reg_list, char*, i);
+	for(list_index = 0; list_index < len; list_index++) {
+		data = g_array_index (reg_list, char*, list_index);
 		MS_DBG("%s", data);
 		if(!strcmp(data, path))	{
 			MS_DBG("Delete complete : %s", data);
 			free(data);
-			g_array_remove_index(reg_list, i);
+			g_array_remove_index(reg_list, list_index);
 			break;
 		}
 	}
@@ -108,23 +154,283 @@ void _ms_delete_reg_list(const char *path)
 	g_mutex_unlock(list_mutex);
 }
 
+static int
+_ms_get_mime_in_drm_info(const char *path, char *mime)
+{
+	int ret;
+	drm_content_info_t contentInfo = { 0 };
 
+	if (path == NULL || mime == NULL)
+		return MS_ERR_ARG_INVALID;
+
+	ret = drm_svc_get_content_info(path, &contentInfo);
+	if (ret != DRM_RESULT_SUCCESS) {
+		MS_DBG("drm_svc_get_content_info() fails. ");
+		return MS_ERR_DRM_GET_INFO_FAIL;
+	}
+
+	strncpy(mime, contentInfo.contentType, 100);
+	MS_DBG("DRM contentType : %s", contentInfo.contentType);
+	MS_DBG("DRM mime : %s", mime);
+
+	return MS_ERR_NONE;
+}
+
+static int
+_ms_get_mime(const char *path, char *mimetype)
+{
+	MS_DBG_START();
+
+	int ret = 0;
+
+	if (path == NULL)
+		return MS_ERR_ARG_INVALID;
+
+	/*get content type and mime type from file. */
+	/*in case of drm file. */
+	if (drm_svc_is_drm_file(path) == DRM_TRUE) {
+		DRM_FILE_TYPE drm_type = DRM_FILE_TYPE_NONE;
+		drm_type = drm_svc_get_drm_type(path);
+		if (drm_type == DRM_FILE_TYPE_NONE) {
+			MS_DBG("There is no TYPE");
+			return MS_ERR_DRM_GET_TYPE_FAIL;
+		} else {
+			ret =  _ms_get_mime_in_drm_info(path, mimetype);
+			if (ret != 0) {
+				MS_DBG("Fail to get mime");
+				return ret;
+			}
+		}
+	} else {
+		/*in case of normal files */
+		if (aul_get_mime_from_file(path, mimetype, 255) < 0) {
+			MS_DBG("aul_get_mime_from_file fail");
+			return MS_ERR_ARG_INVALID;
+		}
+	}
+
+	MS_DBG("mime type : %s", mimetype);
+
+	MS_DBG_END();
+
+	return MS_ERR_NONE;
+}
+
+#define CONFIG_PATH "/opt/data/file-manager-service/plugin-config"
+#define EXT ".so"
+#define EXT_LEN 3
+
+GArray *so_array;
+void ***func_array;
+int lib_num;
+
+static int
+_ms_check_category(const char *path, const char *mimetype, int index)
+{
+	int ret;
+	char *err_msg = NULL;
+
+	ret = ((CHECK_ITEM)func_array[index][eCHECK])(path, mimetype, &err_msg);
+	if (ret != 0)
+		free(err_msg);
+
+	return ret;
+}
+
+static int
+_ms_drm_register(const char* path)
+{
+	MS_DBG("THIS IS DRM FILE");
+	int res = MS_ERR_NONE;
+	DRM_RESULT dres;
+
+	ms_inoti_add_ignore_file(path);
+	dres = drm_svc_register_file(path);
+	if (dres != DRM_RESULT_SUCCESS) {
+		MS_DBG("drm_svc_register_file error : %d", res);
+		res = MS_ERR_DRM_REGISTER_FAIL;
+	}
+
+	return res;
+}
+
+static void
+_ms_drm_unregister(const char* path)
+{
+	ms_ignore_file_info *ignore_file;
+
+	drm_svc_unregister_file(path, false);
+
+	ignore_file = ms_inoti_find_ignore_file(path);
+	if (ignore_file != NULL)
+		ms_inoti_delete_ignore_file(ignore_file);
+}
+
+static int
+_ms_token_data(char *buf, char **name)
+{
+	int len;
+	char* pos = NULL;
+
+	pos = strstr(buf, EXT);
+	if (pos == NULL) {
+		MS_DBG("This is not shared object library.");
+		name = NULL;
+		return -1;
+	} else {
+		len = pos - buf + EXT_LEN;
+		*name = strndup(buf, len);
+		MS_DBG("%s", *name);
+	}
+
+	return 0;
+}
+
+
+static bool
+_ms_load_config()
+{
+	char *cret;
+	int ret;
+	FILE *fp;
+	char *so_name = NULL;
+	char buf[256] = {0};
+
+	fp = fopen(CONFIG_PATH, "rt");
+	if (fp == NULL) {
+		MS_DBG("fp is NULL");
+		return MS_ERR_FILE_OPEN_FAIL;
+	}
+	while(1) {
+		cret = fgets(buf, 256, fp);
+		if (cret == NULL)
+			break;
+
+		ret = _ms_token_data(buf, &so_name);
+		if (ret == 0) {
+			/*add to array*/
+			g_array_append_val(so_array, so_name);
+			so_name = NULL;
+		}
+	}
+
+	fclose(fp);
+
+	return MS_ERR_NONE;
+}
 
 int
-ms_media_db_open(MediaSvcHandle **handle)
+ms_load_functions(void)
 {
-	int err;
+	int lib_index = 0, func_index;
+	char func_list[eFUNC_MAX][40] = {
+		"check_item",
+		"connect",
+		"disconnect",
+		"check_item_exist",
+		"insert_item_begin",
+		"insert_item_end",
+		"insert_item",
+		"insert_item_immediately",
+		"move_item_begin",
+		"move_item_end",
+		"move_item",
+		"set_all_storage_items_validity",
+		"set_item_validity_begin",
+		"set_item_validity_end",
+		"set_item_validity",
+		"delete_item",
+		"delete_all_items_in_storage",
+		"delete_all_invalid_items_in_storage",
+		"update_begin",
+		"update_end"
+		};
+	/*init array for adding name of so*/
+	so_array = g_array_new(FALSE, FALSE, sizeof(char*));
+
+	/*load information of so*/
+	_ms_load_config();
+
+	if(so_array->len == 0) {
+		MS_DBG("There is no information for functions");
+		return -1;
+	}
+
+	/*the number of functions*/
+	lib_num = so_array->len;
+
+	MS_DBG("The number of information of so : %d", lib_num);
+	func_handle = malloc(sizeof(void*) * lib_num);
+
+	while(lib_index < lib_num) {
+		/*get handle*/
+		MS_DBG("[name of so : %s]", g_array_index(so_array, char*, lib_index));
+		func_handle[lib_index] = dlopen(g_array_index(so_array, char*, lib_index), RTLD_LAZY);
+		if (!func_handle[lib_index]) {
+			MS_DBG("%s", dlerror());
+			return -1;
+		}
+		lib_index++;
+	}
+
+	dlerror();    /* Clear any existing error */
+
+	/*allocate for array of functions*/
+	func_array = malloc(sizeof(void*) * lib_num);
+	for(lib_index = 0 ; lib_index < lib_num; lib_index ++) {
+		func_array[lib_index] = malloc(sizeof(void*) * eFUNC_MAX);
+	}
+
+	/*add functions to array */
+	for (lib_index = 0; lib_index < lib_num; lib_index++) {
+		for (func_index = 0; func_index < eFUNC_MAX ; func_index++) {
+			func_array[lib_index][func_index] = dlsym(func_handle[lib_index], func_list[func_index]);
+		}
+	}
+
+	MS_DBG("FUNCTIONS LOAD COMPLETE");
+
+	return MS_ERR_NONE;
+}
+
+void
+ms_unload_functions(void)
+{
+	int lib_index, func_index;
+
+	for (lib_index = 0; lib_index < lib_num; lib_index ++)
+		dlclose(func_handle[lib_index]);
+
+	for (lib_index = 0; lib_index < lib_num; lib_index++) {
+		for (func_index = 0; func_index < eFUNC_MAX ; func_index++) {
+			free(func_array[lib_index][func_index]);
+		}
+	}
+
+	free(func_array);
+	free(func_handle);
+	g_array_free(so_array, TRUE);
+}
+
+int
+ms_connect_db(void **handle)
+{
+	int lib_index;
+	int ret;
+	char * err_msg = NULL;
 
 	/*Lock mutex for openning db*/
 	g_mutex_lock(db_mutex);
 
-	err = media_svc_connect(handle);
-	if (err != MEDIA_INFO_ERROR_NONE) {
-		MS_DBG("media_svc_connect() error : %d", err);
+	for (lib_index = 0; lib_index < lib_num; lib_index++) {
+		ret = ((CONNECT)func_array[lib_index][eCONNECT])(handle, &err_msg); /*dlopen*/
+		if (ret != 0) {
+			MS_DBG("error : %s", g_array_index(so_array, char*, lib_index));
+			free(err_msg);
+			g_mutex_unlock(db_mutex);
 
-		g_mutex_unlock(db_mutex);
-
-		return MS_ERR_DB_CONNECT_FAIL;
+			return MS_ERR_DB_CONNECT_FAIL;
+		}
 	}
 
 	MS_DBG("connect Media DB");
@@ -135,14 +441,19 @@ ms_media_db_open(MediaSvcHandle **handle)
 }
 
 int
-ms_media_db_close(MediaSvcHandle *handle)
+ms_disconnect_db(void *handle)
 {
-	int err;
+	int lib_index;
+	int ret;
+	char * err_msg = NULL;
 
-	err = media_svc_disconnect(handle);
-	if (err != MEDIA_INFO_ERROR_NONE) {
-		MS_DBG("media_svc_disconnect() error : %d", err);
-		return MS_ERR_DB_DISCONNECT_FAIL;
+	for (lib_index = 0; lib_index < lib_num; lib_index++) {
+		ret = ((DISCONNECT)func_array[lib_index][eDISCONNECT])(handle, &err_msg); /*dlopen*/
+		if (ret != 0) {
+			MS_DBG("error : %s", g_array_index(so_array, char*, lib_index));
+			free(err_msg);
+			return MS_ERR_DB_DISCONNECT_FAIL;
+		}
 	}
 
 	MS_DBG("Disconnect Media DB");
@@ -151,90 +462,52 @@ ms_media_db_close(MediaSvcHandle *handle)
 }
 
 int
-ms_update_valid_type(MediaSvcHandle *handle, char *path)
+ms_validate_item(void *handle, char *path)
 {
 	MS_DBG_START();
 
+	int lib_index;
 	int res = MS_ERR_NONE;
-	int err;
-	int category = MS_CATEGORY_UNKNOWN;
+	int ret;
+	char *err_msg = NULL;
+	char mimetype[255] = {0};
+	ms_store_type_t storage_type;
 
 	MS_DBG("%s", path);
 
-	err = ms_get_category_from_mime(path, &category);
-	if (err < 0) {
-		MS_DBG("ms_get_category_from_mime fails");
-		return err;
-	}
+	_ms_get_mime(path, mimetype);
+	storage_type = ms_get_store_type_by_full(path);
 
-	/*if music, call mp_svc_set_item_valid() */
-	if (category & MS_CATEGORY_MUSIC || category & MS_CATEGORY_SOUND) {
-		/*check exist in Music DB, If file is not exist, insert data in DB. */
-		err = audio_svc_check_item_exist(handle, path);
-		if (err == AUDIO_SVC_ERROR_DB_NO_RECORD) {
-			MS_DBG("not exist in Music DB. insert data");
-#ifdef THUMB_THREAD
-			err = ms_media_db_insert_with_thumb(handle, path, category);
-#else
-			err = ms_media_db_insert(handle, path, category, true);
-#endif
-			if (err != MS_ERR_NONE) {
-				MS_DBG ("ms_media_db_insert() error %d", err);
-				res = err;
+	for (lib_index = 0; lib_index < lib_num; lib_index++) {
+		if (!_ms_check_category(path, mimetype, lib_index)) {
+			/*check exist in Media DB, If file is not exist, insert data in DB. */
+			ret = ((CHECK_ITEM_EXIST)func_array[lib_index][eEXIST])(handle, path, storage_type, &err_msg); /*dlopen*/
+			if (ret != 0) {
+				MS_DBG("not exist in Music DB. insert data");
+				MS_DBG("error : %s", g_array_index(so_array, char*, lib_index));
+				free(err_msg);
+
+				ret = ms_insert_item_batch(handle, path);
+				if (ret != MS_ERR_NONE) {
+					MS_DBG("error : %s", g_array_index(so_array, char*, lib_index));
+					res = ret;
+				}
+			} else {
+				/*if meta data of file exist, change valid field to "1" */
+				MS_DBG("Item exist");
+
+				ret = ((SET_ITEM_VALIDITY)func_array[lib_index][eSET_VALIDITY])(handle, path, true, mimetype, true, &err_msg); /*dlopen*/
+				if (ret != 0) {
+					MS_DBG("error : %s", g_array_index(so_array, char*, lib_index));
+					free(err_msg);
+					res = MS_ERR_DB_UPDATE_RECORD_FAIL;
+				}
 			}
 		}
-		else if (err == AUDIO_SVC_ERROR_NONE) {
-			/*if meta data of file exist, change valid field to "1" */
-			MS_DBG("Item exist");
-
-			err = audio_svc_set_item_valid(handle, path, true);
-			if (err != AUDIO_SVC_ERROR_NONE)
-				MS_DBG("audio_svc_set_item_valid() error : %d", err);
-		}
-		else
-		{
-			MS_DBG("audio_svc_check_item_exist() error : %d", err);
-			res = MS_ERR_DB_OPERATION_FAIL;
-		}
-	}
-	/*if file is image file, call mb_svc_set_db_item_valid() */
-	else if (category & MS_CATEGORY_VIDEO || category & MS_CATEGORY_IMAGE) {
-		ms_store_type_t store_type;
-		minfo_store_type mb_stroage;
-
-		store_type = ms_get_store_type_by_full(path);
-		mb_stroage = (store_type == MS_MMC) ? MINFO_MMC : MINFO_PHONE;
-
-		err = minfo_set_item_valid(handle, mb_stroage, path, true);
-		if (err != MB_SVC_ERROR_NONE) {
-			MS_DBG("not exist in Media DB. insert data");
-
-			ms_update_valid_type_end(handle);
-
-#ifdef THUMB_THREAD
-			err = ms_media_db_insert_with_thumb(handle, path, category);
-#else
-			err = ms_media_db_insert(handle, path, category, true);
-#endif
-			if (err != MS_ERR_NONE)
-				MS_DBG("ms_media_db_insert() error : %d", err);
-
-			ms_update_valid_type_start(handle);
-		}
-		else {
-			MS_DBG("Item exist");
-		}
 	}
 
-	if (category & MS_CATEGORY_DRM) {
-		DRM_RESULT drm_res;
-
-		ms_inoti_add_ignore_file(path);
-		drm_res = drm_svc_register_file(path);
-		if (drm_res != DRM_RESULT_SUCCESS) {
-			MS_DBG("drm_svc_register_file error : %d", drm_res);
-			res = MS_ERR_DRM_REGISTER_FAIL;
-		}
+	if (drm_svc_is_drm_file(path) == DRM_TRUE) {
+		ret = _ms_drm_register(path);
 	}
 
 	MS_DBG_END();
@@ -243,30 +516,21 @@ ms_update_valid_type(MediaSvcHandle *handle, char *path)
 }
 
 int
-ms_change_valid_type(MediaSvcHandle *handle, ms_store_type_t store_type, bool validation)
+ms_invalidate_all_items(void *handle, ms_store_type_t store_type)
 {
 	MS_DBG_START();
+	int lib_index;
 	int res = MS_ERR_NONE;
-	int err;
+	int ret;
+	char *err_msg = NULL;
 
-	audio_svc_storage_type_e audio_storage;
-	minfo_store_type visual_storage;
-
-	audio_storage = (store_type == MS_PHONE)
-		? AUDIO_SVC_STORAGE_PHONE : AUDIO_SVC_STORAGE_MMC;
-	visual_storage = (store_type == MS_PHONE)
-		? MINFO_PHONE : MINFO_MMC;
-
-	err = audio_svc_set_db_valid(handle, audio_storage, validation);
-	if (err < AUDIO_SVC_ERROR_NONE) {
-		MS_DBG("audio_svc_set_db_valid error :%d", err);
-		res = MS_ERR_DB_OPERATION_FAIL;
-	}
-
-	err = minfo_set_db_valid(handle, visual_storage, validation);
-	if (err < MB_SVC_ERROR_NONE) {
-		MS_DBG("minfo_set_db_valid : error %d", err);
-		res = MS_ERR_DB_OPERATION_FAIL;
+	for (lib_index = 0; lib_index < lib_num; lib_index++) {
+		ret = ((SET_ALL_STORAGE_ITEMS_VALIDITY)func_array[lib_index][eSET_ALL_VALIDITY])(handle, store_type, false, &err_msg); /*dlopen*/
+		if (ret != 0) {
+			MS_DBG("error : %s", g_array_index(so_array, char*, lib_index));
+			free(err_msg);
+			res = MS_ERR_DB_UPDATE_RECORD_FAIL;
+		}
 	}
 
 	MS_DBG_END();
@@ -274,15 +538,14 @@ ms_change_valid_type(MediaSvcHandle *handle, ms_store_type_t store_type, bool va
 	return res;
 }
 
-
 int
-ms_register_file(MediaSvcHandle *handle, const char *path, GAsyncQueue* queue)
+ms_register_file(void *handle, const char *path, GAsyncQueue* queue)
 {
 	MS_DBG_START();
 	MS_DBG("[%d]register file : %s", syscall(__NR_gettid), path);
 
-	int err;
-	int category = MS_CATEGORY_UNKNOWN;
+	int res = MS_ERR_NONE;
+	int ret;
 
 	if (path == NULL) {
 		MS_DBG("path == NULL");
@@ -305,58 +568,36 @@ ms_register_file(MediaSvcHandle *handle, const char *path, GAsyncQueue* queue)
 	}
 	g_mutex_unlock(queue_mutex);
 
-	err = ms_get_category_from_mime(path, &category);
-	if (err != MS_ERR_NONE) {
-		MS_DBG("ms_get_category_from_mime error : %d", err);
-		goto FREE_RESOURCE;
+	ret = ms_insert_item(handle, path);
+	if (ret != MS_ERR_NONE) {
+		MS_DBG("ms_media_db_insert error : %d", ret);
+		int lib_index;
+		char mimetype[255];
+		ms_store_type_t storage_type;
+
+		_ms_get_mime(path, mimetype);
+		storage_type = ms_get_store_type_by_full(path);
+
+		for (lib_index = 0; lib_index < lib_num; lib_index++) {
+			/*check item is already inserted*/
+			if (!_ms_check_category(path, mimetype, lib_index)) {
+				char *err_msg = NULL;
+
+				ret = ((CHECK_ITEM_EXIST)func_array[lib_index][eEXIST])(handle, path, storage_type, &err_msg); /*dlopen*/
+				if (ret == 0) {
+					MS_DBG("Media Item exist");
+					res = MS_ERR_NONE;
+				} else {
+					MS_DBG("error : %s", g_array_index(so_array, char*, lib_index));
+					free(err_msg);
+					res = MS_ERR_DB_INSERT_RECORD_FAIL;
+				}
+			}
+		}
 	}
 
-	if (category <= MS_CATEGORY_ETC) {
-		MS_DBG("This is not media contents");
-		err = MS_ERR_NOT_MEDIA_FILE;
-		goto FREE_RESOURCE;
-	} else {
-#ifdef THUMB_THREAD
-			err = ms_media_db_insert_with_thumb(handle, path, category);
-#else
-			err = ms_media_db_insert(handle, path, category, false);
-#endif
-		if (err != MS_ERR_NONE) {
-			MS_DBG("ms_media_db_insert error : %d", err);
-
-			/*if music, call mp_svc_set_item_valid() */
-			if (category & MS_CATEGORY_MUSIC || category & MS_CATEGORY_SOUND) {
-				/*check exist in Music DB, If file is not exist, insert data in DB. */
-				err = audio_svc_check_item_exist(handle, path);
-				if (err == AUDIO_SVC_ERROR_NONE) {
-					MS_DBG("Audio Item exist");
-					err = MS_ERR_NONE;
-				}
-			} else if (category & MS_CATEGORY_VIDEO || category & MS_CATEGORY_IMAGE) {
-				Mitem *mi = NULL;
-
-				/*get an item based on its url. */
-				err = minfo_get_item(handle, path, &mi);
-				if (err == MB_SVC_ERROR_NONE) {
-					MS_DBG("Visual Item exist");
-					err = MS_ERR_NONE;
-				}
-
-				minfo_destroy_mtype_item(mi);
-			}
-		}
-
-		if (category & MS_CATEGORY_DRM) {
-			MS_DBG("THIS IS DRM FILE");
-			DRM_RESULT res;
-
-			ms_inoti_add_ignore_file(path);
-			res = drm_svc_register_file(path);
-			if (res != DRM_RESULT_SUCCESS) {
-				MS_DBG("drm_svc_register_file error : %d", res);
-				err = MS_ERR_DRM_REGISTER_FAIL;
-			}
-		}
+	if (drm_svc_is_drm_file(path) == DRM_TRUE) {
+		ret = _ms_drm_register(path);
 	}
 
 FREE_RESOURCE:
@@ -365,353 +606,186 @@ FREE_RESOURCE:
 	_ms_delete_reg_list(path);
 
 	if (soc_queue != NULL) {
-		MS_DBG("%d", err);
-		g_async_queue_push(soc_queue, GINT_TO_POINTER(err+MS_ERR_MAX));
+		MS_DBG("%d", res);
+		g_async_queue_push(soc_queue, GINT_TO_POINTER(res+MS_ERR_MAX));
 		MS_DBG("Return OK");
 	}
 	soc_queue = NULL;
 	g_mutex_unlock(queue_mutex);
 	MS_DBG_END();
-	return err;
+	return res;
 }
 
 int
-ms_register_scanfile(MediaSvcHandle *handle, const char *path)
+ms_insert_item_batch(void *handle, const char *path)
 {
 	MS_DBG_START();
-	MS_DBG("register scanfile : %s", path);
 
-	int err = MS_ERR_NONE;
-	int category = MS_CATEGORY_UNKNOWN;
+	int lib_index;
+	int res = MS_ERR_NONE;
+	int ret;
+	char mimetype[255] = {0};
+	char *err_msg = NULL;
+	ms_store_type_t storage_type;
 
-	if (path == NULL) {
-		MS_DBG("path == NULL");
-		return MS_ERR_ARG_INVALID;
-	}
+	MS_DBG("%s", path);
 
-	err = ms_get_category_from_mime(path, &category);
-	if (err != MS_ERR_NONE) {
-		MS_DBG("ms_get_category_from_mime error : %d", err);
-		return err;
-	}
+	_ms_get_mime(path, mimetype);
+	storage_type = ms_get_store_type_by_full(path);
 
-	if (category <= MS_CATEGORY_ETC) {
-		MS_DBG("This is not media contents");
-		return MS_ERR_NOT_MEDIA_FILE;
-	}
-
-	err = ms_media_db_insert(handle, path, category, true);
-	if (err != MS_ERR_NONE) {
-		MS_DBG("ms_media_db_insert error : %d", err);
-	}
-
-	if (category & MS_CATEGORY_DRM) {
-		MS_DBG("THIS IS DRM FILE");
-		DRM_RESULT res;
-
-		ms_inoti_add_ignore_file(path);
-
-		res = drm_svc_register_file(path);
-		if (res != DRM_RESULT_SUCCESS) {
-			MS_DBG("drm_svc_register_file error : %d", err);
-			err = MS_ERR_DRM_REGISTER_FAIL;
+	for (lib_index = 0; lib_index < lib_num; lib_index++) {
+		if (!_ms_check_category(path, mimetype, lib_index)) {
+			ret = ((INSERT_ITEM)func_array[lib_index][eINSERT_BATCH])(handle, path, storage_type, mimetype, &err_msg); /*dlopen*/
+			if (ret != 0) {
+				MS_DBG("error : %s", g_array_index(so_array, char*, lib_index));
+				free(err_msg);
+				res = MS_ERR_DB_INSERT_RECORD_FAIL;
+			}
 		}
 	}
 
+	if (drm_svc_is_drm_file(path) == DRM_TRUE) {
+		ret = _ms_drm_register(path);
+		res = ret;
+	}
+
 	MS_DBG_END();
-	return err;
+	return res;
 }
 
-#ifdef THUMB_THREAD
 int
-ms_media_db_insert_with_thumb(MediaSvcHandle *handle, const char *path, int category)
+ms_insert_item(void *handle, const char *path)
 {
 	MS_DBG_START();
 	MS_DBG("%s", path);
 
-	int ret = MS_ERR_NONE;
-	int err;
-	ms_store_type_t store_type;
-	audio_svc_category_type_e audio_category;
-	minfo_file_type visual_category;
-	audio_svc_storage_type_e storage;
+	int lib_index;
+	int res = MS_ERR_NONE;
+	int ret;
+	char mimetype[255] = {0};
+	char *err_msg = NULL;
+	ms_store_type_t storage_type;
 
-	if (category & MS_CATEGORY_VIDEO ||category & MS_CATEGORY_IMAGE) {
-		visual_category = (category & MS_CATEGORY_IMAGE)
-			? MINFO_ITEM_IMAGE : MINFO_ITEM_VIDEO;
-		err = minfo_add_media(handle, path, visual_category);
-		if (err < 0) {
-			MS_DBG(" minfo_add_media error %d", err);
-			ret = MS_ERR_DB_INSERT_RECORD_FAIL;
+	_ms_get_mime(path, mimetype);
+	storage_type = ms_get_store_type_by_full(path);
+
+	for (lib_index = 0; lib_index < lib_num; lib_index++) {
+		if (!_ms_check_category(path, mimetype, lib_index)) {
+			ret = ((INSERT_ITEM_IMMEDIATELY)func_array[lib_index][eINSERT])(handle, path, storage_type, mimetype, &err_msg); /*dlopen*/
+			if (ret != 0) {
+				MS_DBG("error : %s", g_array_index(so_array, char*, lib_index));
+				free(err_msg);
+				res = MS_ERR_DB_INSERT_RECORD_FAIL;
+			}
+		}
+	}
+
+	MS_DBG_END();
+	return res;
+}
+
+int
+ms_delete_item(void *handle, const char *path)
+{
+	MS_DBG_START();
+
+	int lib_index;
+	int res = MS_ERR_NONE;
+	int ret;
+	char *err_msg = NULL;
+	ms_store_type_t storage_type;
+
+	storage_type = ms_get_store_type_by_full(path);
+	for (lib_index = 0; lib_index < lib_num; lib_index++) {
+		ret = ((CHECK_ITEM_EXIST)func_array[lib_index][eEXIST])(handle, path, storage_type, &err_msg); /*dlopen*/
+		if (ret == 0) {
+			ret = ((DELETE_ITEM)func_array[lib_index][eDELETE])(handle, path, storage_type, &err_msg); /*dlopen*/
+			if (ret !=0 ) {
+				MS_DBG("delete fail");
+				MS_DBG("error : %s", g_array_index(so_array, char*, lib_index));
+				free(err_msg);
+				res = MS_ERR_DB_DELETE_RECORD_FAIL;
+			}
 		} else {
-			char thumb_path[1024];
-
-			err = thumbnail_request_from_db(path, thumb_path, sizeof(thumb_path));
-			if (err < 0) {
-				MS_DBG("thumbnail_request_from_db falied: %d", err);
-			} else {
-				MS_DBG("thumbnail_request_from_db success: %s", thumb_path);
-			}
+			MS_DBG("Item does not exist");
+			MS_DBG("error : %s", g_array_index(so_array, char*, lib_index));
+			free(err_msg);
+			res = MS_ERR_DB_DELETE_RECORD_FAIL;
 		}
-
-		MS_DBG("IMAGE");
-	}
-	else if (category & MS_CATEGORY_SOUND || category & MS_CATEGORY_MUSIC) {
-		store_type = ms_get_store_type_by_full(path);
-
-		storage = (store_type == MS_MMC)
-			? AUDIO_SVC_STORAGE_MMC : AUDIO_SVC_STORAGE_PHONE;
-		audio_category = (category & MS_CATEGORY_SOUND)
-			? AUDIO_SVC_CATEGORY_SOUND : AUDIO_SVC_CATEGORY_MUSIC;
-
-		err = audio_svc_insert_item(handle, storage, path, audio_category);
-		if (err < 0) {
-			MS_DBG("mp_svc_insert_item fails error %d", err);
-			ret = MS_ERR_DB_INSERT_RECORD_FAIL;
-		}
-		MS_DBG("SOUND");
 	}
 
-	MS_DBG_END();
-	return ret;
-}
-#endif
-
-int
-ms_media_db_insert(MediaSvcHandle *handle, const char *path, int category, bool bulk)
-{
-	MS_DBG_START();
-	MS_DBG("%s", path);
-
-	int ret = MS_ERR_NONE;
-	int err;
-	ms_store_type_t store_type;
-	audio_svc_category_type_e audio_category;
-	minfo_file_type visual_category;
-	audio_svc_storage_type_e storage;
-
-	if (category & MS_CATEGORY_VIDEO ||category & MS_CATEGORY_IMAGE) {
-		visual_category = (category & MS_CATEGORY_IMAGE)
-			? MINFO_ITEM_IMAGE : MINFO_ITEM_VIDEO;
-		if(bulk)
-			err = minfo_add_media_batch(handle, path, visual_category);
-		else
-			err = minfo_add_media(handle, path, visual_category);
-		if (err < 0) {
-			MS_DBG(" minfo_add_media error %d", err);
-			ret = MS_ERR_DB_INSERT_RECORD_FAIL;
-		}
-#ifndef THUMB_THREAD
-		else {
-			char thumb_path[1024];
-
-			err = thumbnail_request_from_db(path, thumb_path, sizeof(thumb_path));
-			if (err < 0) {
-				MS_DBG("thumbnail_request_from_db falied: %d", err);
-			} else {
-				MS_DBG("thumbnail_request_from_db success: %s", thumb_path);
-			}
-#endif
-		}
-
-		MS_DBG("IMAGE");
-	}
-	else if (category & MS_CATEGORY_SOUND || category & MS_CATEGORY_MUSIC) {
-		store_type = ms_get_store_type_by_full(path);
-
-		storage = (store_type == MS_MMC)
-			? AUDIO_SVC_STORAGE_MMC : AUDIO_SVC_STORAGE_PHONE;
-		audio_category = (category & MS_CATEGORY_SOUND)
-			? AUDIO_SVC_CATEGORY_SOUND : AUDIO_SVC_CATEGORY_MUSIC;
-
-		err = audio_svc_insert_item(handle, storage, path, audio_category);
-		if (err < 0) {
-			MS_DBG("mp_svc_insert_item fails error %d", err);
-			ret = MS_ERR_DB_INSERT_RECORD_FAIL;
-		}
-		MS_DBG("SOUND");
-	}
-
-	MS_DBG_END();
-	return ret;
-}
-
-
-
-int
-ms_check_file_exist_in_db(MediaSvcHandle *handle, const char *path)
-{
-	int err;
-	int category;
-
-	/*get an item based on its url. */
-	err = minfo_check_item_exist(handle, path);
-	if (err != MS_ERR_NONE) {
-		err = audio_svc_check_item_exist(handle, path);
-		if (err != MS_ERR_NONE)
-			category = MS_CATEGORY_UNKNOWN;
-		else
-			category = MS_CATEGORY_MUSIC;
-	} else {
-		category = MS_CATEGORY_IMAGE;
-	}
-
-	MS_DBG("Category : %d", category);
-
-	return category;
-}
-
-int
-ms_media_db_delete(MediaSvcHandle *handle, const char *path)
-{
-	MS_DBG_START();
-	int ret = MS_ERR_NONE;
-	int category;
-	ms_ignore_file_info *ignore_file;
-
-	category = ms_check_file_exist_in_db(handle, path);
-
-	if (category & MS_CATEGORY_VIDEO || category & MS_CATEGORY_IMAGE) {
-		ret = minfo_delete_media(handle, path);
-		if (ret != MS_ERR_NONE) {
-			MS_DBG("minfo_delete_media error : %d", ret);
-			return ret;
-		}
-		MS_DBG("VIDEO or IMAGE");
-	} else if (category & MS_CATEGORY_MUSIC || category & MS_CATEGORY_SOUND) {
-		ret = audio_svc_delete_item_by_path(handle, path);
-		if (ret != MS_ERR_NONE) {
-			MS_DBG("audio_svc_delete_item_by_path error : %d", ret);
-			return ret;
-		}
-		MS_DBG("MUSIC or SOUND");
-	}
-
-	drm_svc_unregister_file(path, false);
-
-	ignore_file = ms_inoti_find_ignore_file(path);
-	if (ignore_file != NULL)
-		ms_inoti_delete_ignore_file(ignore_file);
+	_ms_drm_unregister(path);
 
 	MS_DBG_END();
 
-	return ret;
+	return res;
 }
 
 int
-ms_media_db_move(MediaSvcHandle *handle,
+ms_move_item(void *handle,
 		ms_store_type_t src_store, ms_store_type_t dst_store,
 		const char *src_path, const char *dst_path)
 {
 	MS_DBG_START();
+	int lib_index;
+	int res = MS_ERR_NONE;
+	int ret;
+	char mimetype[255];
+	char *err_msg = NULL;
 
-	int category = MS_CATEGORY_UNKNOWN;
-	minfo_file_type visual_category;
-	audio_svc_storage_type_e dst_storage;
-	audio_svc_storage_type_e src_storage;
-	int ret = 0;
-
-	ret = ms_get_category_from_mime(dst_path, &category);
-	if (ret != MS_ERR_NONE) {
-		MS_DBG("ms_get_category_from_mime error %d", ret);
-		return ret;
-	}
-
-	MS_DBG("category = %d", category);
-
-	if (category & MS_CATEGORY_IMAGE || category & MS_CATEGORY_VIDEO) {
-		visual_category = (category & MS_CATEGORY_IMAGE) ? MINFO_ITEM_IMAGE : MINFO_ITEM_VIDEO;
-		ret = minfo_move_media(handle, src_path, dst_path, visual_category);
-		if (ret != MB_SVC_ERROR_NONE) {
-			MS_DBG("minfo_move_media error : %d", ret);
-			return ret;
-		}
-		MS_DBG("VISUAL");
-	} else if (category & MS_CATEGORY_MUSIC || category & MS_CATEGORY_SOUND) {
-		src_storage = (src_store == MS_MMC) ? AUDIO_SVC_STORAGE_MMC : AUDIO_SVC_STORAGE_PHONE;
-		dst_storage = (dst_store == MS_MMC) ? AUDIO_SVC_STORAGE_MMC : AUDIO_SVC_STORAGE_PHONE;
-
-		ret = audio_svc_move_item(handle, src_storage, src_path, dst_storage, dst_path);
-		if (ret < 0) {
-			MS_DBG("mp_svc_move_item error : %d", ret);
-			if (ret == AUDIO_SVC_ERROR_DB_NO_RECORD) {
-				MS_DBG(" This is a new file, Add DB");
-				/*if source file does not exist in DB, it is new file. */
-
-				ret = ms_register_file(handle, dst_path, NULL);
-
-				if (ret != MS_ERR_NONE) {
-					MS_DBG("ms_register_file error : %d", ret);
-					return MS_ERR_DB_INSERT_RECORD_FAIL;
-				}
+	_ms_get_mime(dst_path, mimetype);
+	for (lib_index = 0; lib_index < lib_num; lib_index++) {
+		if (!_ms_check_category(dst_path, mimetype, lib_index)) {
+			ret = ((MOVE_ITEM)func_array[lib_index][eMOVE])(handle, src_path, src_store,
+							dst_path, dst_store, mimetype, &err_msg); /*dlopen*/
+			if (ret != 0) {
+				MS_DBG("error : %s", g_array_index(so_array, char*, lib_index));
+				free(err_msg);
+				res = MS_ERR_DB_UPDATE_RECORD_FAIL;
 			}
-
-			return ret;
 		}
-		MS_DBG("AUDIO");
 	}
 
 	MS_DBG_END();
 
-	return ret;
+	return res;
 }
 
 bool
-ms_delete_all_record(MediaSvcHandle *handle, ms_store_type_t store_type)
+ms_delete_all_items(void *handle, ms_store_type_t store_type)
 {
 	MS_DBG_START();
-	int err = 0;
-	minfo_store_type visual_storage;
-	audio_svc_storage_type_e audio_storage;
-
-	visual_storage = (store_type == MS_PHONE) ? MINFO_PHONE : MINFO_MMC;
-	audio_storage = (store_type == MS_PHONE) ? AUDIO_SVC_STORAGE_PHONE : AUDIO_SVC_STORAGE_MMC;
+	int lib_index;
+	int ret = 0;
+	char *err_msg = NULL;
 
 	/* To reset media db when differnet mmc is inserted. */
-	err = audio_svc_delete_all(handle, audio_storage);
-	if (err != AUDIO_SVC_ERROR_NONE) {
-		MS_DBG("audio_svc_delete_all error : %d\n", err);
-#if 0 /*except temporary*/
-		return false;
-#endif
+	for (lib_index = 0; lib_index < lib_num; lib_index++) {
+		ret = ((DELETE_ALL_ITEMS_IN_STORAGE)func_array[lib_index][eDELETE_ALL])(handle, store_type, &err_msg); /*dlopen*/
+		if (ret != 0) {
+			MS_DBG("error : %s", g_array_index(so_array, char*, lib_index));
+			free(err_msg);
+			return false;
+		}
 	}
-
-	err = minfo_delete_all_media_records(handle, visual_storage);
-	if (err != MB_SVC_ERROR_NONE) {
-		MS_DBG("minfo_delete_all_media_records error : %d\n", err);
-		return false;
-	}
-
 	MS_DBG_END();
-
 	return true;
 }
 
-
 bool
-ms_delete_invalid_records(MediaSvcHandle *handle, ms_store_type_t store_type)
+ms_delete_invalid_items(void *handle, ms_store_type_t store_type)
 {
 	MS_DBG_START();
-	int err;
-	
-	minfo_store_type visual_storage;
-	audio_svc_storage_type_e audio_storage;
-
-	visual_storage = (store_type == MS_PHONE) ? MINFO_PHONE : MINFO_MMC;
-	audio_storage = (store_type == MS_PHONE) ? AUDIO_SVC_STORAGE_PHONE : AUDIO_SVC_STORAGE_MMC;
-
-	err = audio_svc_delete_invalid_items(handle, audio_storage);
-	if (err != AUDIO_SVC_ERROR_NONE) {
-		MS_DBG("audio_svc_delete_invalid_items error : %d\n", err);
-#if 0 /*except temporary*/
-		return false;
-#endif
-	}
-
-	err = minfo_delete_invalid_media_records(handle, visual_storage);
-	if (err != MB_SVC_ERROR_NONE) {
-		MS_DBG("minfo_delete_invalid_media_records error : %d\n", err);
-		return false;
+	int lib_index;
+	int ret;
+	char *err_msg = NULL;
+	for (lib_index = 0; lib_index < lib_num; lib_index++) {
+		ret = ((DELETE_ALL_INVALID_ITMES_IN_STORAGE)func_array[lib_index][eDELETE_INVALID_ITEMS])(handle, store_type, &err_msg); /*dlopen*/
+		if (ret != 0) {
+			MS_DBG("error : %s", g_array_index(so_array, char*, lib_index));
+			free(err_msg);
+			return false;
+		}
 	}
 
 	MS_DBG_END();
@@ -724,43 +798,97 @@ FOR BULK COMMIT
 *****************************************************************************************************/
 
 void
-ms_register_start(MediaSvcHandle *handle)
+ms_register_start(void *handle)
 {
-	minfo_add_media_start(handle, MS_REGISTER_COUNT);
-	audio_svc_insert_item_start(handle, MS_REGISTER_COUNT);
+	int lib_index;
+	int ret = 0;
+	char *err_msg = NULL;
+
+	for (lib_index = 0; lib_index < lib_num; lib_index++) {
+		ret = ((INSERT_ITEM_BEGIN)func_array[lib_index][eINSERT_BEGIN])(handle, MS_REGISTER_COUNT, &err_msg);/*dlopen*/
+		if (ret != 0) {
+			MS_DBG("error : %s", g_array_index(so_array, char*, lib_index));
+			free(err_msg);
+		}
+	}
 }
 
 void
-ms_register_end(MediaSvcHandle *handle)
+ms_register_end(void *handle)
 {
-	minfo_add_media_end(handle);
-	audio_svc_insert_item_end(handle);
+	int lib_index;
+	int ret = 0;
+	char *err_msg = NULL;
+
+	for (lib_index = 0; lib_index < lib_num; lib_index++) {
+		ret = ((INSERT_ITEM_END)func_array[lib_index][eINSERT_END])(handle, &err_msg);/*dlopen*/
+		if (ret != 0) {
+			MS_DBG("error : %s", g_array_index(so_array, char*, lib_index));
+			free(err_msg);
+		}
+	}
 }
 
 void
-ms_update_valid_type_start(MediaSvcHandle *handle)
+ms_validate_start(void *handle)
 {
-	audio_svc_set_item_valid_start(handle, MS_VALID_COUNT);
-	minfo_set_item_valid_start(handle, MS_VALID_COUNT);
+	int lib_index;
+	int ret = 0;
+	char *err_msg = NULL;
+
+	for (lib_index = 0; lib_index < lib_num; lib_index++) {
+		ret = ((SET_ITEM_VALIDITY_BEGIN)func_array[lib_index][eSET_VALIDITY_BEGIN])(handle, MS_VALID_COUNT, &err_msg);/*dlopen*/
+		if (ret != 0) {
+			MS_DBG("error : %s", g_array_index(so_array, char*, lib_index));
+			free(err_msg);
+		}
+	}
 }
 
 void
-ms_update_valid_type_end(MediaSvcHandle *handle)
+ms_validate_end(void *handle)
 {
-	audio_svc_set_item_valid_end(handle);
-	minfo_set_item_valid_end(handle);
+	int lib_index;
+	int ret = 0;
+	char *err_msg = NULL;
+
+	for (lib_index = 0; lib_index < lib_num; lib_index++) {
+		ret = ((SET_ITEM_VALIDITY_END)func_array[lib_index][eSET_VALIDITY_END])(handle, &err_msg);/*dlopen*/
+		if (ret != 0) {
+			MS_DBG("error : %s", g_array_index(so_array, char*, lib_index));
+			free(err_msg);
+		}
+	}
 }
 
 void
-ms_media_db_move_start(MediaSvcHandle *handle)
+ms_move_start(void *handle)
 {
-	audio_svc_move_item_start(handle, MS_MOVE_COUNT);
-	minfo_move_media_start(handle, MS_MOVE_COUNT);
+	int lib_index;
+	int ret = 0;
+	char *err_msg = NULL;
+
+	for (lib_index = 0; lib_index < lib_num; lib_index++) {
+		ret = ((MOVE_ITEM_BEGIN)func_array[lib_index][eMOVE_BEGIN])(handle, MS_MOVE_COUNT, &err_msg);/*dlopen*/
+		if (ret != 0) {
+			MS_DBG("error : %s", g_array_index(so_array, char*, lib_index));
+			free(err_msg);
+		}
+	}
 }
 
 void
-ms_media_db_move_end(MediaSvcHandle *handle)
+ms_move_end(void *handle)
 {
-       audio_svc_move_item_end(handle);
-	minfo_move_media_end(handle);
+	int lib_index;
+	int ret = 0;
+	char *err_msg = NULL;
+
+	for (lib_index = 0; lib_index < lib_num; lib_index++) {
+	       ret = ((MOVE_ITEM_END)func_array[lib_index][eMOVE_END])(handle, &err_msg);/*dlopen*/
+	   	if (ret != 0) {
+			MS_DBG("error : %s", g_array_index(so_array, char*, lib_index));
+			free(err_msg);
+		}
+	}
 }

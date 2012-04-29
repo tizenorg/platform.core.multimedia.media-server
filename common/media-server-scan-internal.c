@@ -27,7 +27,6 @@
  * @version	1.0
  * @brief
  */
-
 #include <vconf.h>
 
 #include "media-server-utils.h"
@@ -244,9 +243,9 @@ FREE_RESOURCES:
 }
 
 #ifdef PROGRESS
-void _ms_dir_scan(MediaSvcHandle *handle, ms_scan_data_t * scan_data, struct quickpanel *ms_quickpanel)
+void _ms_dir_scan(void *handle, ms_scan_data_t * scan_data, struct quickpanel *ms_quickpanel)
 #else
-void _ms_dir_scan(MediaSvcHandle *handle, ms_scan_data_t * scan_data)
+void _ms_dir_scan(void *handle, ms_scan_data_t * scan_data)
 #endif
 {
 	MS_DBG_START();
@@ -264,7 +263,7 @@ void _ms_dir_scan(MediaSvcHandle *handle, ms_scan_data_t * scan_data)
 	if (scan_data->db_type == MS_PHONE)
 		err = ms_strcopy(path, sizeof(path), "%s", MS_PHONE_ROOT_PATH);
 	else
-		err =  ms_strcopy(path, sizeof(path), "%s", MS_MMC_ROOT_PATH);
+		err = ms_strcopy(path, sizeof(path), "%s", MS_MMC_ROOT_PATH);
 
 	if (err < MS_ERR_NONE) {
 		MS_DBG("fail ms_strcopy");
@@ -300,7 +299,7 @@ void _ms_dir_scan(MediaSvcHandle *handle, ms_scan_data_t * scan_data)
 #endif
 		if (scan_data->scan_type == MS_SCAN_PART) {
 			/*enable bundle commit*/
-			ms_update_valid_type_start(handle);
+			ms_validate_start(handle);
 		}
 
 		while (node != NULL) {
@@ -350,9 +349,9 @@ void _ms_dir_scan(MediaSvcHandle *handle, ms_scan_data_t * scan_data)
 							}
 
 							if (scan_data->scan_type == MS_SCAN_PART)	
-								err = ms_update_valid_type(handle,path);
+								err = ms_validate_item(handle,path);
 							else
-								err = ms_register_scanfile(handle, path);
+								err = ms_insert_item_batch(handle, path);
 
 							if (err < 0) {
 								MS_DBG("failed to update db : %d , %d\n", err, scan_data->scan_type);
@@ -379,9 +378,9 @@ void _ms_dir_scan(MediaSvcHandle *handle, ms_scan_data_t * scan_data)
 
 		if (scan_data->scan_type == MS_SCAN_PART) {
 			/*disable bundle commit*/
-			ms_update_valid_type_end(handle);
+			ms_validate_end(handle);
 
-			ms_delete_invalid_records(handle, scan_data->db_type);
+			ms_delete_invalid_items(handle, scan_data->db_type);
 		}
 	} else {
 		node = first_inoti_node;

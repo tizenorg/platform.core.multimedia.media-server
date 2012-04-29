@@ -36,7 +36,7 @@ extern int inoti_fd;
 ms_dir_data *first_inoti_node;
 ms_ignore_file_info *latest_ignore_file;
 
-int _ms_inoti_directory_scan_and_register_file(MediaSvcHandle *handle, char *dir_path)
+int _ms_inoti_directory_scan_and_register_file(void *handle, char *dir_path)
 {
 	MS_DBG_START();
 	struct dirent ent;
@@ -89,7 +89,7 @@ int _ms_inoti_directory_scan_and_register_file(MediaSvcHandle *handle, char *dir
 	return 0;
 }
 
-int _ms_inoti_scan_renamed_folder(MediaSvcHandle *handle, char *org_path, char *chg_path)
+int _ms_inoti_scan_renamed_folder(void *handle, char *org_path, char *chg_path)
 {
 	if (org_path == NULL || chg_path == NULL) {
 		MS_DBG("Parameter is wrong");
@@ -148,7 +148,7 @@ int _ms_inoti_scan_renamed_folder(MediaSvcHandle *handle, char *org_path, char *
 
 			if ((src_storage != MS_ERR_INVALID_FILE_PATH)
 			    && (des_storage != MS_ERR_INVALID_FILE_PATH))
-				ms_media_db_move(handle, src_storage, des_storage, path_from, path_to);
+				ms_move_item(handle, src_storage, des_storage, path_from, path_to);
 			else {
 				MS_DBG("ms_get_store_type_by_full error");
 			}
@@ -295,27 +295,36 @@ void ms_inoti_add_watch(char *path)
 
 	/*there is no same path. */
 	current_dir = malloc(sizeof(ms_dir_data));
-	current_dir->name = strdup(path);
 	current_dir->wd = inotify_add_watch(inoti_fd, path,
 			      IN_CLOSE_WRITE | IN_CREATE | IN_DELETE |
 			      IN_MOVED_FROM | IN_MOVED_TO);
-	current_dir->next = NULL;
 
-	if (first_inoti_node == NULL) {
-		first_inoti_node = current_dir;
+	if (current_dir->wd > 0) {
+		MS_DBG("wd : %d", current_dir->wd);
+
+		current_dir->name = strdup(path);
+		current_dir->next = NULL;
+
+		if (first_inoti_node == NULL) {
+			first_inoti_node = current_dir;
+		} else {
+			/*if next node of current node is NULL, it is the lastest node. */
+			MS_DBG("last_node : %s", prv_node->name);
+			prv_node->next = current_dir;
+		}
+
+		MS_DBG("add watch : %s", path);
 	} else {
-		/*if next node of current node is NULL, it is the lastest node. */
-		MS_DBG("last_node : %s", prv_node->name);
-		prv_node->next = current_dir;
+		MS_DBG("wd : %d", current_dir->wd);
+		free(current_dir);
 	}
-
-	MS_DBG("add watch : %s", path);
 }
 
 int ms_inoti_add_watch_with_node(ms_dir_scan_info * const node)
 {
 	char full_path[MS_FILE_PATH_LEN_MAX] = { 0 };
 	ms_dir_data *current_dir = NULL;
+	ms_dir_data *prv_node = NULL;
 	ms_dir_data *last_node = NULL;
 
 	ms_get_full_path_from_node(node, full_path);
@@ -323,33 +332,39 @@ int ms_inoti_add_watch_with_node(ms_dir_scan_info * const node)
 	/*find same folder */
 	if (first_inoti_node != NULL) {
 		last_node = first_inoti_node;
-		while (last_node->next != NULL) {
+		while (last_node != NULL) {
 			if (strcmp(full_path, last_node->name) == 0) {
 				MS_DBG("watch is already added: %s", full_path);
 				return MS_ERR_NONE;
 			}
+			prv_node = last_node;
 			last_node = last_node->next;
 		}
 	}
 
 	/*there is no same path. */
 	current_dir = malloc(sizeof(ms_dir_data));
-	current_dir->name = strdup(full_path);
-	current_dir->wd =
-	    inotify_add_watch(inoti_fd, full_path,
+	current_dir->wd = inotify_add_watch(inoti_fd, full_path,
 			      IN_CLOSE_WRITE | IN_CREATE | IN_DELETE |
 			      IN_MOVED_FROM | IN_MOVED_TO);
-	current_dir->next = NULL;
-	current_dir->db_updated = false;
+	if( current_dir->wd > 0) {
+		MS_DBG("wd : %d", current_dir->wd);
+		current_dir->name = strdup(full_path);
+		current_dir->next = NULL;
+		current_dir->db_updated = false;
 
-	if (first_inoti_node == NULL) {
-		first_inoti_node = current_dir;
+		if (first_inoti_node == NULL) {
+			first_inoti_node = current_dir;
+		} else {
+			/*if next node of current node is NULL, it is the lastest node. */
+			MS_DBG("last_node : %s", prv_node->name);
+			prv_node->next = current_dir;
+		}
+		MS_DBG("add watch : %s", full_path);
 	} else {
-		/*if next node of current node is NULL, it is the lastest node. */
-		MS_DBG("last_node : %s", last_node->name);
-		last_node->next = current_dir;
+		MS_DBG("wd : %d", current_dir->wd);
+		free(current_dir);
 	}
-	MS_DBG("add watch : %s", full_path);
 
 	return MS_ERR_NONE;
 }
@@ -432,6 +447,7 @@ void ms_inoti_remove_watch(char *path)
 
 void ms_inoti_modify_watch(char *path_from, char *path_to)
 {
+	bool find = false;
 	ms_dir_data *mod_node;
 
 	if (strcmp(first_inoti_node->name, path_from) == 0) {
@@ -440,10 +456,23 @@ void ms_inoti_modify_watch(char *path_from, char *path_to)
 		/*find same folder */
 		if (first_inoti_node != NULL) {
 			mod_node = first_inoti_node;
-			while (mod_node->next != NULL) {
-				if (strcmp(path_from, mod_node->name) == 0) {
-					MS_DBG("find change node: %s",
-					       mod_node->name);
+			while (mod_node != NULL) {
+				/*find previous directory*/
+				if (strcmp(path_from, mod_node->name) == 0) { 
+					MS_DBG("find change node: %s", mod_node->name);
+					MS_DBG("new name : %s", path_to);
+					/*change path of directory*/
+					/*free previous name of node */
+					free(mod_node->name);
+					mod_node->name = NULL;
+
+					/*add new name */
+					mod_node->name = strdup(path_to);
+
+					/*active flush */
+					malloc_trim(0);
+
+					find = true;
 					break;
 				}
 				mod_node = mod_node->next;
@@ -451,17 +480,12 @@ void ms_inoti_modify_watch(char *path_from, char *path_to)
 		}
 	}
 
-	/*free previous name of node */
-	free(mod_node->name);
-	mod_node->name = NULL;
-
-	/*add new name */
-	mod_node->name = strdup(path_to);
-
-	/*active flush */
-	malloc_trim(0);
+	/*this is new directory*/
+	if (find == false) {
+		MS_DBG("This is new directory");
+		ms_inoti_add_watch(path_to);
+	}
 }
-
 
 gboolean ms_inoti_thread(void *data)
 {
@@ -476,11 +500,11 @@ gboolean ms_inoti_thread(void *data)
 	char buffer[INOTI_BUF_LEN] = { 0 };
 	char path[MS_FILE_PATH_LEN_MAX] = { 0 };
 	struct inotify_event *event;
-	MediaSvcHandle *handle = NULL;
+	void *handle = NULL;
 
 	MS_DBG("START INOTIFY");
 
-	err = ms_media_db_open(&handle);
+	err = ms_connect_db(&handle);
 	if (err != MS_ERR_NONE) {
 		MS_DBG(" INOTIFY : sqlite3_open: ret = %d", err);
 		return false;
@@ -504,7 +528,7 @@ gboolean ms_inoti_thread(void *data)
 				/*file operation is end*/
 				/* announce db is updated*/
 				ms_set_db_status(MS_DB_UPDATED);
-				rmdir("/opt/media/_FILEOPERATION_END");
+				rmdir("/opt/data/file-manager-service/_FILEOPERATION_END");
 				goto NEXT_INOTI_EVENT;
 			} else if (event->name[0] == '.') {
 				/*event of hidden folder is ignored */
@@ -559,13 +583,13 @@ gboolean ms_inoti_thread(void *data)
 							goto NEXT_INOTI_EVENT;
 						}
 						/*enable bundle commit*/
-						ms_media_db_move_start(handle);
+						ms_move_start(handle);
 
 						/*need update file information under renamed directory */
 						_ms_inoti_scan_renamed_folder(handle, full_path_from, path);
 
 						/*disable bundle commit*/
-						ms_media_db_move_end(handle);
+						ms_move_end(handle);
 
 						prev_mask = prev_wd = 0;	/*reset */
 					}
@@ -587,7 +611,7 @@ gboolean ms_inoti_thread(void *data)
 					if (event->mask & IN_MOVED_FROM) {
 						MS_DBG("MOVED_FROM");
 
-						err = ms_media_db_delete(handle, path);
+						err = ms_delete_item(handle, path);
 						if (err != MS_ERR_NONE) {
 							MS_DBG("ms_media_db_delete fail error : %d", err);
 						}
@@ -608,7 +632,7 @@ gboolean ms_inoti_thread(void *data)
 					else if (event->mask & IN_DELETE) {
 						MS_DBG("DELETE");
 						
-						err = ms_media_db_delete(handle, path);
+						err = ms_delete_item(handle, path);
 						if (err != MS_ERR_NONE) {
 							MS_DBG("ms_media_db_delete error : %d", err);
 						}
@@ -635,7 +659,7 @@ gboolean ms_inoti_thread(void *data)
 
 							ignore_file = ms_inoti_find_ignore_file(path);
 							if (ignore_file == NULL) {
-								err = ms_media_db_delete(handle, path);
+								err = ms_delete_item(handle, path);
 								if (err != MS_ERR_NONE) {
 									MS_DBG("ms_media_db_delete error : %d", err);
 								}
@@ -674,7 +698,7 @@ gboolean ms_inoti_thread(void *data)
 
 	close(inoti_fd);
 
-	err = ms_media_db_close(handle);
+	err = ms_disconnect_db(handle);
 	if (err != MS_ERR_NONE) {
 		MS_DBG("ms_media_db_close error : %d", err);
 		return false;

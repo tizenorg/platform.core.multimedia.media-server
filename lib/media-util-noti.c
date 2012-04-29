@@ -28,9 +28,12 @@
  * @brief
  */
 
+#include <sys/errno.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <string.h>
 
+#include "media-util-dbg.h"
 #include "media-util-err.h"
 #include "media-util-internal.h"
 #include "media-util-noti.h"
@@ -42,6 +45,7 @@
 
 	ret = mkdir(MS_MEDIA_UPDATE_NOTI_PATH, 0777);
 	if (ret != 0) {
+		MSAPI_DBG("%s", strerror(errno));
 		err = MS_MEDIA_ERR_OCCURRED;
 	}
 

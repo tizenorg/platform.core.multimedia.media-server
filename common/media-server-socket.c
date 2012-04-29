@@ -31,13 +31,12 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <media-util-err.h>
-#include <media-svc.h>
 
 #include "media-server-global.h"
 #include "media-server-db-svc.h"
 #include "media-server-socket.h"
 
-#define MINFO_REGISTER_PORT 1001
+#define MS_REGISTER_PORT 1001
 
 GAsyncQueue* ret_queue;
 
@@ -47,9 +46,9 @@ gboolean ms_socket_thread(void *data)
 	int err;
 	int state;
 	int sockfd;
-	int send_msg = MEDIA_INFO_ERROR_NONE;
+	int send_msg = MS_MEDIA_ERR_NONE;
 	int client_addr_size;
-	MediaSvcHandle *handle = NULL;
+	void *handle = NULL;
 
 	struct sockaddr_in server_addr;
 	struct sockaddr_in client_addr;
@@ -67,7 +66,7 @@ gboolean ms_socket_thread(void *data)
 
 	memset(&server_addr, 0, sizeof(server_addr));
 	server_addr.sin_family = AF_INET;
-	server_addr.sin_port = htons(MINFO_REGISTER_PORT);
+	server_addr.sin_port = htons(MS_REGISTER_PORT);
 	server_addr.sin_addr.s_addr = htonl(INADDR_ANY);
 
 	state = bind(sockfd, (struct sockaddr*)&server_addr, sizeof(server_addr));
@@ -78,7 +77,7 @@ gboolean ms_socket_thread(void *data)
 		return MS_ERR_SOCKET_BIND;
 	}
 
-	err = ms_media_db_open(&handle);
+	err = ms_connect_db(&handle);
 	if (err != MS_ERR_NONE) {
 		MS_DBG("SOCKET : sqlite3_open: ret = %d", err);
 		return false;
@@ -136,7 +135,7 @@ NEXT:
 	close(sockfd);
 	MS_DBG("END SOCKET THREAD");
 
-	err = ms_media_db_close(handle);
+	err = ms_disconnect_db(handle);
 	if (err != MS_ERR_NONE) {
 		MS_DBG("ms_media_db_close error : %d", err);
 		return false;

@@ -34,8 +34,6 @@
 #ifdef PROGRESS
 #include <quickpanel.h>
 #endif
-#include <aul/aul.h>
-#include <mmf/mm_file.h>
 
 #include "media-server-inotify.h"
 #include "media-server-utils.h"
@@ -466,129 +464,6 @@ ms_config_set_str(const char *key, const char *value)
 		MS_DBG("fail to vconf_set_str %d", err);
 
 	return false;
-}
-
-static int
-_ms_get_mime_by_drm_info(const char *path, char *mime)
-{
-	int res;
-	drm_content_info_t contentInfo = { 0 };
-
-	if (path == NULL || mime == NULL)
-		return MS_ERR_ARG_INVALID;
-
-	res = drm_svc_get_content_info(path, &contentInfo);
-	if (res != DRM_RESULT_SUCCESS) {
-		MS_DBG("drm_svc_get_content_info() fails. ");
-		return MS_ERR_DB_OPERATION_FAIL;
-	}
-
-	strncpy(mime, contentInfo.contentType, MS_DRM_CONTENT_TYPE_LENGTH);
-	MS_DBG("DRM contentType : %s", contentInfo.contentType);
-	MS_DBG("DRM mime : %s", mime);
-
-	return MS_ERR_NONE;
-}
-
-int
-ms_get_category_from_mime(const char *path, int *category)
-{
-	int i = 0;
-	int err = 0;
-	char mimetype[MIME_TYPE_LENGTH];
-
-	if (path == NULL || category == NULL)
-		return MS_ERR_ARG_INVALID;
-
-	*category = MS_CATEGORY_UNKNOWN;
-
-	/*get content type and mime type from file. */
-	/*in case of drm file. */
-	if (drm_svc_is_drm_file(path) == DRM_TRUE) {
-		DRM_FILE_TYPE drm_type = DRM_FILE_TYPE_NONE;
-		drm_type = drm_svc_get_drm_type(path);
-		if (drm_type == DRM_FILE_TYPE_NONE) {
-			*category = MS_CATEGORY_UNKNOWN;
-			return err;
-		} 
-		else {
-			err =  _ms_get_mime_by_drm_info(path, mimetype);
-			if (err < 0) {
-				*category = MS_CATEGORY_UNKNOWN;
-				return err;
-			}
-			*category |= MS_CATEGORY_DRM;
-		}
-	} 
-	else {
-		/*in case of normal files */
-		if (aul_get_mime_from_file(path, mimetype, sizeof(mimetype)) < 0) {
-			MS_DBG("aul_get_mime_from_file fail");
-			*category = MS_CATEGORY_UNKNOWN;
-			return MS_ERR_ARG_INVALID;
-		}
-	}
-
-	MS_DBG("mime type : %s", mimetype);
-
-	/*categorize from mimetype */
-	for (i = 0; i < CONTENT_TYPE_NUM; i++) {
-		if (strstr(mimetype, content_category[i].content_type) != NULL) {
-			*category = (*category | content_category[i].category_by_mime);
-			break;
-		}
-	}
-
-	/*in application type, exitst sound file ex) x-smafs */
-	if (*category & MS_CATEGORY_ETC) {
-		int prefix_len = strlen(content_category[0].content_type);
-
-		for (i = 0; i < SOUND_MIME_NUM; i++) {
-			if (strstr(mimetype + prefix_len, sound_mime_table[i]) != NULL) {
-				*category ^= MS_CATEGORY_ETC;
-				*category |= MS_CATEGORY_SOUND;
-				break;
-			}
-		}
-	}
-
-	/*check music file in soun files. */
-	if (*category & MS_CATEGORY_SOUND) {
-		int prefix_len = strlen(content_category[0].content_type) + 1;
-
-		MS_DBG("mime_type : %s", mimetype + prefix_len);
-
-		for (i = 0; i < MUSIC_MIME_NUM; i++) {
-			if (strcmp(mimetype + prefix_len, music_mime_table[i]) == 0) {
-				*category ^= MS_CATEGORY_SOUND;
-				*category |= MS_CATEGORY_MUSIC;
-				break;
-			}
-		}
-	} else if (*category & MS_CATEGORY_VIDEO) {
-		/*some video files don't have video stream. in this case it is categorize as music. */
-		char *ext;
-		/*"3gp" and "mp4" must check video stream and then categorize in directly. */
-		ext = strrchr(path, '.');
-		if (ext != NULL) {
-			if ((strncasecmp(ext, _3GP_FILE, 4) == 0) || (strncasecmp(ext, _MP4_FILE, 5) == 0)) {
-				int audio = 0;
-				int video = 0;
-
-				err = mm_file_get_stream_info(path, &audio, &video);
-				if (err == 0) {
-					if (audio > 0 && video == 0) {
-						*category ^= MS_CATEGORY_VIDEO;
-						*category |= MS_CATEGORY_MUSIC;
-					}
-				}
-			}
-		}
-	}
-
-	MS_DBG("category_from_ext : %d", *category);
-
-	return err;
 }
 
 void

@@ -27,68 +27,90 @@
  * @version	1.0
  * @brief
  */
-#include <media-svc.h>
 #include "media-server-global.h"
 
-int
-ms_update_valid_type(MediaSvcHandle *handle, char *path);
+typedef int (*CHECK_ITEM)(const char*, const char*, char **);
+typedef int (*CONNECT)(void**, char **);
+typedef int (*DISCONNECT)(void*, char **);
+typedef int (*CHECK_ITEM_EXIST)(void*, const char*, int, char **);
+typedef int (*INSERT_ITEM_BEGIN)(void*, int, char **);
+typedef int (*INSERT_ITEM_END)(void*, char **);
+typedef int (*INSERT_ITEM)(void*, const char*, int, const char*, char **);
+typedef int (*INSERT_ITEM_IMMEDIATELY)(void*, const char*, int, const char*, char **);
+typedef int (*MOVE_ITEM_BEGIN)(void*, int, char **);
+typedef int (*MOVE_ITEM_END)(void*, char **);
+typedef int (*MOVE_ITEM)(void*, const char*, int, const char*, int, const char*, char **);
+typedef int (*SET_ALL_STORAGE_ITEMS_VALIDITY)(void*, int, int, char **);
+typedef int (*SET_ITEM_VALIDITY_BEGIN)(void*, int, char **);
+typedef int (*SET_ITEM_VALIDITY_END)(void*, char **);
+typedef int (*SET_ITEM_VALIDITY)(void*, const char*, int, const char*, int, char **);
+typedef int (*DELETE_ITEM)(void*, const char*, int, char **);
+typedef int (*DELETE_ALL_ITEMS_IN_STORAGE)(void*, int, char **);
+typedef int (*DELETE_ALL_INVALID_ITMES_IN_STORAGE)(void*, int, char **);
+typedef int (*UPDATE_BEGIN)(char **);
+typedef int (*UPDATE_END)(char **);
 
 int
-ms_media_db_open(MediaSvcHandle **handle);
-
-int
-ms_media_db_close(MediaSvcHandle *handle);
+ms_load_functions(void);
 
 void
-ms_register_start(MediaSvcHandle *handle);
-
-void
-ms_register_end(MediaSvcHandle *handle);
+ms_unload_functions(void);
 
 int
-ms_register_file(MediaSvcHandle *handle, const char *path, GAsyncQueue* queue);
+ms_connect_db(void **handle);
 
 int
-ms_register_scanfile(MediaSvcHandle *handle, const char *path);
-
-void
-ms_update_valid_type_start(MediaSvcHandle *handle);
-
-void
-ms_update_valid_type_end(MediaSvcHandle *handle);
+ms_disconnect_db(void *handle);
 
 int
-ms_change_valid_type(MediaSvcHandle *handle, ms_store_type_t table_id, bool validation);
-
-#ifdef THUMB_THREAD
-int
-ms_media_db_insert_with_thumb(MediaSvcHandle *handle, const char *path, int category);
-#endif
+ms_validate_item(void *handle, char *path);
 
 int
-ms_media_db_insert(MediaSvcHandle *handle, const char *path, int category, bool bulk);
+ms_register_file(void *handle, const char *path, GAsyncQueue* queue);
 
 int
-ms_check_file_exist_in_db(MediaSvcHandle *handle, const char *file_full_path);
+ms_insert_item_batch(void *handle, const char *path);
 
 int
-ms_media_db_delete(MediaSvcHandle *handle, const char *full_file_path);
-
-void
-ms_media_db_move_start(MediaSvcHandle *handle);
-
-void
-ms_media_db_move_end(MediaSvcHandle *handle);
+ms_insert_item(void *handle, const char *path);
 
 int
-ms_media_db_move(MediaSvcHandle *handle,
+ms_delete_item(void *handle, const char *full_file_path);
+
+int
+ms_move_item(void *handle,
 			ms_store_type_t src_store_type,
 		     	ms_store_type_t dest_store_type,
 		     	const char *src_file_full_path,
 		     	const char *dest_file_full_path);
 
 bool
-ms_delete_all_record(MediaSvcHandle *handle, ms_store_type_t store_type);
+ms_delete_all_items(void *handle, ms_store_type_t store_type);
+
+int
+ms_invalidate_all_items(void *handle, ms_store_type_t table_id);
 
 bool
-ms_delete_invalid_records(MediaSvcHandle *handle, ms_store_type_t store_type);
+ms_delete_invalid_items(void *handle, ms_store_type_t store_type);
+
+/****************************************************************************************************
+FOR BULK COMMIT
+*****************************************************************************************************/
+
+void
+ms_register_start(void *handle);
+
+void
+ms_register_end(void *handle);
+
+void
+ms_move_start(void *handle);
+
+void
+ms_move_end(void *handle);
+
+void
+ms_validate_start(void *handle);
+
+void
+ms_validate_end(void *handle);

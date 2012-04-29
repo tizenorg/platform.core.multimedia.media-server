@@ -81,9 +81,6 @@ ms_config_set_str(const char *key, const char *value);
 void
 ms_check_db_updating(void);
 
-int
-ms_get_category_from_mime(const char *path, int *category);
-
 #ifdef FMS_PERF
 void
 ms_check_start_time(struct timeval *start_time);

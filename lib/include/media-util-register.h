@@ -78,7 +78,7 @@ int main()
  */
 int media_file_register(const char *file_full_path);
 
-typedef GArray* media_list;
+ typedef GArray* media_list;
 
 int media_list_new(media_list *list);
 

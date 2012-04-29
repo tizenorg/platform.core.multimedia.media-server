@@ -1,3 +1,35 @@
+media-server (0.1.66) unstable; urgency=low
+
+  * update latest code
+  * Git : pkgs/m/media-server
+  * Tag : media-server_0.1.66
+
+ -- Yong Yeon Kim <yy9875.kim@samsung.com>  Fri, 13 Apr 2012 14:17:13 +0900
+
+media-server (0.1.65) unstable; urgency=low
+
+  * add Testcase of libmedia-utils
+  * Git : pkgs/m/media-server
+  * Tag : media-server_0.1.65
+
+ -- Yong Yeon Kim <yy9875.kim@samsung.com>  Tue, 27 Mar 2012 14:05:03 +0900
+
+media-server (0.1.64) unstable; urgency=low
+
+  * update media-server.spec
+  * Git : pkgs/m/media-server
+  * Tag : media-server_0.1.64
+
+ -- Yong Yeon Kim <yy9875.kim@samsung.com>  Fri, 23 Mar 2012 17:42:58 +0900
+
+media-server (0.1.54) unstable; urgency=low
+
+  * merge for 1.0 release
+  * Git : pkgs/m/media-server
+  * Tag : media-server_0.1.54
+
+ -- Yong Yeon Kim <yy9875.kim@samsung.com>  Tue, 20 Mar 2012 09:53:27 +0900
+
 media-server (0.1.53) unstable; urgency=low
 
   * fix build error

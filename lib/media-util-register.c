@@ -37,10 +37,6 @@
 #include <string.h>
 #include <stdbool.h>
 
-#include <media-svc.h>
-#include <audio-svc.h>
-#include <audio-svc-error.h>
-
 #include "media-util-dbg.h"
 #include "media-util-err.h"
 #include "media-util-internal.h"

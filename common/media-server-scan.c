@@ -28,7 +28,6 @@
  * @brief
  */
 #include <vconf.h>
-#include <media-svc-types.h>
 
 #include "media-server-utils.h"
 #include "media-server-db-svc.h"
@@ -86,7 +85,7 @@ gboolean ms_scan_thread(void *data)
 	bool res;
 	int length;
 	int err;
-	MediaSvcHandle *handle = NULL;
+	void *handle = NULL;
 
 #ifdef PROGRESS
 	struct quickpanel *ms_quickpanel = NULL;
@@ -119,7 +118,7 @@ gboolean ms_scan_thread(void *data)
 
 		if (scan_data->scan_type != MS_SCAN_VALID) {
 			/*connect to media db, if conneting is failed, db updating is stopped*/
-			err = ms_media_db_open(&handle);
+			err = ms_connect_db(&handle);
 			if (err != MS_ERR_NONE)
 				continue;
 
@@ -143,7 +142,7 @@ gboolean ms_scan_thread(void *data)
 			}
 
 			if (scan_data->scan_type == MS_SCAN_ALL) {
-				res = ms_delete_all_record(handle, scan_data->db_type);
+				res = ms_delete_all_items(handle, scan_data->db_type);
 				if (res != true) {
 					MS_DBG("ms_delete_all_record fails");
 				}
@@ -185,7 +184,7 @@ gboolean ms_scan_thread(void *data)
 				ms_set_db_status(MS_DB_UPDATED);
 
 			/*disconnect form media db*/
-			ms_media_db_close(handle);
+			ms_disconnect_db(handle);
 
 			/*Active flush */
 			sqlite3_release_memory(-1);
@@ -195,19 +194,19 @@ gboolean ms_scan_thread(void *data)
 			}
 		} else  {
 			/*connect to media db, if conneting is failed, db updating is stopped*/
-			err = ms_media_db_open(&handle);
+			err = ms_connect_db(&handle);
 			if (err != MS_ERR_NONE)
 				continue;
 
 			/*update just valid type*/
-			err = ms_change_valid_type(handle, scan_data->db_type, false);
+			err = ms_invalidate_all_items(handle, scan_data->db_type);
 			if (err != MS_ERR_NONE)
 				MS_DBG("ms_change_valid_type fail");
 
 			ms_set_db_status(MS_DB_UPDATED);
 
 			/*disconnect form media db*/
-			ms_media_db_close(handle);
+			ms_disconnect_db(handle);
 
 			/*Active flush */
 			sqlite3_release_memory(-1);

@@ -61,14 +61,14 @@
 #define MS_ERR_DB_DELETE_RECORD_FAIL		(MID_CONTENTS_MGR_ERROR - ERROR(0x32))	   /**< deleting record fails */
 #define MS_ERR_DB_UPDATE_RECORD_FAIL		(MID_CONTENTS_MGR_ERROR - ERROR(0x33))	   /**< updating record fails */
 #define MS_ERR_DB_CONNECT_FAIL			(MID_CONTENTS_MGR_ERROR - ERROR(0x34))	   /**< connecting database fails */
-#define MS_ERR_DB_DISCONNECT_FAIL			(MID_CONTENTS_MGR_ERROR - ERROR(0x35))	   /**< connecting database fails */
-#define MS_ERR_DB_OPERATION_FAIL			(MID_CONTENTS_MGR_ERROR - ERROR(0x36))	   /**< connecting database fails */
+#define MS_ERR_DB_DISCONNECT_FAIL			(MID_CONTENTS_MGR_ERROR - ERROR(0x35))	   /**< disconnecting database fails */
 
 /*drm operation error*/
-#define MS_ERR_DRM_GET_TYPE				(MID_CONTENTS_MGR_ERROR - ERROR(0x40))	   
+#define MS_ERR_DRM_GET_TYPE_FAIL			(MID_CONTENTS_MGR_ERROR - ERROR(0x40))
 #define MS_ERR_DRM_MOVE_FAIL				(MID_CONTENTS_MGR_ERROR - ERROR(0x41))	 /**< can't copy/move drm file because of permission */
 #define MS_ERR_DRM_REGISTER_FAIL			(MID_CONTENTS_MGR_ERROR - ERROR(0x42))	
-#define MS_ERR_DRM_EXTRACT_FAIL			(MID_CONTENTS_MGR_ERROR - ERROR(0x43))	
+#define MS_ERR_DRM_EXTRACT_FAIL			(MID_CONTENTS_MGR_ERROR - ERROR(0x43))
+#define MS_ERR_DRM_GET_INFO_FAIL			(MID_CONTENTS_MGR_ERROR - ERROR(0x40))
 
 /*IPC operation error*/
 #define MS_ERR_SOCKET_CONN				(MID_CONTENTS_MGR_ERROR - ERROR(0x50))	 /**< Socket connect error */

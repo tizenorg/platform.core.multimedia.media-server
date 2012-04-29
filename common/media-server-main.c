@@ -115,13 +115,13 @@ static bool _db_clear(void)
 	int db_status;
 	int usb_status;
 	bool need_db_create = false;
-	MediaSvcHandle *handle = NULL;
+	void *handle = NULL;
 
 	/*connect to media db, if conneting is failed, db updating is stopped*/
-	ms_media_db_open(&handle);
+	ms_connect_db(&handle);
 
 	/*update just valid type*/
-	err = ms_change_valid_type(handle, MS_MMC, false);
+	err = ms_invalidate_all_items(handle, MS_MMC);
 	if (err != MS_ERR_NONE)
 		MS_DBG("ms_change_valid_type fail");
 
@@ -136,7 +136,7 @@ static bool _db_clear(void)
 
 		need_db_create = true;
 
-		err = ms_change_valid_type(handle, MS_PHONE, false);
+		err = ms_invalidate_all_items(handle, MS_PHONE);
 		if (err != MS_ERR_NONE)
 			MS_DBG("ms_change_valid_type fail");
 	}
@@ -144,7 +144,7 @@ static bool _db_clear(void)
 	ms_set_db_status(MS_DB_UPDATED);
 
 	/*disconnect form media db*/
-	ms_media_db_close(handle);
+	ms_disconnect_db(handle);
 
 	return need_db_create;
 }
@@ -168,6 +168,8 @@ int main(int argc, char **argv)
 	check_result = check_process(current_pid);
 	if (check_result == false)
 		exit(0);
+
+	ms_load_functions();
 
 	if (!g_thread_supported()) {
 		g_thread_init(NULL);
@@ -266,6 +268,8 @@ int main(int argc, char **argv)
 
 	/*free all associated memory */
 	g_main_loop_unref(mainloop);
+
+	ms_unload_functions();
 
 	if (scan_queue)
 		g_async_queue_unref(scan_queue);

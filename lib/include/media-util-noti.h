@@ -72,7 +72,7 @@ extern "C" {
 * @endcode
 */
 
-int ms_noti_db_update_complete(void);
+int ms_noti_update_complete(void);
 
 /**
 * @}
