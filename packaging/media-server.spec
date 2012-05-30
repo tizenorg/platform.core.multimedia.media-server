@@ -6,6 +6,7 @@ Release:    1
 Group:      Services
 License:    Apache-2.0
 Source0:    %{name}-%{version}.tar.gz
+Source1001: packaging/media-server.manifest 
 
 Requires(post): /usr/bin/vconftool
 BuildRequires:  pkgconfig(glib-2.0)
@@ -40,6 +41,7 @@ Description: media server development library.
 %setup -q
 
 %build
+cp %{SOURCE1001} .
 
 %autogen
 %configure --prefix=%{_prefix} --disable-static
@@ -59,6 +61,7 @@ vconftool set -t string db/Apps/mediaserver/mmc_info ""
 
 
 %files
+%manifest media-server.manifest
 %defattr(-,root,root,-)
 %{_bindir}/media-server
 %attr(755,-,-) %{_sysconfdir}/rc.d/init.d/mediasvr
@@ -66,12 +69,14 @@ vconftool set -t string db/Apps/mediaserver/mmc_info ""
 /etc/rc.d/rc5.d/S48mediasvr
 
 %files -n libmedia-utils
+%manifest media-server.manifest
 %defattr(-,root,root,-)
 %{_libdir}/libmedia-utils.so
 %{_libdir}/libmedia-utils.so.0
 %{_libdir}/libmedia-utils.so.0.0.0
 
 %files -n libmedia-utils-devel
+%manifest media-server.manifest
 %defattr(-,root,root,-)
 %{_libdir}/pkgconfig/libmedia-utils.pc
 %{_includedir}/media-utils/*.h
