@@ -1,0 +1,11 @@
+
+[Unit]
+Description=Start the Media Server
+
+[Service]
+ExecStart=/usr/bin/media-server
+
+[Install]
+WantedBy=tizen-mobile.target
+
+

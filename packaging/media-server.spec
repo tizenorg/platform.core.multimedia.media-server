@@ -6,9 +6,14 @@ Release:    1
 Group:      Services
 License:    Apache-2.0
 Source0:    %{name}-%{version}.tar.gz
+Source101:  packaging/media-server.service 
 Source1001: packaging/media-server.manifest 
 
+Requires(post): /usr/bin/systemctl
 Requires(post): /usr/bin/vconftool
+Requires(postun): /usr/bin/systemctl
+Requires(preun): /usr/bin/systemctl
+
 BuildRequires:  pkgconfig(glib-2.0)
 BuildRequires:  pkgconfig(vconf)
 BuildRequires:  pkgconfig(dlog)
@@ -51,13 +56,29 @@ make %{?jobs:-j%jobs}
 %install
 rm -rf %{buildroot}
 %make_install
+mkdir -p %{buildroot}%{_libdir}/systemd/system/multi-user.target.wants
+install -m 0644 %SOURCE101 %{buildroot}%{_libdir}/systemd/system/media-server.service
+ln -s ../media-server.service %{buildroot}%{_libdir}/systemd/system/multi-user.target.wants/media-server.service
+
+%preun
+if [ $1 == 0 ]; then
+    systemctl stop media-server.service
+fi
 
 %post
+systemctl daemon-reload
+if [ $1 == 1 ]; then
+    systemctl restart media-server.service
+fi
+
 vconftool set -t int db/filemanager/dbupdate "1"
 vconftool set -t int memory/filemanager/Mmc "0" -i
 
 vconftool set -t int db/Apps/mediaserver/usbmode "0"
 vconftool set -t string db/Apps/mediaserver/mmc_info ""
+
+%postun
+systemctl daemon-reload
 
 
 %files
@@ -67,6 +88,8 @@ vconftool set -t string db/Apps/mediaserver/mmc_info ""
 %attr(755,-,-) %{_sysconfdir}/rc.d/init.d/mediasvr
 /etc/rc.d/rc3.d/S48mediasvr
 /etc/rc.d/rc5.d/S48mediasvr
+%{_libdir}/systemd/system/media-server.service
+%{_libdir}/systemd/system/multi-user.target.wants/media-server.service
 
 %files -n libmedia-utils
 %manifest media-server.manifest
