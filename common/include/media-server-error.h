@@ -62,6 +62,7 @@
 #define MS_ERR_DB_UPDATE_RECORD_FAIL		(MID_CONTENTS_MGR_ERROR - ERROR(0x33))	   /**< updating record fails */
 #define MS_ERR_DB_CONNECT_FAIL			(MID_CONTENTS_MGR_ERROR - ERROR(0x34))	   /**< connecting database fails */
 #define MS_ERR_DB_DISCONNECT_FAIL			(MID_CONTENTS_MGR_ERROR - ERROR(0x35))	   /**< disconnecting database fails */
+#define MS_ERR_DB_EXIST_ITEM_FAIL			(MID_CONTENTS_MGR_ERROR - ERROR(0x36))	   /**< item does not exist */
 
 /*drm operation error*/
 #define MS_ERR_DRM_GET_TYPE_FAIL			(MID_CONTENTS_MGR_ERROR - ERROR(0x40))
@@ -82,7 +83,7 @@
 #define MS_ERR_UNKNOWN_ERROR				(MID_CONTENTS_MGR_ERROR - ERROR(0x61))	 /**< unknow error*/
 #define MS_ERR_VCONF_SET_FAIL				(MID_CONTENTS_MGR_ERROR - ERROR(0x62))	 /**< vconf set fail*/
 #define MS_ERR_VCONF_GET_FAIL				(MID_CONTENTS_MGR_ERROR - ERROR(0x63))	 /**< vconf get fail*/
-#define MS_ERR_NOT_MEDIA_FILE				(MID_CONTENTS_MGR_ERROR - ERROR(0x64))	 /**< not media file*/
+#define MS_ERR_MIME_GET_FAIL				(MID_CONTENTS_MGR_ERROR - ERROR(0x64))	 /**< not media file*/
 
 #define MS_ERR_MAX							(MID_CONTENTS_MGR_ERROR - ERROR(0xff))	 /**< not media file*/
 #endif/* _MEDIA_SERVER_ERROR_H_ */

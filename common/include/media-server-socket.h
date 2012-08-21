@@ -27,8 +27,16 @@
  * @version	1.0
  * @brief
  */
- #include "media-server-global.h"
+#ifndef _MEDIA_SERVER_SOCKET_H_
+#define _MEDIA_SERVER_SOCKET_H_
+
+#include "media-server-global.h"
 #include "media-server-types.h"
 
-gboolean ms_socket_thread(void *data);
+gboolean ms_read_socket(GIOChannel *src,
+									GIOCondition condition,
+									gpointer data);
 
+gboolean ms_prepare_socket(int *sock_fd);
+
+#endif /*_MEDIA_SERVER_SOCKET_H_*/

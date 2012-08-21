@@ -64,27 +64,37 @@
 #undef LOG_TAG
 #endif
 #define LOG_TAG "MEDIA-SERVER"
-#define MS_DBG_START()              LOGD("[%d, %s-%d] ========[ START ]========\n" , syscall(__NR_gettid), __func__ , __LINE__);
-#define MS_DBG_END()                  LOGD("[%d, %s-%d] ========[  END  ]========\n" ,syscall(__NR_gettid), __func__ , __LINE__);
 #define MS_DBG_FUNC_LINE()      LOGD("[%s-%d] debug\n" , __func__ , __LINE__);
 #define MS_DBG(fmt, args...)        LOGD("[%d, %s-%d] " fmt "\n" , syscall(__NR_gettid), __func__ , __LINE__ , ##args);
+
+#define MS_DBG_INFO(fmt, args...) do{ if (true) { \
+		LOGE("[%s-%d]" fmt "\n", __func__ , __LINE__, ##args); \
+		}} while(false)
+
+#define MS_DBG_WARN(fmt, args...) do{ if (true) { \
+		LOGW("[%s-%d]" fmt "\n", __func__ , __LINE__, ##args); \
+		}} while(false)
+
+#define MS_DBG_ERR(fmt, args...) do{ if (true) { \
+		LOGE("[%d, %s-%d]" fmt "\n", syscall(__NR_gettid), __func__ , __LINE__, ##args); \
+		}} while(false)
 
 #define MALLOC(a) malloc(a)
 #define FREE(a) free(a)
 
-#define MS_PHONE_ROOT_PATH	"opt/media"
-#define MS_MMC_ROOT_PATH		"opt/storage/sdcard"
+#define MS_ROOT_PATH_INTERNAL "/opt/media"
+#define MS_ROOT_PATH_EXTERNAL "/opt/storage/sdcard"
 #define MS_DB_UPDATE_NOTI_PATH "/opt/data/file-manager-service"
 
-/*This macro is used to check the lastest usb mode*/
-#define MS_USB_MODE_KEY "db/Apps/mediaserver/usbmode"
-enum {
-	MS_VCONFKEY_NORMAL_MODE = 0x00,
-	MS_VCONFKEY_MASS_STORAGE_MODE = 0x01
-};
-
 /*This macro is used to save and check information of inserted memory card*/
-#define MS_MMC_INFO_KEY "db/Apps/mediaserver/mmc_info"
+#define MS_MMC_INFO_KEY "db/private/mediaserver/mmc_info"
+
+
+/*Use for Poweroff sequence*/
+#define POWEROFF_NOTI_NAME "power_off_start" /*poeroff noti from system-server*/
+#define POWEROFF_DIR_PATH "/opt/media/_POWER_OFF" /*This path uses for stopping Inotify thread and Socket thread*/
+#define POWEROFF_DIR_NAME "_POWER_OFF" /*This path uses for stopping Inotify thread and Socket thread*/
+#define POWEROFF 10000 /*This number uses for stopping Scannig thread*/
 
 /**
  * @}

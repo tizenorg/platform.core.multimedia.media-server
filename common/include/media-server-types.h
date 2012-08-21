@@ -28,16 +28,18 @@
  * @brief
  */
 
-#include <stdbool.h>
-#include <glib.h>
-
 #ifndef _MEDIA_SERVER_TYPES_H_
 #define _MEDIA_SERVER_TYPES_H_
+
+#include <stdbool.h>
+#include <glib.h>
 
 #if !defined(__TYPEDEF_INT64__)
 #define __TYPEDEF_INT64__
 typedef long long int64;
 #endif
+
+#define MS_SAFE_FREE(src)      { if(src) {free(src); src = NULL;} }
 
 /*System default folder definition*/
 #define FAT_FILENAME_LEN_MAX          255	/* not inc null */
@@ -48,22 +50,13 @@ typedef long long int64;
 #define MS_FILE_NAME_LEN_MAX     FAT_FILENAME_LEN_MAX		 /**< File name max length on file system */
 #define MS_FILE_PATH_LEN_MAX     FAT_FILEPATH_LEN_MAX		 /**< File path max length (include file name) on file system */
 
-#define MS_CATEGORY_UNKNOWN	0x00000000	/**< Default */
-#define MS_CATEGORY_ETC		0x00000001	/**< ETC category */
-#define MS_CATEGORY_IMAGE		0x00000002	/**< Image category */
-#define MS_CATEGORY_VIDEO		0x00000004	/**< Video category */
-#define MS_CATEGORY_MUSIC	0x00000008	/**< Music category */
-#define MS_CATEGORY_SOUND	0x00000010	/**< Sound category */
-#define MS_CATEGORY_DRM		0x00000020	/**< DRM category */
+typedef enum {
+	MS_STORAGE_INTERNAL,    /**< Stored only in phone */
+	MS_STORATE_EXTERNAL,	     /**< Stored only in MMC */
+} ms_storage_type_t;
 
 typedef enum {
-	MS_PHONE,    /**< Stored only in phone */
-	MS_MMC,	     /**< Stored only in MMC */
-} ms_store_type_t;
-
-typedef enum {
-	MS_SCAN_NONE,
-	MS_SCAN_VALID,
+	MS_SCAN_INVALID,
 	MS_SCAN_PART,
 	MS_SCAN_ALL,
 } ms_dir_scan_type_t;
@@ -81,16 +74,10 @@ typedef struct ms_dir_scan_info {
 } ms_dir_scan_info;
 
 typedef struct {
-	ms_store_type_t db_type;
+	char *path;
+	ms_storage_type_t storage_type;
 	ms_dir_scan_type_t scan_type;
 } ms_scan_data_t;
-
-typedef struct ms_dir_data {
-	char *name;
-	int wd;
-	bool db_updated;
-	struct ms_dir_data *next;
-} ms_dir_data;
 
 /**
  * @}

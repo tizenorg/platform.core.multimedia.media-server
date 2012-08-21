@@ -34,26 +34,22 @@
 #include "media-server-inotify.h"
 #include "media-server-scan-internal.h"
 
-#ifdef PROGRESS
-#include <quickpanel.h>
-#endif
-
 extern int mmc_state;
-extern int current_usb_mode;
-extern ms_dir_data *first_inoti_node;
+bool power_off;
 
-#ifdef PROGRESS
-#define SIZE_OF_PBARRAY 100
-#endif
+typedef struct ms_scan_data {
+	char *name;
+	struct ms_scan_data *next;
+} ms_scan_data;
 
-int _ms_get_path_from_current_node(int find_folder,
+ms_scan_data *first_scan_node;
+
+static int _ms_scan_get_next_path_from_current_node(int find_folder,
 				   ms_dir_scan_info **current_root,
-				   ms_dir_scan_info **real_root, char **path)
+				   ms_dir_scan_info **real_root, char **path, int *depth)
 {
-	MS_DBG_START();
-
-	int err = 0;
-	char get_path[FAT_FILEPATH_LEN_MAX + 1] = { 0 };
+	int err = MS_ERR_NONE;
+	char get_path[FAT_FILEPATH_LEN_MAX] = { 0 };
 
 	if (find_folder == 0) {
 		if ((*current_root)->Rbrother != NULL) {
@@ -63,44 +59,85 @@ int _ms_get_path_from_current_node(int find_folder,
 				if ((*current_root)->parent == *real_root
 				    || (*current_root)->parent == NULL) {
 					*current_root = NULL;
-					MS_DBG_END();
-					return 0;
-				} else if ((*current_root)->parent->Rbrother ==
-					   NULL) {
+					*depth = 0;
+					return MS_ERR_NONE;
+				} else if ((*current_root)->parent->Rbrother == NULL) {
 					*current_root = (*current_root)->parent;
+					(*depth) --;
 				} else {
-					*current_root =
-					    (*current_root)->parent->Rbrother;
+					*current_root = (*current_root)->parent->Rbrother;
+					(*depth) --;
 					break;
 				}
 			}
 		}
+		(*depth) --;
 	}
 
-	err = ms_get_full_path_from_node(*current_root, get_path);
+	err = ms_get_full_path_from_node(*current_root, get_path, *depth);
+	if (err != MS_ERR_NONE)
+		return MS_ERR_INVALID_DIR_PATH;
 
 	*path = strdup(get_path);
-
-	MS_DBG_END();
 
 	return err;
 }
 
-#ifdef PROGRESS
-void _ms_dir_check(char *start_path, ms_store_type_t db_type, unsigned short *file_count)
-#else
-void _ms_dir_check(char *start_path, ms_store_type_t db_type)
-#endif
+static int _ms_scan_add_node(ms_dir_scan_info * const node, int depth)
 {
-	MS_DBG_START();
+	int err;
+	char full_path[MS_FILE_PATH_LEN_MAX] = { 0 };
+	ms_scan_data *current_dir = NULL;
+	ms_scan_data *prv_node = NULL;
+	ms_scan_data *last_node = NULL;
 
+	err = ms_get_full_path_from_node(node, full_path, depth);
+	if (err != MS_ERR_NONE)
+		return MS_ERR_INVALID_DIR_PATH;
+
+	last_node = first_scan_node;
+	while (last_node != NULL) {
+		last_node = last_node->next;
+	}
+
+	/*find same folder */
+	if (first_scan_node != NULL) {
+		last_node = first_scan_node;
+		while (last_node != NULL) {
+			if (strcmp(full_path, last_node->name) == 0) {
+				return MS_ERR_NONE;
+			}
+			prv_node = last_node;
+			last_node = last_node->next;
+		}
+	}
+
+	current_dir = malloc(sizeof(ms_scan_data));
+	current_dir->name = strdup(full_path);
+	current_dir->next = NULL;
+
+	if (first_scan_node == NULL) {
+		first_scan_node = current_dir;
+	} else {
+		/*if next node of current node is NULL, it is the lastest node. */
+		prv_node->next = current_dir;
+	}
+	MS_DBG("scan path : %s", full_path);
+
+	return MS_ERR_NONE;
+}
+
+static void _ms_dir_check(ms_scan_data_t * scan_data)
+{
 	int err = 0;
+	int depth = 0;
 	int find_folder = 0;
 	char get_path[MS_FILE_PATH_LEN_MAX] = { 0 };
-	char *path;
+	char *path = NULL;
 	DIR *dp = NULL;
 	struct dirent entry;
 	struct dirent *result;
+	ms_storage_type_t storage_type = scan_data->storage_type;
 
 	ms_dir_scan_info *root;
 	ms_dir_scan_info *tmp_root = NULL;
@@ -110,14 +147,14 @@ void _ms_dir_check(char *start_path, ms_store_type_t db_type)
 
 	root = malloc(sizeof(ms_dir_scan_info));
 	if (root == NULL) {
-		MS_DBG("malloc fail");
+		MS_DBG_ERR("malloc fail");
 		return;
 	}
 
-	root->name = strdup(start_path);
-	if (root->name  == NULL) {
-		MS_DBG("strdup fail");
-		free(root);
+	root->name = strdup(scan_data->path);
+	if (root->name == NULL) {
+		MS_DBG_ERR("strdup fail");
+		MS_SAFE_FREE(root);
 		return;
 	}
 
@@ -127,36 +164,48 @@ void _ms_dir_check(char *start_path, ms_store_type_t db_type)
 	tmp_root = root;
 	prv_node = root;
 
-	err = ms_get_full_path_from_node(tmp_root, get_path);
-	MS_DBG("full_path : %s", get_path);
+	path = malloc(sizeof(char) * MS_FILE_PATH_LEN_MAX);
 
-	path = strdup(get_path);
-	if (path == NULL) {
-		MS_DBG("strdup fail");
-		free(root);
+	err = ms_get_full_path_from_node(tmp_root, path, depth);
+	if (err != MS_ERR_NONE) {
 		return;
 	}
 
-	ms_inoti_add_watch_with_node(root);
+	_ms_scan_add_node(root, depth);
 
 	while (1) {
+		/*check poweroff status*/
+		if (power_off) {
+			MS_DBG("Power off");
+			goto FREE_RESOURCES;
+		}
+
+		/*check SD card in out*/
+		if ((mmc_state != VCONFKEY_SYSMAN_MMC_MOUNTED) && (storage_type == MS_STORATE_EXTERNAL))
+			goto FREE_RESOURCES;
+
+		depth ++;
 		dp = opendir(path);
 		if (dp == NULL) {
-			MS_DBG("%s folder opendir fails", path);
+			MS_DBG_ERR("%s folder opendir fails", path);
 			goto NEXT_DIR;
 		}
 
 		while (!readdir_r(dp, &entry, &result)) {
+			/*check poweroff status*/
+			if (power_off) {
+				MS_DBG("Power off");
+				goto FREE_RESOURCES;
+			}
+
 			if (result == NULL)
 				break;
 
 			if (entry.d_name[0] == '.')
 				continue;
 
-			/*check usb in out*/
-			if (current_usb_mode != VCONFKEY_USB_STORAGE_STATUS_OFF
-			    ||(( mmc_state != VCONFKEY_SYSMAN_MMC_MOUNTED) && (db_type == MS_MMC))) {
-
+			/*check SD card in out*/
+			if ((mmc_state != VCONFKEY_SYSMAN_MMC_MOUNTED) && (storage_type == MS_STORATE_EXTERNAL)) {
 				goto FREE_RESOURCES;
 			}
 
@@ -164,21 +213,21 @@ void _ms_dir_check(char *start_path, ms_store_type_t db_type)
 				DIR *tmp_dp = NULL;
 				err = ms_strappend(get_path, sizeof(get_path), "%s/%s",path, entry.d_name);
 				if (err != MS_ERR_NONE) {
-					MS_DBG("ms_strappend error");
+					MS_DBG_ERR("ms_strappend error");
 					continue;
 				}
 
 				tmp_dp = opendir(get_path);
 				if (tmp_dp == NULL) {
-					MS_DBG("%s folder opendir fails", get_path);
+					MS_DBG_ERR("%s folder opendir fails", get_path);
 					continue;
 				}
 				else
 					closedir(tmp_dp);
-				
+
 				cur_node = malloc(sizeof(ms_dir_scan_info));
 				if (cur_node == NULL) {
-					MS_DBG("malloc fail");
+					MS_DBG_ERR("malloc fail");
 
 					goto FREE_RESOURCES;
 				}
@@ -198,26 +247,20 @@ void _ms_dir_check(char *start_path, ms_store_type_t db_type)
 				prv_node->next = cur_node;
 
 				/*add watch */
-				ms_inoti_add_watch_with_node(cur_node);
+				_ms_scan_add_node(cur_node, depth);
 
 				/*change previous */
 				prv_node = cur_node;
 				find_folder++;
 			}
-#ifdef PROGRESS
-			else if (entry.d_type & DT_REG) {
-				(*file_count)++;
-			}
-#endif
 		}
 NEXT_DIR:
+		MS_SAFE_FREE(path);
 		if (dp) closedir(dp);
-		if (path) free(path);
 		dp = NULL;
-		path = NULL;
 
-		err = _ms_get_path_from_current_node(find_folder, &tmp_root, &root, &path);
-		if (err < 0)
+		err = _ms_scan_get_next_path_from_current_node(find_folder, &tmp_root, &root, &path, &depth);
+		if (err != MS_ERR_NONE)
 			break;
 
 		if (tmp_root == NULL)
@@ -228,174 +271,129 @@ NEXT_DIR:
 
 FREE_RESOURCES:
 	/*free allocated memory */
-	if (path) free(path);
+	MS_SAFE_FREE(path);
 	if (dp) closedir(dp);
+	dp = NULL;
 
 	cur_node = root;
 	while (cur_node != NULL) {
 		next_node = cur_node->next;
-		free(cur_node->name);
-		free(cur_node);
+		MS_SAFE_FREE(cur_node->name);
+		MS_SAFE_FREE(cur_node);
 		cur_node = next_node;
 	}
-
-	MS_DBG_END();
 }
 
-#ifdef PROGRESS
-void _ms_dir_scan(void *handle, ms_scan_data_t * scan_data, struct quickpanel *ms_quickpanel)
-#else
-void _ms_dir_scan(void *handle, ms_scan_data_t * scan_data)
-#endif
+void _ms_dir_scan(void **handle, ms_scan_data_t * scan_data)
 {
-	MS_DBG_START();
 	int err = 0;
 	char path[MS_FILE_PATH_LEN_MAX] = { 0 };
-	ms_dir_data *node;
+	ms_scan_data *node;
 	DIR *dp = NULL;
-#ifdef PROGRESS
-	int i;
-	unsigned short file_count = 0;
-	unsigned short update_count = 0;
-	unsigned short proress_array[SIZE_OF_PBARRAY] = { 0 };
-#endif
+	ms_storage_type_t storage_type = scan_data->storage_type;
+	ms_dir_scan_type_t scan_type = scan_data->scan_type;
 
-	if (scan_data->db_type == MS_PHONE)
-		err = ms_strcopy(path, sizeof(path), "%s", MS_PHONE_ROOT_PATH);
-	else
-		err = ms_strcopy(path, sizeof(path), "%s", MS_MMC_ROOT_PATH);
-
-	if (err < MS_ERR_NONE) {
-		MS_DBG("fail ms_strcopy");
+	err = ms_strcopy(path, sizeof(path), "%s", scan_data->path);
+	if (err != MS_ERR_NONE) {
+		MS_DBG_ERR("error : %d", err );
 	}
 
-#ifdef PROGRESS
 	/*Add inotify watch */
-	_ms_dir_check(path, scan_data->db_type,&file_count);
-#else
-	/*Add inotify watch */
-	_ms_dir_check(path, scan_data->db_type);
-#endif
-
-#ifdef PROGRESS
-	for (i = 0; i < SIZE_OF_PBARRAY; i++) {
-		proress_array[i] = ((i + 1) * file_count) / SIZE_OF_PBARRAY;
-		if (proress_array[i] == 0)
-			proress_array[i] = 1;
-	}
-	i = 0;
-#endif
+	if (scan_type != MS_SCAN_INVALID)
+		_ms_dir_check(scan_data);
 
 	/*if scan type is not MS_SCAN_NONE, check data in db. */
-	if (scan_data->scan_type == MS_SCAN_ALL
-	    || scan_data->scan_type == MS_SCAN_PART) {
+	if (scan_type == MS_SCAN_ALL || scan_type == MS_SCAN_PART) {
 		struct dirent entry;
 		struct dirent *result = NULL;
 
-		node = first_inoti_node;
-#ifdef PROGRESS
-		int progress = 0;
-		int pre_progress = 0;
-#endif
-		if (scan_data->scan_type == MS_SCAN_PART) {
-			/*enable bundle commit*/
-			ms_validate_start(handle);
-		}
+		node = first_scan_node;
 
 		while (node != NULL) {
-			/*check usb in out */
-			if (current_usb_mode != VCONFKEY_USB_STORAGE_STATUS_OFF
-			    || ((mmc_state != VCONFKEY_SYSMAN_MMC_MOUNTED) && (scan_data->db_type == MS_MMC))) {
+			/*check poweroff status*/
+			if (power_off) {
+				MS_DBG("Power off");
+				goto STOP_SCAN;
+			}
+
+			/*check SD card in out */
+			if ((mmc_state != VCONFKEY_SYSMAN_MMC_MOUNTED) && (storage_type == MS_STORATE_EXTERNAL)) {
 			    	MS_DBG("Directory scanning is stopped");
 				goto STOP_SCAN;
 			}
-			if (node->db_updated != true) {
-				dp = opendir(node->name);
-				if (dp != NULL) {
-					while (!readdir_r(dp, &entry, &result)) {
-						if (result == NULL)
-							break;
 
-						if (entry.d_name[0] == '.')
+			dp = opendir(node->name);
+			if (dp != NULL) {
+				while (!readdir_r(dp, &entry, &result)) {
+					/*check poweroff status*/
+					if (power_off) {
+						MS_DBG("Power off");
+						goto STOP_SCAN;
+					}
+
+					if (result == NULL)
+						break;
+
+					if (entry.d_name[0] == '.')
+						continue;
+
+					/*check SD card in out */
+					if ((mmc_state != VCONFKEY_SYSMAN_MMC_MOUNTED) && (storage_type == MS_STORATE_EXTERNAL)) {
+						MS_DBG("Directory scanning is stopped");
+						goto STOP_SCAN;
+					}
+
+					if (entry.d_type & DT_REG) {
+						err = ms_strappend(path, sizeof(path), "%s/%s", node->name, entry.d_name);
+						if (err < 0) {
+							MS_DBG_ERR("error : %d", err);
 							continue;
-
-						/*check usb in out */
-						if (current_usb_mode != VCONFKEY_USB_STORAGE_STATUS_OFF
-						    || ((mmc_state != VCONFKEY_SYSMAN_MMC_MOUNTED) && (scan_data->db_type == MS_MMC))) {
-							MS_DBG("Directory scanning is stopped");
-							goto STOP_SCAN;
 						}
 
-						if (entry.d_type & DT_REG) {
-							MS_DBG("THIS IS FEX_DIR_SCAN_CB");
-#ifdef PROGRESS
-							/*update progress bar */
-							update_count++;
-							if (ms_quickpanel != NULL) {
-								if (proress_array[i] == update_count) {
-									while(1) {
-										ms_update_progress(ms_quickpanel, ((double)i) / 100);
-										i++;
-										if (proress_array[i] != update_count)
-											break;
-									}
-								}
-							}
-#endif/*PROGRESS*/
-							err = ms_strappend(path, sizeof(path), "%s/%s", node->name, entry.d_name);
-							if (err < 0) {
-								MS_DBG("FAIL : ms_strappend");
-								continue;
-							}
+						if (scan_type == MS_SCAN_PART)
+							err = ms_validate_item(handle,path);
+						else
+							err = ms_insert_item_batch(handle, path);
 
-							if (scan_data->scan_type == MS_SCAN_PART)	
-								err = ms_validate_item(handle,path);
-							else
-								err = ms_insert_item_batch(handle, path);
-
-							if (err < 0) {
-								MS_DBG("failed to update db : %d , %d\n", err, scan_data->scan_type);
-								continue;
-							}
+						if (err < 0) {
+							MS_DBG_ERR("failed to update db : %d , %d\n", err, scan_type);
+							continue;
 						}
 					}
-				} else {
-					MS_DBG("%s folder opendir fails", node->name);
 				}
-				if (dp) closedir(dp);
-				dp = NULL;
+			} else {
+				MS_DBG_ERR("%s folder opendir fails", node->name);
+			}
+			if (dp) closedir(dp);
+			dp = NULL;
 
-				if (node == NULL) {
-					MS_DBG("");
-					MS_DBG("DB updating is done");
-					MS_DBG("");
-					break;
-				}
-				node->db_updated = true;
+			if (node == NULL) {
+				MS_DBG_ERR("DB updating is done");
+				break;
 			}
 			node = node->next;
 		}		/*db update while */
-
-		if (scan_data->scan_type == MS_SCAN_PART) {
-			/*disable bundle commit*/
-			ms_validate_end(handle);
-
-			ms_delete_invalid_items(handle, scan_data->db_type);
-		}
-	} else {
-		node = first_inoti_node;
-
-		while (node != NULL) {
-			node->db_updated = true;
-			node = node->next;
-		}
+	} else if ( scan_type == MS_SCAN_INVALID) {
+		/*In this case, update just validation record*/
+		/*update just valid type*/
+		err = ms_invalidate_all_items(handle, storage_type);
+		if (err != MS_ERR_NONE)
+			MS_DBG_ERR("error : %d", err);
 	}
 STOP_SCAN:
 	if (dp) closedir(dp);
 
-	sync();
+	/*delete all node*/
+	node = first_scan_node;
 
-	MS_DBG_END();
+	while (node != NULL) {
+		if (node->name) free(node->name);
+		MS_SAFE_FREE(node);
+	}
+
+	first_scan_node = NULL;
+
+	sync();
 
 	return;
 }

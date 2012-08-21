@@ -18,18 +18,16 @@
  * limitations under the License.
  *
  */
+#ifndef _MEDIA_SERVER_DBUS_TYPES_H_
+#define _MEDIA_SERVER_DBUS_TYPES_H_
 
-/**
- * This file defines api utilities of contents manager engines.
- *
- * @file		media-server-scan.h
- * @author	Yong Yeon Kim(yy9875.kim@samsung.com)
- * @version	1.0
- * @brief
- */
-#ifndef _MEDIA_SERVER_SCAN_H_
-#define _MEDIA_SERVER_SCAN_H_
+#define MS_DBUS_PATH "/com/mediaserver/dbus/notify"
+#define MS_DBUS_INTERFACE "com.mediaserver.dbus.Signal"
+#define MS_DBUS_NAME "ms_db_updated"
+#define MS_DBUS_MATCH_RULE "type='signal',interface='com.mediaserver.dbus.Signal'"
 
-gboolean ms_scan_thread(void *data);
+typedef enum {
+	MS_DBUS_DB_UPDATED
+} ms_dbus_noti_type_t;
 
-#endif /*_MEDIA_SERVER_SCAN_H_*/
+#endif /*_MEDIA_SERVER_DBUS_TYPES_H_*/

@@ -1,6 +1,6 @@
 ACLOCAL_AMFLAGS = -I m4
 
-SUBDIRS = . 
+SUBDIRS = .
 
 AM_CPPFLAGS = $(FMS_DEBUG_FLAGS)
 
@@ -14,12 +14,14 @@ nor_directory = /etc/rc.d/rc3.d
 hib_directory = /etc/rc.d/rc5.d
 
 install-data-hook:
+	mkdir $(DESTDIR)/usr/local/bin/ -p
+	cp -a $(CURDIR)/reset_mediadb.sh $(DESTDIR)/usr/local/bin/
 	mkdir $(DESTDIR)$(nor_directory) -p
-	ln -s ../init.d/mediasvr S48mediasvr
-	mv ./S48mediasvr $(DESTDIR)$(nor_directory)
+	ln -s ../init.d/mediasvr S99mediasvr
+	mv ./S99mediasvr $(DESTDIR)$(nor_directory)
 	mkdir $(DESTDIR)$(hib_directory) -p
-	ln -s ../init.d/mediasvr S48mediasvr
-	mv ./S48mediasvr $(DESTDIR)$(hib_directory)
+	ln -s ../init.d/mediasvr S99mediasvr
+	mv ./S99mediasvr $(DESTDIR)$(hib_directory)
 
 # init.d script
 fmsvcdir = /etc/rc.d/init.d
@@ -32,16 +34,20 @@ libmedia_utils_la_SOURCES = lib/media-util-noti.c \
 
 libmedia_utils_la_CFLAGS = -I${srcdir}/lib/include \
                               $(GLIB_CFLAGS) \
-			      $(DLOG_CFLAGS)
+			      $(DLOG_CFLAGS) \
+			      $(DBUS_CFLAGS)
 
 libmedia_utils_la_LIBADD  =   $(GLIB_LIBS) \
-                              $(DLOG_LIBS)
+                              $(DLOG_LIBS) \
+                              $(DBUS_LIBS)
 
 
 ### file-manager-server ###
 bin_PROGRAMS = media-server
 
-media_server_SOURCES = common/media-server-utils.c \
+media_server_SOURCES = common/media-server-dbus.c \
+		       common/media-server-drm.c \
+                       common/media-server-utils.c \
                        common/media-server-external-storage.c \
                        common/media-server-db-svc.c \
                        common/media-server-inotify-internal.c \
@@ -59,10 +65,13 @@ media_server_CFLAGS = -I${srcdir}/common/include \
                              $(DLOG_CFLAGS) \
                              $(DRM_SERVICE_CFLAGS) \
 			     $(AUL_CFLAG)\
-			     $(LIBPMCONTROL_CFLAGS)
+			     $(LIBPMCONTROL_CFLAGS) \
+			     $(HEYNOTI_CFLAGS) \
+			     $(DBUS_CFLAGS)
 #                             $(LIBQUICKPANEL_CFLAGS)
 
-media_server_LDADD = $(GLIB_LIBS) \
+media_server_LDADD = libmedia-utils.la \
+			      $(GLIB_LIBS) \
                               $(GTHREAD_LIBS) \
                               $(PHONESTATUS_LIBS) \
                               $(DLOG_LIBS) \
@@ -70,6 +79,8 @@ media_server_LDADD = $(GLIB_LIBS) \
 			      $(AUL_LIBS) \
 			      $(LIBPMCONTROL_LIBS) \
 			      $(THUMB_GEN_LIBS) \
+			      $(HEYNOTI_LIBS) \
+			      $(DBUS_LIBS) \
                               -ldl #this is for using dlsym
 #                              $(LIBQUICKPANEL_LIBS)
 

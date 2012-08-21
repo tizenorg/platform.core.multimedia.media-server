@@ -22,14 +22,33 @@
 /**
  * This file defines api utilities of contents manager engines.
  *
- * @file		media-server-scan.h
+ * @file		media-server-drm.h
  * @author	Yong Yeon Kim(yy9875.kim@samsung.com)
  * @version	1.0
- * @brief
+ * @brief       This file implements main database operation.
  */
-#ifndef _MEDIA_SERVER_SCAN_H_
-#define _MEDIA_SERVER_SCAN_H_
+#ifndef _MEDIA_SERVER_DRM_H_
+#define _MEDIA_SERVER_DRM_H_
 
-gboolean ms_scan_thread(void *data);
+bool
+ms_is_drm_file(const char *path);
 
-#endif /*_MEDIA_SERVER_SCAN_H_*/
+int
+ms_get_mime_in_drm_info(const char *path, char *mime);
+
+int
+ms_drm_register(const char* path);
+
+void
+ms_drm_unregister(const char* path);
+
+void
+ms_drm_unregister_all(void);
+
+bool
+ms_drm_insert_ext_memory(void);
+
+bool
+ms_drm_extract_ext_memory(void);
+
+#endif /*_MEDIA_SERVER_DRM_H_*/

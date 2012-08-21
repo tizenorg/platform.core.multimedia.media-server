@@ -18,18 +18,13 @@
  * limitations under the License.
  *
  */
+#ifndef _MEDIA_SERVER_DBUS_H__
+#define _MEDIA_SERVER_DBUS_H__
 
-/**
- * This file defines api utilities of contents manager engines.
- *
- * @file		media-server-scan.h
- * @author	Yong Yeon Kim(yy9875.kim@samsung.com)
- * @version	1.0
- * @brief
- */
-#ifndef _MEDIA_SERVER_SCAN_H_
-#define _MEDIA_SERVER_SCAN_H_
+#include "media-server-dbus-type.h"
 
-gboolean ms_scan_thread(void *data);
+void ms_dbus_init(void);
 
-#endif /*_MEDIA_SERVER_SCAN_H_*/
+gboolean ms_dbus_send_noti(ms_dbus_noti_type_t data);
+
+#endif/*_MEDIA_SERVER_DBUS_H__*/

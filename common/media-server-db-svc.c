@@ -31,10 +31,10 @@
 #include <dlfcn.h>
 
 #include <aul/aul.h>
-#include <drm-service.h>
 
 #include "media-server-utils.h"
 #include "media-server-inotify.h"
+#include "media-server-drm.h"
 #include "media-server-db-svc.h"
 
 GMutex * db_mutex;
@@ -50,27 +50,6 @@ GMutex *queue_mutex;
 #define MS_MOVE_COUNT 100 /*For bundle commit*/
 
 void **func_handle = NULL; /*dlopen handel*/
-
-CHECK_ITEM f_check;
-CONNECT f_connect;
-DISCONNECT f_disconnect;
-CHECK_ITEM_EXIST f_exist;
-INSERT_ITEM_BEGIN f_insert_begin;
-INSERT_ITEM_END f_insert_end;
-INSERT_ITEM f_insert_batch;
-INSERT_ITEM_IMMEDIATELY f_insert;
-MOVE_ITEM_BEGIN f_move_begin;
-MOVE_ITEM_END f_move_end;
-MOVE_ITEM f_move;
-SET_ALL_STORAGE_ITEMS_VALIDITY f_set_all_validity;
-SET_ITEM_VALIDITY_BEGIN f_set_validity_begin;
-SET_ITEM_VALIDITY_END f_set_validity_end;
-SET_ITEM_VALIDITY f_set_validity;
-DELETE_ITEM f_delete;
-DELETE_ALL_ITEMS_IN_STORAGE f_delete_all;
-DELETE_ALL_INVALID_ITMES_IN_STORAGE f_delete_invalid_items;
-UPDATE_BEGIN f_update_begin;
-UPDATE_END f_update_end;
 
 enum func_list {
 	eCHECK,
@@ -93,6 +72,7 @@ enum func_list {
 	eDELETE_INVALID_ITEMS,
 	eUPDATE_BEGIN,
 	eUPDATE_END,
+	eREFRESH_ITEM,
 	eFUNC_MAX
 };
 
@@ -142,10 +122,9 @@ _ms_delete_reg_list(const char *path)
 
 	for(list_index = 0; list_index < len; list_index++) {
 		data = g_array_index (reg_list, char*, list_index);
-		MS_DBG("%s", data);
 		if(!strcmp(data, path))	{
 			MS_DBG("Delete complete : %s", data);
-			free(data);
+			MS_SAFE_FREE(data);
 			g_array_remove_index(reg_list, list_index);
 			break;
 		}
@@ -155,32 +134,8 @@ _ms_delete_reg_list(const char *path)
 }
 
 static int
-_ms_get_mime_in_drm_info(const char *path, char *mime)
-{
-	int ret;
-	drm_content_info_t contentInfo = { 0 };
-
-	if (path == NULL || mime == NULL)
-		return MS_ERR_ARG_INVALID;
-
-	ret = drm_svc_get_content_info(path, &contentInfo);
-	if (ret != DRM_RESULT_SUCCESS) {
-		MS_DBG("drm_svc_get_content_info() fails. ");
-		return MS_ERR_DRM_GET_INFO_FAIL;
-	}
-
-	strncpy(mime, contentInfo.contentType, 100);
-	MS_DBG("DRM contentType : %s", contentInfo.contentType);
-	MS_DBG("DRM mime : %s", mime);
-
-	return MS_ERR_NONE;
-}
-
-static int
 _ms_get_mime(const char *path, char *mimetype)
 {
-	MS_DBG_START();
-
 	int ret = 0;
 
 	if (path == NULL)
@@ -188,30 +143,22 @@ _ms_get_mime(const char *path, char *mimetype)
 
 	/*get content type and mime type from file. */
 	/*in case of drm file. */
-	if (drm_svc_is_drm_file(path) == DRM_TRUE) {
-		DRM_FILE_TYPE drm_type = DRM_FILE_TYPE_NONE;
-		drm_type = drm_svc_get_drm_type(path);
-		if (drm_type == DRM_FILE_TYPE_NONE) {
-			MS_DBG("There is no TYPE");
-			return MS_ERR_DRM_GET_TYPE_FAIL;
-		} else {
-			ret =  _ms_get_mime_in_drm_info(path, mimetype);
-			if (ret != 0) {
-				MS_DBG("Fail to get mime");
-				return ret;
-			}
+	if (ms_is_drm_file(path)) {
+
+		ms_inoti_add_ignore_file(path);
+
+		ret =  ms_get_mime_in_drm_info(path, mimetype);
+		if (ret != MS_ERR_NONE) {
+			MS_DBG_ERR("Fail to get mime");
+			return MS_ERR_MIME_GET_FAIL;
 		}
 	} else {
 		/*in case of normal files */
 		if (aul_get_mime_from_file(path, mimetype, 255) < 0) {
-			MS_DBG("aul_get_mime_from_file fail");
-			return MS_ERR_ARG_INVALID;
+			MS_DBG_ERR("aul_get_mime_from_file fail");
+			return MS_ERR_MIME_GET_FAIL;
 		}
 	}
-
-	MS_DBG("mime type : %s", mimetype);
-
-	MS_DBG_END();
 
 	return MS_ERR_NONE;
 }
@@ -231,39 +178,12 @@ _ms_check_category(const char *path, const char *mimetype, int index)
 	char *err_msg = NULL;
 
 	ret = ((CHECK_ITEM)func_array[index][eCHECK])(path, mimetype, &err_msg);
-	if (ret != 0)
-		free(err_msg);
-
-	return ret;
-}
-
-static int
-_ms_drm_register(const char* path)
-{
-	MS_DBG("THIS IS DRM FILE");
-	int res = MS_ERR_NONE;
-	DRM_RESULT dres;
-
-	ms_inoti_add_ignore_file(path);
-	dres = drm_svc_register_file(path);
-	if (dres != DRM_RESULT_SUCCESS) {
-		MS_DBG("drm_svc_register_file error : %d", res);
-		res = MS_ERR_DRM_REGISTER_FAIL;
+	if (ret != 0) {
+		MS_DBG_ERR("error : %s [%s] %s", g_array_index(so_array, char*, index), err_msg, path);
+		MS_SAFE_FREE(err_msg);
 	}
 
-	return res;
-}
-
-static void
-_ms_drm_unregister(const char* path)
-{
-	ms_ignore_file_info *ignore_file;
-
-	drm_svc_unregister_file(path, false);
-
-	ignore_file = ms_inoti_find_ignore_file(path);
-	if (ignore_file != NULL)
-		ms_inoti_delete_ignore_file(ignore_file);
+	return ret;
 }
 
 static int
@@ -274,7 +194,7 @@ _ms_token_data(char *buf, char **name)
 
 	pos = strstr(buf, EXT);
 	if (pos == NULL) {
-		MS_DBG("This is not shared object library.");
+		MS_DBG_ERR("This is not shared object library.");
 		name = NULL;
 		return -1;
 	} else {
@@ -298,7 +218,7 @@ _ms_load_config()
 
 	fp = fopen(CONFIG_PATH, "rt");
 	if (fp == NULL) {
-		MS_DBG("fp is NULL");
+		MS_DBG_ERR("fp is NULL");
 		return MS_ERR_FILE_OPEN_FAIL;
 	}
 	while(1) {
@@ -343,7 +263,8 @@ ms_load_functions(void)
 		"delete_all_items_in_storage",
 		"delete_all_invalid_items_in_storage",
 		"update_begin",
-		"update_end"
+		"update_end",
+		"refresh_item"
 		};
 	/*init array for adding name of so*/
 	so_array = g_array_new(FALSE, FALSE, sizeof(char*));
@@ -367,7 +288,7 @@ ms_load_functions(void)
 		MS_DBG("[name of so : %s]", g_array_index(so_array, char*, lib_index));
 		func_handle[lib_index] = dlopen(g_array_index(so_array, char*, lib_index), RTLD_LAZY);
 		if (!func_handle[lib_index]) {
-			MS_DBG("%s", dlerror());
+			MS_DBG_ERR("%s", dlerror());
 			return -1;
 		}
 		lib_index++;
@@ -388,32 +309,30 @@ ms_load_functions(void)
 		}
 	}
 
-	MS_DBG("FUNCTIONS LOAD COMPLETE");
-
 	return MS_ERR_NONE;
 }
 
 void
 ms_unload_functions(void)
 {
-	int lib_index, func_index;
+	int lib_index;
 
 	for (lib_index = 0; lib_index < lib_num; lib_index ++)
 		dlclose(func_handle[lib_index]);
 
 	for (lib_index = 0; lib_index < lib_num; lib_index++) {
-		for (func_index = 0; func_index < eFUNC_MAX ; func_index++) {
-			free(func_array[lib_index][func_index]);
-		}
+			if (func_array[lib_index]) {
+				MS_SAFE_FREE(func_array[lib_index]);
+			}
 	}
 
-	free(func_array);
-	free(func_handle);
-	g_array_free(so_array, TRUE);
+	MS_SAFE_FREE (func_array);
+	MS_SAFE_FREE (func_handle);
+	if (so_array) g_array_free(so_array, TRUE);
 }
 
 int
-ms_connect_db(void **handle)
+ms_connect_db(void ***handle)
 {
 	int lib_index;
 	int ret;
@@ -422,11 +341,13 @@ ms_connect_db(void **handle)
 	/*Lock mutex for openning db*/
 	g_mutex_lock(db_mutex);
 
+	*handle = malloc (sizeof (void*) * lib_num);
+
 	for (lib_index = 0; lib_index < lib_num; lib_index++) {
-		ret = ((CONNECT)func_array[lib_index][eCONNECT])(handle, &err_msg); /*dlopen*/
+		ret = ((CONNECT)func_array[lib_index][eCONNECT])(&((*handle)[lib_index]), &err_msg); /*dlopen*/
 		if (ret != 0) {
-			MS_DBG("error : %s", g_array_index(so_array, char*, lib_index));
-			free(err_msg);
+			MS_DBG_ERR("error : %s [%s]", g_array_index(so_array, char*, lib_index), err_msg);
+			MS_SAFE_FREE(err_msg);
 			g_mutex_unlock(db_mutex);
 
 			return MS_ERR_DB_CONNECT_FAIL;
@@ -441,20 +362,22 @@ ms_connect_db(void **handle)
 }
 
 int
-ms_disconnect_db(void *handle)
+ms_disconnect_db(void ***handle)
 {
 	int lib_index;
 	int ret;
 	char * err_msg = NULL;
 
 	for (lib_index = 0; lib_index < lib_num; lib_index++) {
-		ret = ((DISCONNECT)func_array[lib_index][eDISCONNECT])(handle, &err_msg); /*dlopen*/
+		ret = ((DISCONNECT)func_array[lib_index][eDISCONNECT])((*handle)[lib_index], &err_msg); /*dlopen*/
 		if (ret != 0) {
-			MS_DBG("error : %s", g_array_index(so_array, char*, lib_index));
-			free(err_msg);
+			MS_DBG_ERR("error : %s [%s]", g_array_index(so_array, char*, lib_index), err_msg);
+			MS_SAFE_FREE(err_msg);
 			return MS_ERR_DB_DISCONNECT_FAIL;
 		}
 	}
+
+	MS_SAFE_FREE(*handle);
 
 	MS_DBG("Disconnect Media DB");
 
@@ -462,94 +385,94 @@ ms_disconnect_db(void *handle)
 }
 
 int
-ms_validate_item(void *handle, char *path)
+ms_validate_item(void **handle, char *path)
 {
-	MS_DBG_START();
-
 	int lib_index;
 	int res = MS_ERR_NONE;
 	int ret;
 	char *err_msg = NULL;
 	char mimetype[255] = {0};
-	ms_store_type_t storage_type;
+	ms_storage_type_t storage_type;
 
-	MS_DBG("%s", path);
+	ret = _ms_get_mime(path, mimetype);
+	if (ret != MS_ERR_NONE) {
+		MS_DBG_ERR("err : _ms_get_mime [%d]", ret);
+		return ret;
+	}
+	storage_type = ms_get_storage_type_by_full(path);
 
-	_ms_get_mime(path, mimetype);
-	storage_type = ms_get_store_type_by_full(path);
+	MS_DBG("[%s] %s", mimetype, path);
 
 	for (lib_index = 0; lib_index < lib_num; lib_index++) {
 		if (!_ms_check_category(path, mimetype, lib_index)) {
 			/*check exist in Media DB, If file is not exist, insert data in DB. */
-			ret = ((CHECK_ITEM_EXIST)func_array[lib_index][eEXIST])(handle, path, storage_type, &err_msg); /*dlopen*/
+			ret = ((CHECK_ITEM_EXIST)func_array[lib_index][eEXIST])(handle[lib_index], path, storage_type, &err_msg); /*dlopen*/
 			if (ret != 0) {
-				MS_DBG("not exist in Music DB. insert data");
-				MS_DBG("error : %s", g_array_index(so_array, char*, lib_index));
-				free(err_msg);
+				MS_DBG("not exist in %d. insert data", lib_index);
+				MS_SAFE_FREE(err_msg);
 
-				ret = ms_insert_item_batch(handle, path);
-				if (ret != MS_ERR_NONE) {
-					MS_DBG("error : %s", g_array_index(so_array, char*, lib_index));
-					res = ret;
+				ret = ((INSERT_ITEM)func_array[lib_index][eINSERT_BATCH])(handle[lib_index], path, storage_type, mimetype, &err_msg); /*dlopen*/
+				if (ret != 0) {
+					MS_DBG_ERR("error : %s [%s] %s", g_array_index(so_array, char*, lib_index), err_msg, path);
+					MS_SAFE_FREE(err_msg);
+					res = MS_ERR_DB_INSERT_RECORD_FAIL;
 				}
 			} else {
 				/*if meta data of file exist, change valid field to "1" */
-				MS_DBG("Item exist");
-
-				ret = ((SET_ITEM_VALIDITY)func_array[lib_index][eSET_VALIDITY])(handle, path, true, mimetype, true, &err_msg); /*dlopen*/
+				ret = ((SET_ITEM_VALIDITY)func_array[lib_index][eSET_VALIDITY])(handle[lib_index], path, true, mimetype, true, &err_msg); /*dlopen*/
 				if (ret != 0) {
-					MS_DBG("error : %s", g_array_index(so_array, char*, lib_index));
-					free(err_msg);
+					MS_DBG_ERR("error : %s [%s] %s", g_array_index(so_array, char*, lib_index), err_msg, path);
+					MS_SAFE_FREE(err_msg);
 					res = MS_ERR_DB_UPDATE_RECORD_FAIL;
 				}
 			}
 		}
 	}
 
-	if (drm_svc_is_drm_file(path) == DRM_TRUE) {
-		ret = _ms_drm_register(path);
+	if (ms_is_drm_file(path)) {
+		ret = ms_drm_register(path);
 	}
-
-	MS_DBG_END();
 
 	return res;
 }
 
 int
-ms_invalidate_all_items(void *handle, ms_store_type_t store_type)
+ms_invalidate_all_items(void **handle, ms_storage_type_t store_type)
 {
-	MS_DBG_START();
 	int lib_index;
 	int res = MS_ERR_NONE;
 	int ret;
 	char *err_msg = NULL;
-
+	MS_DBG("");
 	for (lib_index = 0; lib_index < lib_num; lib_index++) {
-		ret = ((SET_ALL_STORAGE_ITEMS_VALIDITY)func_array[lib_index][eSET_ALL_VALIDITY])(handle, store_type, false, &err_msg); /*dlopen*/
+		ret = ((SET_ALL_STORAGE_ITEMS_VALIDITY)func_array[lib_index][eSET_ALL_VALIDITY])(handle[lib_index], store_type, false, &err_msg); /*dlopen*/
 		if (ret != 0) {
-			MS_DBG("error : %s", g_array_index(so_array, char*, lib_index));
-			free(err_msg);
+			MS_DBG_ERR("error : %s [%s]", g_array_index(so_array, char*, lib_index), err_msg);
+			MS_SAFE_FREE(err_msg);
 			res = MS_ERR_DB_UPDATE_RECORD_FAIL;
 		}
 	}
-
-	MS_DBG_END();
-
+	MS_DBG("");
 	return res;
 }
 
 int
-ms_register_file(void *handle, const char *path, GAsyncQueue* queue)
+ms_register_file(void **handle, const char *path, GAsyncQueue* queue)
 {
-	MS_DBG_START();
 	MS_DBG("[%d]register file : %s", syscall(__NR_gettid), path);
 
 	int res = MS_ERR_NONE;
 	int ret;
 
 	if (path == NULL) {
-		MS_DBG("path == NULL");
 		return MS_ERR_ARG_INVALID;
+	}
+
+	/*check item in DB. If it exist in DB, return directly.*/
+	ret = ms_check_exist(handle, path);
+	if (ret == MS_ERR_NONE) {
+		MS_DBG("Already exist");
+		return MS_ERR_NONE;
 	}
 
 	g_mutex_lock(queue_mutex);
@@ -570,37 +493,41 @@ ms_register_file(void *handle, const char *path, GAsyncQueue* queue)
 
 	ret = ms_insert_item(handle, path);
 	if (ret != MS_ERR_NONE) {
-		MS_DBG("ms_media_db_insert error : %d", ret);
 		int lib_index;
 		char mimetype[255];
-		ms_store_type_t storage_type;
+		ms_storage_type_t storage_type;
 
-		_ms_get_mime(path, mimetype);
-		storage_type = ms_get_store_type_by_full(path);
+		ret = _ms_get_mime(path, mimetype);
+		if (ret != MS_ERR_NONE) {
+			MS_DBG_ERR("err : _ms_get_mime [%d]", ret);
+			res = MS_ERR_MIME_GET_FAIL;
+			goto END;
+		}
+		storage_type = ms_get_storage_type_by_full(path);
+
+		MS_DBG("[%s] %s", mimetype, path);
 
 		for (lib_index = 0; lib_index < lib_num; lib_index++) {
 			/*check item is already inserted*/
 			if (!_ms_check_category(path, mimetype, lib_index)) {
 				char *err_msg = NULL;
 
-				ret = ((CHECK_ITEM_EXIST)func_array[lib_index][eEXIST])(handle, path, storage_type, &err_msg); /*dlopen*/
+				ret = ((CHECK_ITEM_EXIST)func_array[lib_index][eEXIST])(handle[lib_index], path, storage_type, &err_msg); /*dlopen*/
 				if (ret == 0) {
-					MS_DBG("Media Item exist");
 					res = MS_ERR_NONE;
 				} else {
-					MS_DBG("error : %s", g_array_index(so_array, char*, lib_index));
-					free(err_msg);
+					MS_DBG_ERR("error : %s [%s]", g_array_index(so_array, char*, lib_index), err_msg);
+					MS_SAFE_FREE(err_msg);
 					res = MS_ERR_DB_INSERT_RECORD_FAIL;
 				}
 			}
 		}
 	}
-
-	if (drm_svc_is_drm_file(path) == DRM_TRUE) {
-		ret = _ms_drm_register(path);
+END:
+	if (ms_is_drm_file(path)) {
+		ret = ms_drm_register(path);
 	}
 
-FREE_RESOURCE:
 	g_mutex_lock(queue_mutex);
 
 	_ms_delete_reg_list(path);
@@ -612,185 +539,234 @@ FREE_RESOURCE:
 	}
 	soc_queue = NULL;
 	g_mutex_unlock(queue_mutex);
-	MS_DBG_END();
+
 	return res;
 }
 
 int
-ms_insert_item_batch(void *handle, const char *path)
+ms_insert_item_batch(void **handle, const char *path)
 {
-	MS_DBG_START();
-
 	int lib_index;
 	int res = MS_ERR_NONE;
 	int ret;
 	char mimetype[255] = {0};
 	char *err_msg = NULL;
-	ms_store_type_t storage_type;
+	ms_storage_type_t storage_type;
 
-	MS_DBG("%s", path);
+	ret = _ms_get_mime(path, mimetype);
+	if (ret != MS_ERR_NONE) {
+		MS_DBG_ERR("err : _ms_get_mime [%d]", ret);
+		return ret;
+	}
+	storage_type = ms_get_storage_type_by_full(path);
 
-	_ms_get_mime(path, mimetype);
-	storage_type = ms_get_store_type_by_full(path);
+	MS_DBG("[%s] %s", mimetype, path);
 
 	for (lib_index = 0; lib_index < lib_num; lib_index++) {
 		if (!_ms_check_category(path, mimetype, lib_index)) {
-			ret = ((INSERT_ITEM)func_array[lib_index][eINSERT_BATCH])(handle, path, storage_type, mimetype, &err_msg); /*dlopen*/
+			ret = ((INSERT_ITEM)func_array[lib_index][eINSERT_BATCH])(handle[lib_index], path, storage_type, mimetype, &err_msg); /*dlopen*/
 			if (ret != 0) {
-				MS_DBG("error : %s", g_array_index(so_array, char*, lib_index));
-				free(err_msg);
+				MS_DBG_ERR("error : %s [%s]", g_array_index(so_array, char*, lib_index), err_msg);
+				MS_SAFE_FREE(err_msg);
 				res = MS_ERR_DB_INSERT_RECORD_FAIL;
 			}
 		}
 	}
 
-	if (drm_svc_is_drm_file(path) == DRM_TRUE) {
-		ret = _ms_drm_register(path);
+	if (ms_is_drm_file(path)) {
+		ret = ms_drm_register(path);
 		res = ret;
 	}
 
-	MS_DBG_END();
 	return res;
 }
 
 int
-ms_insert_item(void *handle, const char *path)
+ms_insert_item(void **handle, const char *path)
 {
-	MS_DBG_START();
-	MS_DBG("%s", path);
-
 	int lib_index;
 	int res = MS_ERR_NONE;
 	int ret;
 	char mimetype[255] = {0};
 	char *err_msg = NULL;
-	ms_store_type_t storage_type;
+	ms_storage_type_t storage_type;
 
-	_ms_get_mime(path, mimetype);
-	storage_type = ms_get_store_type_by_full(path);
+	ret = _ms_get_mime(path, mimetype);
+	if (ret != MS_ERR_NONE) {
+		MS_DBG_ERR("err : _ms_get_mime [%d]", ret);
+		return ret;
+	}
+	storage_type = ms_get_storage_type_by_full(path);
+
+	MS_DBG("[%s] %s", mimetype, path);
 
 	for (lib_index = 0; lib_index < lib_num; lib_index++) {
 		if (!_ms_check_category(path, mimetype, lib_index)) {
-			ret = ((INSERT_ITEM_IMMEDIATELY)func_array[lib_index][eINSERT])(handle, path, storage_type, mimetype, &err_msg); /*dlopen*/
+			ret = ((INSERT_ITEM_IMMEDIATELY)func_array[lib_index][eINSERT])(handle[lib_index], path, storage_type, mimetype, &err_msg); /*dlopen*/
 			if (ret != 0) {
-				MS_DBG("error : %s", g_array_index(so_array, char*, lib_index));
-				free(err_msg);
+				MS_DBG_ERR("error : %s [%s]", g_array_index(so_array, char*, lib_index), err_msg);
+				MS_SAFE_FREE(err_msg);
 				res = MS_ERR_DB_INSERT_RECORD_FAIL;
 			}
 		}
 	}
 
-	MS_DBG_END();
 	return res;
 }
 
 int
-ms_delete_item(void *handle, const char *path)
+ms_delete_item(void **handle, const char *path)
 {
-	MS_DBG_START();
-
 	int lib_index;
 	int res = MS_ERR_NONE;
 	int ret;
 	char *err_msg = NULL;
-	ms_store_type_t storage_type;
+	ms_storage_type_t storage_type;
 
-	storage_type = ms_get_store_type_by_full(path);
+	storage_type = ms_get_storage_type_by_full(path);
 	for (lib_index = 0; lib_index < lib_num; lib_index++) {
-		ret = ((CHECK_ITEM_EXIST)func_array[lib_index][eEXIST])(handle, path, storage_type, &err_msg); /*dlopen*/
+		ret = ((CHECK_ITEM_EXIST)func_array[lib_index][eEXIST])(handle[lib_index], path, storage_type, &err_msg); /*dlopen*/
 		if (ret == 0) {
-			ret = ((DELETE_ITEM)func_array[lib_index][eDELETE])(handle, path, storage_type, &err_msg); /*dlopen*/
+			ret = ((DELETE_ITEM)func_array[lib_index][eDELETE])(handle[lib_index], path, storage_type, &err_msg); /*dlopen*/
 			if (ret !=0 ) {
-				MS_DBG("delete fail");
-				MS_DBG("error : %s", g_array_index(so_array, char*, lib_index));
-				free(err_msg);
+				MS_DBG_ERR("error : %s [%s]", g_array_index(so_array, char*, lib_index), err_msg);
+				MS_SAFE_FREE(err_msg);
 				res = MS_ERR_DB_DELETE_RECORD_FAIL;
 			}
 		} else {
-			MS_DBG("Item does not exist");
-			MS_DBG("error : %s", g_array_index(so_array, char*, lib_index));
-			free(err_msg);
+			MS_DBG_ERR("error : %s [%s]", g_array_index(so_array, char*, lib_index), err_msg);
+			MS_SAFE_FREE(err_msg);
 			res = MS_ERR_DB_DELETE_RECORD_FAIL;
 		}
 	}
 
-	_ms_drm_unregister(path);
-
-	MS_DBG_END();
+	ms_drm_unregister(path);
 
 	return res;
 }
 
 int
-ms_move_item(void *handle,
-		ms_store_type_t src_store, ms_store_type_t dst_store,
+ms_move_item(void **handle,
+		ms_storage_type_t src_store, ms_storage_type_t dst_store,
 		const char *src_path, const char *dst_path)
 {
-	MS_DBG_START();
 	int lib_index;
 	int res = MS_ERR_NONE;
 	int ret;
 	char mimetype[255];
 	char *err_msg = NULL;
 
-	_ms_get_mime(dst_path, mimetype);
+	ret = _ms_get_mime(dst_path, mimetype);
+	if (ret != MS_ERR_NONE) {
+		MS_DBG_ERR("err : _ms_get_mime [%d]", ret);
+		return ret;
+	}
+	MS_DBG("[%s] %s", mimetype, dst_path);
+
 	for (lib_index = 0; lib_index < lib_num; lib_index++) {
 		if (!_ms_check_category(dst_path, mimetype, lib_index)) {
-			ret = ((MOVE_ITEM)func_array[lib_index][eMOVE])(handle, src_path, src_store,
+			ret = ((MOVE_ITEM)func_array[lib_index][eMOVE])(handle[lib_index], src_path, src_store,
 							dst_path, dst_store, mimetype, &err_msg); /*dlopen*/
 			if (ret != 0) {
-				MS_DBG("error : %s", g_array_index(so_array, char*, lib_index));
-				free(err_msg);
+				MS_DBG_ERR("error : %s [%s]", g_array_index(so_array, char*, lib_index), err_msg);
+				MS_SAFE_FREE(err_msg);
 				res = MS_ERR_DB_UPDATE_RECORD_FAIL;
 			}
 		}
 	}
 
-	MS_DBG_END();
-
 	return res;
 }
 
 bool
-ms_delete_all_items(void *handle, ms_store_type_t store_type)
+ms_delete_all_items(void **handle, ms_storage_type_t store_type)
 {
-	MS_DBG_START();
 	int lib_index;
 	int ret = 0;
 	char *err_msg = NULL;
 
 	/* To reset media db when differnet mmc is inserted. */
 	for (lib_index = 0; lib_index < lib_num; lib_index++) {
-		ret = ((DELETE_ALL_ITEMS_IN_STORAGE)func_array[lib_index][eDELETE_ALL])(handle, store_type, &err_msg); /*dlopen*/
+		ret = ((DELETE_ALL_ITEMS_IN_STORAGE)func_array[lib_index][eDELETE_ALL])(handle[lib_index], store_type, &err_msg); /*dlopen*/
 		if (ret != 0) {
-			MS_DBG("error : %s", g_array_index(so_array, char*, lib_index));
-			free(err_msg);
+			MS_DBG_ERR("error : %s [%s]", g_array_index(so_array, char*, lib_index), err_msg);
+			MS_SAFE_FREE(err_msg);
 			return false;
 		}
 	}
-	MS_DBG_END();
+
 	return true;
 }
 
 bool
-ms_delete_invalid_items(void *handle, ms_store_type_t store_type)
+ms_delete_invalid_items(void **handle, ms_storage_type_t store_type)
 {
-	MS_DBG_START();
 	int lib_index;
 	int ret;
 	char *err_msg = NULL;
+
 	for (lib_index = 0; lib_index < lib_num; lib_index++) {
-		ret = ((DELETE_ALL_INVALID_ITMES_IN_STORAGE)func_array[lib_index][eDELETE_INVALID_ITEMS])(handle, store_type, &err_msg); /*dlopen*/
+		ret = ((DELETE_ALL_INVALID_ITMES_IN_STORAGE)func_array[lib_index][eDELETE_INVALID_ITEMS])(handle[lib_index], store_type, &err_msg); /*dlopen*/
 		if (ret != 0) {
-			MS_DBG("error : %s", g_array_index(so_array, char*, lib_index));
-			free(err_msg);
+			MS_DBG_ERR("error : %s [%s]", g_array_index(so_array, char*, lib_index), err_msg);
+			MS_SAFE_FREE(err_msg);
 			return false;
 		}
 	}
 
-	MS_DBG_END();
-
 	return true;
+}
+
+int
+ms_refresh_item(void **handle, const char *path)
+{
+	int lib_index;
+	int res = MS_ERR_NONE;
+	int ret;
+	char mimetype[255];
+	char *err_msg = NULL;
+	ms_storage_type_t storage_type;
+
+	ret = _ms_get_mime(path, mimetype);
+	if (ret != MS_ERR_NONE) {
+		MS_DBG_ERR("err : _ms_get_mime [%d]", ret);
+		return ret;
+	}
+	MS_DBG("[%s] %s", mimetype, path);
+
+	storage_type = ms_get_storage_type_by_full(path);
+
+	for (lib_index = 0; lib_index < lib_num; lib_index++) {
+		if (!_ms_check_category(path, mimetype, lib_index)) {
+			ret = ((REFRESH_ITEM)func_array[lib_index][eREFRESH_ITEM])(handle[lib_index], path, storage_type, mimetype, &err_msg); /*dlopen*/
+			if (ret != 0) {
+				MS_DBG_ERR("error : %s [%s]", g_array_index(so_array, char*, lib_index), err_msg);
+				MS_SAFE_FREE(err_msg);
+				res = MS_ERR_DB_UPDATE_RECORD_FAIL;
+			}
+		}
+	}
+
+	return res;
+}
+
+int
+ms_check_exist(void **handle, const char *path)
+{
+	int lib_index;
+	int ret;
+	char *err_msg = NULL;
+	ms_storage_type_t storage_type;
+
+	storage_type = ms_get_storage_type_by_full(path);
+	for (lib_index = 0; lib_index < lib_num; lib_index++) {
+		ret = ((CHECK_ITEM_EXIST)func_array[lib_index][eEXIST])(handle[lib_index], path, storage_type, &err_msg); /*dlopen*/
+		if (ret != 0) {
+			return MS_ERR_DB_EXIST_ITEM_FAIL;
+		}
+	}
+
+	return MS_ERR_NONE;
 }
 
 /****************************************************************************************************
@@ -798,97 +774,97 @@ FOR BULK COMMIT
 *****************************************************************************************************/
 
 void
-ms_register_start(void *handle)
+ms_register_start(void **handle)
 {
 	int lib_index;
 	int ret = 0;
 	char *err_msg = NULL;
 
 	for (lib_index = 0; lib_index < lib_num; lib_index++) {
-		ret = ((INSERT_ITEM_BEGIN)func_array[lib_index][eINSERT_BEGIN])(handle, MS_REGISTER_COUNT, &err_msg);/*dlopen*/
+		ret = ((INSERT_ITEM_BEGIN)func_array[lib_index][eINSERT_BEGIN])(handle[lib_index], MS_REGISTER_COUNT, &err_msg);/*dlopen*/
 		if (ret != 0) {
-			MS_DBG("error : %s", g_array_index(so_array, char*, lib_index));
-			free(err_msg);
+			MS_DBG_ERR("error : %s [%s]", g_array_index(so_array, char*, lib_index), err_msg);
+			MS_SAFE_FREE(err_msg);
 		}
 	}
 }
 
 void
-ms_register_end(void *handle)
+ms_register_end(void **handle)
 {
 	int lib_index;
 	int ret = 0;
 	char *err_msg = NULL;
 
 	for (lib_index = 0; lib_index < lib_num; lib_index++) {
-		ret = ((INSERT_ITEM_END)func_array[lib_index][eINSERT_END])(handle, &err_msg);/*dlopen*/
+		ret = ((INSERT_ITEM_END)func_array[lib_index][eINSERT_END])(handle[lib_index], &err_msg);/*dlopen*/
 		if (ret != 0) {
-			MS_DBG("error : %s", g_array_index(so_array, char*, lib_index));
-			free(err_msg);
+			MS_DBG_ERR("error : %s [%s]", g_array_index(so_array, char*, lib_index), err_msg);
+			MS_SAFE_FREE(err_msg);
 		}
 	}
 }
 
 void
-ms_validate_start(void *handle)
+ms_validate_start(void **handle)
 {
 	int lib_index;
 	int ret = 0;
 	char *err_msg = NULL;
 
 	for (lib_index = 0; lib_index < lib_num; lib_index++) {
-		ret = ((SET_ITEM_VALIDITY_BEGIN)func_array[lib_index][eSET_VALIDITY_BEGIN])(handle, MS_VALID_COUNT, &err_msg);/*dlopen*/
+		ret = ((SET_ITEM_VALIDITY_BEGIN)func_array[lib_index][eSET_VALIDITY_BEGIN])(handle[lib_index], MS_VALID_COUNT, &err_msg);/*dlopen*/
 		if (ret != 0) {
-			MS_DBG("error : %s", g_array_index(so_array, char*, lib_index));
-			free(err_msg);
+			MS_DBG_ERR("error : %s [%s]", g_array_index(so_array, char*, lib_index), err_msg);
+			MS_SAFE_FREE(err_msg);
 		}
 	}
 }
 
 void
-ms_validate_end(void *handle)
+ms_validate_end(void **handle)
 {
 	int lib_index;
 	int ret = 0;
 	char *err_msg = NULL;
 
 	for (lib_index = 0; lib_index < lib_num; lib_index++) {
-		ret = ((SET_ITEM_VALIDITY_END)func_array[lib_index][eSET_VALIDITY_END])(handle, &err_msg);/*dlopen*/
+		ret = ((SET_ITEM_VALIDITY_END)func_array[lib_index][eSET_VALIDITY_END])(handle[lib_index], &err_msg);/*dlopen*/
 		if (ret != 0) {
-			MS_DBG("error : %s", g_array_index(so_array, char*, lib_index));
-			free(err_msg);
+			MS_DBG_ERR("error : %s [%s]", g_array_index(so_array, char*, lib_index), err_msg);
+			MS_SAFE_FREE(err_msg);
 		}
 	}
 }
 
 void
-ms_move_start(void *handle)
+ms_move_start(void **handle)
 {
 	int lib_index;
 	int ret = 0;
 	char *err_msg = NULL;
 
 	for (lib_index = 0; lib_index < lib_num; lib_index++) {
-		ret = ((MOVE_ITEM_BEGIN)func_array[lib_index][eMOVE_BEGIN])(handle, MS_MOVE_COUNT, &err_msg);/*dlopen*/
+		ret = ((MOVE_ITEM_BEGIN)func_array[lib_index][eMOVE_BEGIN])(handle[lib_index], MS_MOVE_COUNT, &err_msg);/*dlopen*/
 		if (ret != 0) {
-			MS_DBG("error : %s", g_array_index(so_array, char*, lib_index));
-			free(err_msg);
+			MS_DBG_ERR("error : %s [%s]", g_array_index(so_array, char*, lib_index), err_msg);
+			MS_SAFE_FREE(err_msg);
 		}
 	}
 }
 
 void
-ms_move_end(void *handle)
+ms_move_end(void **handle)
 {
 	int lib_index;
 	int ret = 0;
 	char *err_msg = NULL;
 
 	for (lib_index = 0; lib_index < lib_num; lib_index++) {
-	       ret = ((MOVE_ITEM_END)func_array[lib_index][eMOVE_END])(handle, &err_msg);/*dlopen*/
+	       ret = ((MOVE_ITEM_END)func_array[lib_index][eMOVE_END])(handle[lib_index], &err_msg);/*dlopen*/
 	   	if (ret != 0) {
-			MS_DBG("error : %s", g_array_index(so_array, char*, lib_index));
-			free(err_msg);
+			MS_DBG_ERR("error : %s [%s]", g_array_index(so_array, char*, lib_index), err_msg);
+			MS_SAFE_FREE(err_msg);
 		}
 	}
 }

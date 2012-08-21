@@ -28,7 +28,8 @@
  * @brief
  */
 #include <vconf.h>
-#include <drm-service.h>
+#include <heynoti.h>
+#include <media-util-register.h>
 
 #include "media-server-utils.h"
 #include "media-server-external-storage.h"
@@ -36,8 +37,12 @@
 #include "media-server-inotify.h"
 #include "media-server-scan.h"
 #include "media-server-socket.h"
+#include "media-server-drm.h"
+#include "media-server-dbus.h"
 
 #define APP_NAME "media-server"
+
+static int heynoti_id;
 
 extern GAsyncQueue *scan_queue;
 extern GAsyncQueue* ret_queue;
@@ -46,10 +51,11 @@ extern GMutex *list_mutex;
 extern GMutex *queue_mutex;
 extern GArray *reg_list;
 extern int mmc_state;
+extern bool power_off; /*If this is TRUE, poweroff notification received*/
+static GMainLoop *mainloop = NULL;
 
 bool check_process(pid_t current_pid)
 {
-	MS_DBG_START();
 	DIR *pdir;
 	struct dirent pinfo;
 	struct dirent *result = NULL;
@@ -58,7 +64,7 @@ bool check_process(pid_t current_pid)
 
 	pdir = opendir("/proc");
 	if (pdir == NULL) {
-		MS_DBG("err: NO_DIR\n");
+		MS_DBG_ERR("err: NO_DIR\n");
 		return 0;
 	}
 
@@ -81,10 +87,7 @@ bool check_process(pid_t current_pid)
 			fclose(fp);
 
 			if (strstr(buff, APP_NAME)) {
-				MS_DBG("pinfo->d_name : %s", pinfo.d_name);
 				find_pid = atoi(pinfo.d_name);
-				MS_DBG(" find_pid : %d", find_pid);
-				MS_DBG(" current_pid : %d", current_pid);
 				if (find_pid == current_pid)
 					ret = true;
 				else {
@@ -93,13 +96,11 @@ bool check_process(pid_t current_pid)
 				}
 			}
 		} else {
-			MS_DBG("Can't read file [%s]", path);
+			MS_DBG_ERR("Can't read file [%s]", path);
 		}
 	}
 
 	closedir(pdir);
-
-	MS_DBG_END();
 
 	return ret;
 }
@@ -109,57 +110,72 @@ void init_process()
 
 }
 
-static bool _db_clear(void)
+static void _power_off_cb(void* data)
+{
+	ms_scan_data_t *scan_data;
+
+	MS_DBG("++++++++++++++++++++++++++++++++++++++");
+	MS_DBG("POWER OFF");
+	MS_DBG("++++++++++++++++++++++++++++++++++++++");
+
+	power_off = true;
+
+	if (scan_queue) {
+		/*notify to scannig thread*/
+		scan_data = malloc(sizeof(ms_scan_data_t));
+		scan_data->path = NULL;
+		scan_data->scan_type = POWEROFF;
+		g_async_queue_push(scan_queue, GINT_TO_POINTER(scan_data));
+
+		/*notify to Inotify thread*/
+		mkdir(POWEROFF_DIR_PATH, 0777);
+		rmdir(POWEROFF_DIR_PATH);
+	}
+
+	if (g_main_loop_is_running(mainloop)) g_main_loop_quit(mainloop);
+}
+
+static bool _db_clear(void** handle)
 {
 	int err;
 	int db_status;
-	int usb_status;
 	bool need_db_create = false;
-	void *handle = NULL;
-
-	/*connect to media db, if conneting is failed, db updating is stopped*/
-	ms_connect_db(&handle);
 
 	/*update just valid type*/
-	err = ms_invalidate_all_items(handle, MS_MMC);
+	err = ms_invalidate_all_items(handle, MS_STORATE_EXTERNAL);
 	if (err != MS_ERR_NONE)
-		MS_DBG("ms_change_valid_type fail");
+		MS_DBG_ERR("ms_change_valid_type fail");
 
 	ms_config_get_int(VCONFKEY_FILEMANAGER_DB_STATUS, &db_status);
-	ms_config_get_int(MS_USB_MODE_KEY, &usb_status);
-
 	MS_DBG("finish_phone_init_data  db = %d", db_status);
-	MS_DBG("finish_phone_init_data usb = %d", usb_status);
 
-	if (db_status == VCONFKEY_FILEMANAGER_DB_UPDATING
-		|| usb_status == MS_VCONFKEY_MASS_STORAGE_MODE) {
-
+	if (db_status == VCONFKEY_FILEMANAGER_DB_UPDATING) {
 		need_db_create = true;
 
-		err = ms_invalidate_all_items(handle, MS_PHONE);
+		err = ms_invalidate_all_items(handle, MS_STORAGE_INTERNAL);
 		if (err != MS_ERR_NONE)
-			MS_DBG("ms_change_valid_type fail");
+			MS_DBG_ERR("ms_change_valid_type fail");
 	}
 
 	ms_set_db_status(MS_DB_UPDATED);
-
-	/*disconnect form media db*/
-	ms_disconnect_db(handle);
 
 	return need_db_create;
 }
 
 int main(int argc, char **argv)
 {
-	GThread *inoti_tid;
-	GThread *scan_tid;
-	GThread *scoket_tid;
+	GThread *inoti_tid = NULL;
+	GThread *scan_tid = NULL;
+	GSource *source = NULL;
+	GIOChannel *channel = NULL;
+	GMainContext *context = NULL;
 
-	GMainLoop *mainloop = NULL;
 	pid_t current_pid = 0;
+	int sockfd = -1;
 	int err;
 	bool check_result = false;
 	bool need_db_create;
+	void **handle = NULL;
 
 	ms_scan_data_t *phone_scan_data;
 	ms_scan_data_t *mmc_scan_data;
@@ -169,57 +185,80 @@ int main(int argc, char **argv)
 	if (check_result == false)
 		exit(0);
 
-	ms_load_functions();
-
 	if (!g_thread_supported()) {
 		g_thread_init(NULL);
 	}
 
-	/*Init db mutex variable*/
-	if (!db_mutex)
-		db_mutex = g_mutex_new();
-
-	/*clear previous data of sdcard on media database and check db status for updating*/
-	need_db_create = _db_clear();
-	
-	MS_DBG("MEDIA SERVER START");
-
-	if (!scan_queue)
-		scan_queue = g_async_queue_new();
-	if (!ret_queue)
-		ret_queue = g_async_queue_new();
-
-	/*Init for register file*/
-	if (!list_mutex)
-		list_mutex = g_mutex_new();
-	if (!queue_mutex)
-		queue_mutex = g_mutex_new();
-	if (!reg_list)
-		reg_list = g_array_new(TRUE, TRUE, sizeof(char*));
+	/*Init main loop*/
+	mainloop = g_main_loop_new(NULL, FALSE);
 
 	/*inotify setup */
 	ms_inoti_init();
 
+	/*heynoti for power off*/
+	if ((heynoti_id = heynoti_init()) <0) {
+		MS_DBG("heynoti_init failed");
+	} else {
+		err = heynoti_subscribe(heynoti_id, POWEROFF_NOTI_NAME, _power_off_cb, NULL);
+		if (err < 0)
+			MS_DBG("heynoti_subscribe failed");
+
+		err = heynoti_attach_handler(heynoti_id);
+		if (err < 0)
+			MS_DBG("heynoti_attach_handler failed");
+	}
+
+	/*load functions from plusin(s)*/
+	ms_load_functions();
+
+	/*Init db mutex variable*/
+	if (!db_mutex) db_mutex = g_mutex_new();
+
+	/*Init for register file*/
+	if (!list_mutex) list_mutex = g_mutex_new();
+	if (!queue_mutex) queue_mutex = g_mutex_new();
+	if (!reg_list) reg_list = g_array_new(TRUE, TRUE, sizeof(char*));
+
+	/*connect to media db, if conneting is failed, db updating is stopped*/
+	ms_connect_db(&handle);
+
+	/*clear previous data of sdcard on media database and check db status for updating*/
+	need_db_create = _db_clear(handle);
+
+	ms_dbus_init();
+
 	ms_inoti_add_watch(MS_DB_UPDATE_NOTI_PATH);
+	ms_inoti_add_watch_all_directory(MS_STORAGE_INTERNAL);
+
+	/*These are a communicator for thread*/
+	if (!scan_queue) scan_queue = g_async_queue_new();
+	if (!ret_queue) ret_queue = g_async_queue_new();
+
+	/*prepare socket*/
+	/* Create and bind new UDP socket */
+	if (!ms_prepare_socket(&sockfd)) {
+		MS_DBG_ERR("Failed to create socket\n");
+	} else {
+		context = g_main_loop_get_context(mainloop);
+
+		/* Create new channel to watch udp socket */
+		channel = g_io_channel_unix_new(sockfd);
+		source = g_io_create_watch(channel, G_IO_IN);
+
+		/* Set callback to be called when socket is readable */
+		g_source_set_callback(source, (GSourceFunc)ms_read_socket, handle, NULL);
+		g_source_attach(source, context);
+	}
 
 	/*create each threads*/
-	inoti_tid = g_thread_create((GThreadFunc) ms_inoti_thread, NULL, FALSE, NULL);
+	inoti_tid = g_thread_create((GThreadFunc) ms_inoti_thread, NULL, TRUE, NULL);
 	scan_tid = g_thread_create((GThreadFunc) ms_scan_thread, NULL, TRUE, NULL);
-	scoket_tid  = g_thread_create((GThreadFunc) ms_socket_thread, NULL, TRUE, NULL);
-
-	/*Init main loop*/
-	mainloop = g_main_loop_new(NULL, FALSE);
 
 	/*set vconf callback function*/
 	err = vconf_notify_key_changed(VCONFKEY_SYSMAN_MMC_STATUS,
 				     (vconf_callback_fn) ms_mmc_vconf_cb, NULL);
 	if (err == -1)
-		MS_DBG("add call back function for event %s fails", VCONFKEY_SYSMAN_MMC_STATUS);
-
-	err = vconf_notify_key_changed(VCONFKEY_USB_STORAGE_STATUS,
-				     (vconf_callback_fn) ms_usb_vconf_cb, NULL);
-	if (err == -1)
-		MS_DBG("add call back function for event %s fails", VCONFKEY_USB_STORAGE_STATUS);
+		MS_DBG_ERR("add call back function for event %s fails", VCONFKEY_SYSMAN_MMC_STATUS);
 
 	phone_scan_data = malloc(sizeof(ms_scan_data_t));
 	mmc_scan_data = malloc(sizeof(ms_scan_data_t));
@@ -227,37 +266,32 @@ int main(int argc, char **argv)
 	MS_DBG("*** Begin to check tables of file manager in database ***");
 	MS_DBG("*********************************************************");
 
-	phone_scan_data->db_type = MS_PHONE;
-
 	if (need_db_create) {
 		/*insert records*/
-		MS_DBG("Create DB");
+		phone_scan_data->path = strdup(MS_ROOT_PATH_INTERNAL);
+		phone_scan_data->storage_type = MS_STORAGE_INTERNAL;
 		phone_scan_data->scan_type = MS_SCAN_ALL;
-	} else {
-		MS_DBG("JUST ADD WATCH");
-		phone_scan_data->scan_type = MS_SCAN_NONE;
+		/*push data to fex_dir_scan_cb */
+		g_async_queue_push(scan_queue, GINT_TO_POINTER(phone_scan_data));
 	}
-
-	/*push data to fex_dir_scan_cb */
-	g_async_queue_push(scan_queue, GINT_TO_POINTER(phone_scan_data));
 
 	if (ms_is_mmc_inserted()) {
 		mmc_state = VCONFKEY_SYSMAN_MMC_MOUNTED;
 
-		if (drm_svc_insert_ext_memory() == DRM_RESULT_SUCCESS)
-			MS_DBG
-			    ("fex_db_service_init : drm_svc_insert_ext_memory OK");
+		if (!ms_drm_insert_ext_memory())
+			MS_DBG_ERR("ms_drm_insert_ext_memory failed");
 
 		ms_make_default_path_mmc();
+		ms_inoti_add_watch_all_directory(MS_STORATE_EXTERNAL);
 
+		mmc_scan_data->path = strdup(MS_ROOT_PATH_EXTERNAL);
 		mmc_scan_data->scan_type = ms_get_mmc_state();
-		mmc_scan_data->db_type = MS_MMC;
-
-		MS_DBG("ms_get_mmc_state is %d", mmc_scan_data->scan_type);
+		mmc_scan_data->storage_type = MS_STORATE_EXTERNAL;
 
 		g_async_queue_push(scan_queue, GINT_TO_POINTER(mmc_scan_data));
 	}
 
+	/*Active flush */
 	malloc_trim(0);
 
 	MS_DBG("*****************************************");
@@ -266,30 +300,37 @@ int main(int argc, char **argv)
 
 	g_main_loop_run(mainloop);
 
-	/*free all associated memory */
-	g_main_loop_unref(mainloop);
+	g_thread_join(inoti_tid);
+	g_thread_join(scan_tid);
 
-	ms_unload_functions();
+	/*close an IO channel*/
+	g_io_channel_shutdown(channel,  FALSE, NULL);
+	g_io_channel_unref(channel);
 
-	if (scan_queue)
-		g_async_queue_unref(scan_queue);
+	heynoti_unsubscribe(heynoti_id, POWEROFF_NOTI_NAME, _power_off_cb);
+	heynoti_close(heynoti_id);
 
-	if (ret_queue)
-		g_async_queue_unref(ret_queue);
-
-	if(reg_list)
-		g_array_free(reg_list, true);
+	if (scan_queue) g_async_queue_unref(scan_queue);
+	if (ret_queue) g_async_queue_unref(ret_queue);
+	if (reg_list) g_array_free(reg_list, true);
 
 	/***********
 	**remove call back functions
 	************/
 	vconf_ignore_key_changed(VCONFKEY_SYSMAN_MMC_STATUS,
 				 (vconf_callback_fn) ms_mmc_vconf_cb);
-	vconf_ignore_key_changed(VCONFKEY_USB_STORAGE_STATUS,
-				 (vconf_callback_fn) ms_usb_vconf_cb);
 
 	/*Clear db mutex variable*/
-	g_mutex_free (db_mutex);
+	if (db_mutex) g_mutex_free (db_mutex);
+
+	/*disconnect form media db*/
+	if (handle) ms_disconnect_db(&handle);
+
+	/*close socket*/
+	close(sockfd);
+
+	/*unload functions*/
+	ms_unload_functions();
 
 	exit(0);
 }

@@ -182,7 +182,7 @@ int media_list_free(media_list list)
 
 	for(i = 0; i < len; i++) {
 		data = g_array_index(list, char*, i);
-		free(data);
+		MS_SAFE_FREE(data);
 	}
 
 	g_array_free(list, TRUE);

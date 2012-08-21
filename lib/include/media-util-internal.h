@@ -31,6 +31,8 @@
 #ifndef _MEDIA_UTIL_GLOBAL_H_
 #define _MEDIA_UTIL_GLOBAL_H_
 
+#define MS_SAFE_FREE(src)      { if(src) {free(src); src = NULL;} }
+
 #define MS_MEDIA_TIMEOUT_SEC		10 /*timeout of waiting reponse for IPC*/
 
 #define MS_MEDIA_UPDATE_NOTI_PATH "/opt/data/file-manager-service/_FILEOPERATION_END"
@@ -39,5 +41,10 @@
 
 #define MS_MEDIA_PHONE_ROOT_PATH         "/opt/media"
 #define MS_MEDIA_MMC_ROOT_PATH           "/opt/storage/sdcard"
+
+#define MS_MEDIA_DBUS_PATH "/com/mediaserver/dbus/notify"
+#define MS_MEDIA_DBUS_INTERFACE "com.mediaserver.dbus.Signal"
+#define MS_MEDIA_DBUS_NAME "ms_db_updated"
+#define MS_MEDIA_DBUS_MATCH_RULE "type='signal',interface='com.mediaserver.dbus.Signal'"
 
 #endif /*_MEDIA_UTIL_GLOBAL_H_*/

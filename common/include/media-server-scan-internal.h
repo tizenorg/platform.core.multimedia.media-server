@@ -27,12 +27,12 @@
  * @version	1.0
  * @brief
  */
+#ifndef _MEDIA_SERVER_SCAN_INTERNAL_H_
+#define _MEDIA_SERVER_SCAN_INTERNAL_H_
+
 #include "media-server-global.h"
 #include "media-server-types.h"
 
-#ifdef PROGRESS
-struct quickpanel;
-void _ms_dir_scan(void *handle, ms_scan_data_t * scan_data, struct quickpanel *ms_quickpanel);
-#else
-void _ms_dir_scan(void *handle, ms_scan_data_t * scan_data);
-#endif
+void _ms_dir_scan(void **handle, ms_scan_data_t * scan_data);
+
+#endif /*_MEDIA_SERVER_SCAN_INTERNAL_H_*/

@@ -1,33 +1,52 @@
+/*
+ *  Media Server
+ *
+ * Copyright (c) 2000 - 2011 Samsung Electronics Co., Ltd. All rights reserved.
+ *
+ * Contact: Yong Yeon Kim <yy9875.kim@samsung.com>
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
 #include <vconf.h>
-#include <drm-service.h>
 
 #include "media-server-utils.h"
 #include "media-server-inotify.h"
 #include "media-server-external-storage.h"
+#include "media-server-drm.h"
 
 #define MMC_INFO_SIZE 256
-#define DIR_NUM 5
 
 int mmc_state = 0;
-extern int current_usb_mode;
 extern GAsyncQueue *scan_queue;
+
+char default_path[][MS_FILE_NAME_LEN_MAX + 1] = {
+		{"/opt/storage/sdcard/Images"},
+		{"/opt/storage/sdcard/Videos"},
+		{"/opt/storage/sdcard/Sounds"},
+		{"/opt/storage/sdcard/Downloads"},
+		{"/opt/storage/sdcard/Camera"}
+};
+
+#define DIR_NUM       ((int)(sizeof(default_path)/sizeof(default_path[0])))
 
 void
 ms_make_default_path_mmc(void)
 {
-	MS_DBG_START();
-
 	int i = 0;
 	int ret = 0;
 	DIR *dp = NULL;
-
-	char default_path[DIR_NUM][MS_FILE_NAME_LEN_MAX + 1] = {
-		{"/opt/storage/sdcard/Images"},
-		{"/opt/storage/sdcard/Videos"},
-		{"/opt/storage/sdcard/Music"},
-		{"/opt/storage/sdcard/Downloads"},
-		{"/opt/storage/sdcard/Camera shots"}
-	};
 
 	for (i = 0; i < DIR_NUM; ++i) {
 		dp = opendir(default_path[i]);
@@ -42,28 +61,23 @@ ms_make_default_path_mmc(void)
 			closedir(dp);
 		}
 	}
-
-	MS_DBG_END();
 }
 
 int
 _ms_update_mmc_info(const char *cid)
 {
-	MS_DBG_START();
 	bool res;
 
 	if (cid == NULL) {
-		MS_DBG("Parameters are invalid");
+		MS_DBG_ERR("Parameters are invalid");
 		return MS_ERR_ARG_INVALID;
 	}
 
 	res = ms_config_set_str(MS_MMC_INFO_KEY, cid);
 	if (!res) {
-		MS_DBG("fail to get MS_MMC_INFO_KEY");
+		MS_DBG_ERR("fail to get MS_MMC_INFO_KEY");
 		return MS_ERR_VCONF_SET_FAIL;
 	}
-
-	MS_DBG_END();
 
 	return MS_ERR_NONE;
 }
@@ -71,19 +85,17 @@ _ms_update_mmc_info(const char *cid)
 bool
 _ms_check_mmc_info(const char *cid)
 {
-	MS_DBG_START();
-
 	char pre_mmc_info[MMC_INFO_SIZE] = { 0 };
 	bool res = false;
 
 	if (cid == NULL) {
-		MS_DBG("Parameters are invalid");
+		MS_DBG_ERR("Parameters are invalid");
 		return false;
 	}
 
 	res = ms_config_get_str(MS_MMC_INFO_KEY, pre_mmc_info);
 	if (!res) {
-		MS_DBG("fail to get MS_MMC_INFO_KEY");
+		MS_DBG_ERR("fail to get MS_MMC_INFO_KEY");
 		return false;
 	}
 
@@ -94,7 +106,6 @@ _ms_check_mmc_info(const char *cid)
 		return true;
 	}
 
-	MS_DBG_END();
 	return false;
 }
 
@@ -103,11 +114,9 @@ _get_contents(const char *filename, char *buf)
 {
 	FILE *fp;
 
-	MS_DBG("%s", filename);
-
 	fp = fopen(filename, "rt");
 	if (fp == NULL) {
-		MS_DBG("fp is NULL");
+		MS_DBG_ERR("fp is NULL. file name : %s", filename);
 		return MS_ERR_FILE_OPEN_FAIL;
 	}
 	fgets(buf, 255, fp);
@@ -121,8 +130,6 @@ _get_contents(const char *filename, char *buf)
 int
 _ms_get_mmc_info(char *cid)
 {
-	MS_DBG_START();
-
 	int i;
 	int j;
 	int len;
@@ -140,7 +147,7 @@ _ms_get_mmc_info(char *cid)
 	for (j = 1; j < 3; j++) {
 		len = snprintf(mmcpath, MS_FILE_PATH_LEN_MAX, "/sys/class/mmc_host/mmc%d/", j);
 		if (len < 0) {
-			MS_DBG("FAIL : snprintf");
+			MS_DBG_ERR("FAIL : snprintf");
 			return MS_ERR_UNKNOWN_ERROR;
 		}
 		else {
@@ -148,12 +155,9 @@ _ms_get_mmc_info(char *cid)
 		}
 
 		dp = opendir(mmcpath);
-
 		if (dp == NULL) {
-			MS_DBG("dp is NULL");
-			{
-				return MS_ERR_DIR_OPEN_FAIL;
-			}
+			MS_DBG_ERR("dp is NULL");
+			return MS_ERR_DIR_OPEN_FAIL;
 		}
 
 		while (!readdir_r(dp, &ent, &res)) {
@@ -178,7 +182,7 @@ _ms_get_mmc_info(char *cid)
 					/*check serial */
 					err = ms_strappend(path, sizeof(path), "%s%s/cid", mmcpath, ent.d_name);
 					if (err < 0) {
-						MS_DBG("FAIL : ms_strappend");
+						MS_DBG_ERR("ms_strappend error : %d", err);
 						continue;
 					}
 
@@ -186,7 +190,6 @@ _ms_get_mmc_info(char *cid)
 						break;
 					else
 						getdata = true;
-					MS_DBG("MMC serial : %s", cid);
 				}
 			}
 		}
@@ -196,8 +199,6 @@ _ms_get_mmc_info(char *cid)
 			break;
 		}
 	}
-
-	MS_DBG_END();
 
 	return MS_ERR_NONE;
 }
@@ -213,7 +214,6 @@ ms_get_mmc_state(void)
 
 	/*check it's same mmc */
 	if (_ms_check_mmc_info(cid)) {
-		MS_DBG("Detected same MMC! but needs to update the changes...");
 		ret = MS_SCAN_PART;
 	}
 
@@ -231,8 +231,8 @@ ms_update_mmc_info(void)
 	err = _ms_update_mmc_info(cid);
 
 	/*Active flush */
-	if (malloc_trim(0))
-		MS_DBG("SUCCESS malloc_trim");
+	if (!malloc_trim(0))
+		MS_DBG_ERR("malloc_trim is failed");
 
 	return err;
 }
@@ -244,41 +244,34 @@ ms_mmc_removed_handler(void)
 
 	mmc_scan_data = malloc(sizeof(ms_scan_data_t));
 
-	mmc_scan_data->scan_type = MS_SCAN_VALID;
-	mmc_scan_data->db_type = MS_MMC;
+	mmc_scan_data->path = strdup(MS_ROOT_PATH_EXTERNAL);
+	mmc_scan_data->scan_type = MS_SCAN_INVALID;
+	mmc_scan_data->storage_type = MS_STORATE_EXTERNAL;
 
 	g_async_queue_push(scan_queue, GINT_TO_POINTER(mmc_scan_data));
 
 	/*remove added watch descriptors */
-	ms_inoti_remove_watch_recursive(MS_MMC_ROOT_PATH);
+	ms_inoti_remove_watch_recursive(MS_ROOT_PATH_EXTERNAL);
 
 	ms_inoti_delete_mmc_ignore_file();
 
-	if (drm_svc_extract_ext_memory() == DRM_RESULT_SUCCESS)
-		MS_DBG("drm_svc_extract_ext_memory OK");
+	if (!ms_drm_extract_ext_memory())
+		MS_DBG_ERR("ms_drm_extract_ext_memory failed");
 }
 
 void
 ms_mmc_vconf_cb(void *data)
 {
-	MS_DBG_START();
-
 	int status = 0;
 	ms_scan_data_t *scan_data;
 
-	MS_DBG("Received MMC noti from vconf : %d", status);
-
 	if (!ms_config_get_int(VCONFKEY_SYSMAN_MMC_STATUS, &status)) {
-		MS_DBG("........Get VCONFKEY_SYSMAN_MMC_STATUS failed........");
+		MS_DBG_ERR("Get VCONFKEY_SYSMAN_MMC_STATUS failed.");
 	}
 
-	MS_DBG("ms_config_get_int : VCONFKEY_SYSMAN_MMC_STATUS END = %d",
-	       status);
+	MS_DBG("VCONFKEY_SYSMAN_MMC_STATUS :%d", status);
 
 	mmc_state = status;
-
-	if (current_usb_mode != VCONFKEY_USB_STORAGE_STATUS_OFF)
-		return;
 
 	if (mmc_state == VCONFKEY_SYSMAN_MMC_REMOVED ||
 		mmc_state == VCONFKEY_SYSMAN_MMC_INSERTED_NOT_MOUNTED) {
@@ -287,20 +280,21 @@ ms_mmc_vconf_cb(void *data)
 	else if (mmc_state == VCONFKEY_SYSMAN_MMC_MOUNTED) {
 		scan_data = malloc(sizeof(ms_scan_data_t));
 
-		if (drm_svc_insert_ext_memory() == DRM_RESULT_SUCCESS)
-			MS_DBG("drm_svc_insert_ext_memory OK");
+		if (!ms_drm_insert_ext_memory())
+			MS_DBG_ERR("ms_drm_insert_ext_memory failed");
 
 		ms_make_default_path_mmc();
 
+		ms_inoti_add_watch_all_directory(MS_STORATE_EXTERNAL);
+
+		scan_data->path = strdup(MS_ROOT_PATH_EXTERNAL);
 		scan_data->scan_type = ms_get_mmc_state();
-		scan_data->db_type = MS_MMC;
+		scan_data->storage_type = MS_STORATE_EXTERNAL;
 
 		MS_DBG("ms_get_mmc_state is %d", scan_data->scan_type);
 
 		g_async_queue_push(scan_queue, GINT_TO_POINTER(scan_data));
 	}
-
-	MS_DBG_END();
 
 	return;
 }

@@ -75,6 +75,45 @@ extern "C" {
 int ms_noti_update_complete(void);
 
 /**
+* @fn 		int ms_noti_db_update_complete(void);
+* @brief 		This function announce media database is updated to other applications.<br>
+* @return	This function returns 0 on success, and -1 on failure.
+* @param[in]	none
+* @remark  	This function is recommandation for other application being aware of database updating.<br>
+* @par example
+* @code
+
+#include <stdio.h>
+#include <glib.h>
+#include <media-util-noti.h>
+
+void callback()
+{
+        printf("listen dbus from media-server\n");
+}
+
+int
+main (int argc, char **argv)
+{
+	GMainLoop *loop;
+
+	loop = g_main_loop_new (NULL, FALSE);
+
+	media_db_update_subscribe(callback);
+
+	g_main_loop_run (loop);
+
+	return 0;
+}
+
+*/
+
+typedef void (*db_update_cb)(void);
+
+int media_db_update_subscribe(db_update_cb user_cb);
+
+
+/**
 * @}
 */
 

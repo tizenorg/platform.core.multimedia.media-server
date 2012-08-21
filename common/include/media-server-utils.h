@@ -31,7 +31,6 @@
 #ifndef _MEDIA_SERVER_UTILS_H__
 #define _MEDIA_SERVER_UTILS_H__
 
-#include <sqlite3.h>
 #include "media-server-global.h"
 
 int
@@ -53,10 +52,10 @@ void
 ms_end(void);
 
 int
-ms_get_full_path_from_node(ms_dir_scan_info * const node, char *ret_path);
+ms_get_full_path_from_node(ms_dir_scan_info * const node, char *ret_path, int depth);
 
-ms_store_type_t
-ms_get_store_type_by_full(const char *path);
+ms_storage_type_t
+ms_get_storage_type_by_full(const char *path);
 
 int
 ms_strappend(char *res, const int size, const char *pattern,
@@ -78,9 +77,6 @@ ms_config_get_str(const char *key, char *value);
 bool
 ms_config_set_str(const char *key, const char *value);
 
-void
-ms_check_db_updating(void);
-
 #ifdef FMS_PERF
 void
 ms_check_start_time(struct timeval *start_time);
@@ -92,18 +88,6 @@ void
 ms_check_time_diff(struct timeval *start_time, struct timeval *end_time);
 #endif/*FMS_PERF */
 
-#ifdef PROGRESS
-struct quickpanel;
-
-void
-ms_create_quickpanel(struct quickpanel *ms_quickpanel);
-
-void
-ms_update_progress(struct quickpanel *ms_quickpanel, double progress);
-
-void
-ms_delete_quickpanel(struct quickpanel *ms_quickpanel);
-#endif /*PROGRSS*/
 /**
  * @}
  */

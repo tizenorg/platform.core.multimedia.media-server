@@ -2,10 +2,8 @@
 
 ####################################################################
 
-
 vconftool set -t int db/filemanager/dbupdate "1"
 vconftool set -t int memory/filemanager/Mmc "0" -i
 
-vconftool set -t int db/Apps/mediaserver/usbmode "0"
-vconftool set -t string db/Apps/mediaserver/mmc_info ""
+vconftool set -t string db/private/mediaserver/mmc_info ""
 

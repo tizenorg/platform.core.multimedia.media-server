@@ -32,7 +32,7 @@
 
 int inoti_fd;
 ms_create_file_info *latest_create_file;
-extern ms_dir_data *first_inoti_node;
+extern ms_inoti_dir_data *first_inoti_node;
 
 int _ms_inoti_add_create_file_list(int wd, char *name)
 {
@@ -68,8 +68,8 @@ int _ms_inoti_delete_create_file_list(ms_create_file_info *node)
 		latest_create_file = node->previous;
 	}
 
-	free(node->name);
-	free(node);
+	MS_SAFE_FREE(node->name);
+	MS_SAFE_FREE(node);
 
 	return MS_ERR_NONE;
 }
@@ -93,7 +93,7 @@ ms_create_file_info *_ms_inoti_find_create_file_list(int wd, char *name)
 bool _ms_inoti_get_full_path(int wd, char *name, char *path, int sizeofpath)
 {
 	int err;
-	ms_dir_data *node = NULL;
+	ms_inoti_dir_data *node = NULL;
 
 	if (name == NULL || path == NULL)
 		return false;
@@ -102,19 +102,17 @@ bool _ms_inoti_get_full_path(int wd, char *name, char *path, int sizeofpath)
 		node = first_inoti_node;
 		while (node->next != NULL) {
 			if (wd == node->wd) {
-				MS_DBG("find parent directory: %s", node->name);
 				break;
 			}
 			node = node->next;
 		}
 	} else {
-		MS_DBG("first_node is NULL");
 		return false;
 	}
 
 	err = ms_strappend(path, sizeofpath, "%s/%s", node->name, name);
 	if (err != MS_ERR_NONE) {
-		MS_DBG("ms_strappend error : %d", err);
+		MS_DBG_ERR("ms_strappend error : %d", err);
 		return false;
 	}
 	MS_DBG("full path : %s", path);

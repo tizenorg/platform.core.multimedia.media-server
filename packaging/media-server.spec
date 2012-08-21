@@ -1,19 +1,21 @@
 #sbs-git:slp/pkgs/m/media-server media-server 0.1.60 e216f565fe5687a6f387f2b3ee2097b926225517
 Name:       media-server
 Summary:    File manager service server.
-Version: 0.1.66
+Version: 0.1.88
 Release:    1
-Group:      Services
-License:    Apache-2.0
+Group:      utils
+License:    Samsung
 Source0:    %{name}-%{version}.tar.gz
 
 Requires(post): /usr/bin/vconftool
 BuildRequires:  pkgconfig(glib-2.0)
 BuildRequires:  pkgconfig(vconf)
 BuildRequires:  pkgconfig(dlog)
-BuildRequires:  pkgconfig(drm-service)
+BuildRequires:  pkgconfig(drm-client)
 BuildRequires:  pkgconfig(aul)
 BuildRequires:  pkgconfig(pmapi)
+BuildRequires:  pkgconfig(heynoti)
+BuildRequires:  pkgconfig(dbus-glib-1)
 
 %description
 Description: File manager service server
@@ -54,16 +56,16 @@ rm -rf %{buildroot}
 vconftool set -t int db/filemanager/dbupdate "1"
 vconftool set -t int memory/filemanager/Mmc "0" -i
 
-vconftool set -t int db/Apps/mediaserver/usbmode "0"
-vconftool set -t string db/Apps/mediaserver/mmc_info ""
+vconftool set -t string db/private/mediaserver/mmc_info ""
 
 
 %files
 %defattr(-,root,root,-)
 %{_bindir}/media-server
 %attr(755,-,-) %{_sysconfdir}/rc.d/init.d/mediasvr
-/etc/rc.d/rc3.d/S48mediasvr
-/etc/rc.d/rc5.d/S48mediasvr
+/etc/rc.d/rc3.d/S99mediasvr
+/etc/rc.d/rc5.d/S99mediasvr
+/usr/local/bin/reset_mediadb.sh
 
 %files -n libmedia-utils
 %defattr(-,root,root,-)
@@ -76,4 +78,21 @@ vconftool set -t string db/Apps/mediaserver/mmc_info ""
 %{_libdir}/pkgconfig/libmedia-utils.pc
 %{_includedir}/media-utils/*.h
 
+%changelog
+* Mon Aug 06 2012 Yong Yeon Kim <yy9875.kim@samsnug.com> - 0.1.86
+- add notification subscribe function for application
+- fix bug : once validity checking time, call insert_item_batch two times.
+- add MS_SAFE_FREE Macro, modify check value after using snprintf by secure coding guide
+- change macro name MS_PHONE_ROOT_PATH, MS_MMC_ROOT_PATH
+- make reference directory list by each thread
+
+* Tue Jul 03 2012 Yong Yeon Kim <yy9875.kim@samsnug.com> - 0.1.80
+- manage db handle by plug-in
+
+* Wed Jun 27 2012 Yong Yeon Kim <yy9875.kim@samsnug.com> - 0.1.79
+- If item exists in media db, return directly
+
+* Tue Jun 26 2012 Yong Yeon Kim <yy9875.kim@samsnug.com> - 0.1.78
+- change modified file updating routine (delete & insert -> refresh)
+- modify return error type of media_file_register
 

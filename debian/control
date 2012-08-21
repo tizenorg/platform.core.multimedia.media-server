@@ -7,7 +7,7 @@ Build-Depends: debhelper (>= 5), autotools-dev,
                libglib2.0-dev,
                libslp-setting-dev,
                dlog-dev,
-               drm-service-dev,
+               drm-client-dev,
                libaul-1-dev,
                libslp-pm-dev
 Standards-Version: 0.1.0

@@ -27,13 +27,20 @@
  * @version	1.0
  * @brief		
  */
+#ifndef _MEDIA_SERVER_INOTIFY_INTERNAL_H_
+#define _MEDIA_SERVER_INOTIFY_INTERNAL_H_
+
 #include <sys/inotify.h>
-#include <sqlite3.h>
-#include <drm-service.h>
 
 #define INOTI_EVENT_SIZE (sizeof(struct inotify_event))
 #define INOTI_BUF_LEN (1024*(INOTI_EVENT_SIZE+16))
 #define INOTI_FOLDER_COUNT_MAX 1024
+
+typedef struct ms_inoti_dir_data {
+	char *name;
+	int wd;
+	struct ms_inoti_dir_data *next;
+} ms_inoti_dir_data;
 
 typedef struct ms_create_file_info {
 	char *name;
@@ -52,3 +59,4 @@ bool _ms_inoti_full_path(int wd, char *name, char *path, int sizeofpath);
 
 bool _ms_inoti_get_full_path(int wd, char *name, char *path, int sizeofpath);
 
+#endif /*_MEDIA_SERVER_INOTIFY_INTERNAL_H_*/

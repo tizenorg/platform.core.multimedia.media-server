@@ -46,7 +46,7 @@ gboolean ms_inoti_thread(gpointer data);
 
 void ms_inoti_add_watch(char *path);
 
-int ms_inoti_add_watch_with_node(ms_dir_scan_info * const current_node);
+int ms_inoti_add_watch_with_node(ms_dir_scan_info * const current_node, int depth);
 
 void ms_inoti_remove_watch_recursive(char *path);
 
@@ -61,4 +61,6 @@ int ms_inoti_delete_ignore_file(ms_ignore_file_info * delete_node);
 ms_ignore_file_info *ms_inoti_find_ignore_file(const char *path);
 
 void ms_inoti_delete_mmc_ignore_file(void);
+
+void ms_inoti_add_watch_all_directory(ms_storage_type_t storage_type);
 #endif/* _MEDIA_SERVER_INOTI_H_ */

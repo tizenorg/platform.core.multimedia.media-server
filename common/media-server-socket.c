@@ -40,108 +40,97 @@
 
 GAsyncQueue* ret_queue;
 
-gboolean ms_socket_thread(void *data)
+gboolean ms_read_socket(GIOChannel *src,
+									GIOCondition condition,
+									gpointer data)
 {
-	int ret;
-	int err;
-	int state;
-	int sockfd;
-	int send_msg = MS_MEDIA_ERR_NONE;
-	int client_addr_size;
-	void *handle = NULL;
-
-	struct sockaddr_in server_addr;
 	struct sockaddr_in client_addr;
+	unsigned int client_addr_len;
 
-	char recv_buff[MS_FILE_PATH_LEN_MAX];
+	char recv_buff[MS_FILE_PATH_LEN_MAX] = {0};
+	int send_msg = MS_MEDIA_ERR_NONE;
+	int recv_msg_size;
+	int sock = -1;
+	int ret;
+	void **handle = data;
 
-	sockfd = socket(PF_INET, SOCK_DGRAM, 0);
+	memset(recv_buff, 0, sizeof(recv_buff));
 
-	if(sockfd < 0)
-	{
-		MS_DBG("socket create error");
-		perror("socket error : ");
-		return MS_ERR_SOCKET_CONN;
+	sock = g_io_channel_unix_get_fd(src);
+	if (sock < 0) {
+		MS_DBG_ERR("sock fd is invalid!");
+		return TRUE;
 	}
 
-	memset(&server_addr, 0, sizeof(server_addr));
-	server_addr.sin_family = AF_INET;
-	server_addr.sin_port = htons(MS_REGISTER_PORT);
-	server_addr.sin_addr.s_addr = htonl(INADDR_ANY);
-
-	state = bind(sockfd, (struct sockaddr*)&server_addr, sizeof(server_addr));
-	if(state < 0)
-	{
-		MS_DBG("bind error");
-		perror("bind error : ");
-		return MS_ERR_SOCKET_BIND;
+	/* Socket is readable */
+	client_addr_len = sizeof(client_addr);
+	if ((recv_msg_size = recvfrom(sock, &recv_buff, sizeof(recv_buff), 0, (struct sockaddr *)&client_addr, &client_addr_len)) < 0) {
+		MS_DBG_ERR("recvfrom failed");
+		return TRUE;
+	}
+	ret = ms_register_file(handle, recv_buff, ret_queue);
+	if (ret == MS_ERR_NOW_REGISTER_FILE) {
+		ret= GPOINTER_TO_INT(g_async_queue_pop(ret_queue)) - MS_ERR_MAX;
 	}
 
-	err = ms_connect_db(&handle);
-	if (err != MS_ERR_NONE) {
-		MS_DBG("SOCKET : sqlite3_open: ret = %d", err);
-		return false;
-	}
+	if (ret != MS_ERR_NONE) {
+		MS_DBG_ERR("ms_register_file error : %d", ret);
 
-	while(1)
-	{
-		client_addr_size  = sizeof(client_addr);
-		err = recvfrom(sockfd, recv_buff, sizeof(recv_buff), 0 ,
-			(struct sockaddr*)&client_addr, (socklen_t *)&client_addr_size);
-		if(err < 0){
-			MS_DBG("recvfrom error :%d", errno);
-			perror("recvfrom error : ");
-			goto NEXT;
-		} else {
-			MS_DBG("receive: %s\n", recv_buff);
+		if(ret == MS_ERR_ARG_INVALID) {
+			send_msg = MS_MEDIA_ERR_INVALID_PARAMETER;
+		} else if (ret == MS_ERR_MIME_GET_FAIL) {
+			send_msg = MS_MEDIA_ERR_INVALID_MEDIA;
+		} else if (ret == MS_ERR_DB_INSERT_RECORD_FAIL) {
+			send_msg = MS_MEDIA_ERR_INSERT_FAIL;
+		} else if (ret == MS_ERR_DRM_REGISTER_FAIL) {
+			send_msg = MS_MEDIA_ERR_DRM_INSERT_FAIL;
 		}
-
-		ret = ms_register_file(handle, recv_buff, ret_queue);
-		if (ret == MS_ERR_NOW_REGISTER_FILE) {
-			MS_DBG("WAIT");
-			ret= GPOINTER_TO_INT(g_async_queue_pop(ret_queue)) - MS_ERR_MAX;
-			MS_DBG("RECEIVE REPLAY");
-		}
-
-		if (ret != MS_ERR_NONE) {
-			MS_DBG("ms_register_file error : %d", ret);
-
-			if(ret == MS_ERR_ARG_INVALID) {
-				send_msg = MS_MEDIA_ERR_INVALID_PARAMETER;
-			} else if (ret == MS_ERR_NOT_MEDIA_FILE) {
-				send_msg = MS_MEDIA_ERR_INVALID_MEDIA;
-			} else if (ret == MS_ERR_DB_INSERT_RECORD_FAIL) {
-				send_msg = MS_MEDIA_ERR_INSERT_FAIL;
-			} else if (ret == MS_ERR_DRM_REGISTER_FAIL) {
-				send_msg = MS_MEDIA_ERR_DRM_INSERT_FAIL;
-			}
-		} else {
-			MS_DBG("SOCKET INSERT SECCESS");
-			send_msg = MS_MEDIA_ERR_NONE;
-		}
-
-		err = sendto(sockfd, &send_msg, sizeof(send_msg), 0,
-			(struct sockaddr*)&client_addr, sizeof(client_addr));
-		if(err < 0){
-			MS_DBG("SOCKET SEND FAIL :%d", errno);
-			perror("send error : ");
-		} else {
-			MS_DBG("SOCKET SEND SUCCESS");
-		}
-NEXT:
-		memset(recv_buff, 0, MS_FILE_PATH_LEN_MAX);
+	} else {
+		MS_DBG("SOCKET INSERT SECCESS : %s", recv_buff);
+		send_msg = MS_MEDIA_ERR_NONE;
 	}
 
-	close(sockfd);
-	MS_DBG("END SOCKET THREAD");
-
-	err = ms_disconnect_db(handle);
-	if (err != MS_ERR_NONE) {
-		MS_DBG("ms_media_db_close error : %d", err);
-		return false;
+	if (sendto(sock, &send_msg, sizeof(send_msg), 0, (struct sockaddr *)&client_addr, sizeof(client_addr)) != sizeof(send_msg)) {
+		MS_DBG_ERR("sendto failed");
+	} else {
+		MS_DBG("Sent %d", send_msg);
 	}
-	MS_DBG("Disconnect MEDIA DB");
 
-	return 0;
+	/*Active flush */
+	malloc_trim(0);
+
+	return TRUE;
+}
+
+gboolean ms_prepare_socket(int *sock_fd)
+{
+	int sock;
+	struct sockaddr_in serv_addr;
+	unsigned short serv_port;
+
+	serv_port = MS_REGISTER_PORT;
+
+	/* Creaete a datagram/UDP socket */
+	if ((sock = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0) {
+		MS_DBG_ERR("socket failed");
+		return FALSE;
+	}
+
+	memset(&serv_addr, 0, sizeof(serv_addr));
+	serv_addr.sin_family = AF_INET;
+	serv_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+	serv_addr.sin_port = htons(serv_port);
+
+	/* Bind to the local address */
+	if (bind(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
+		MS_DBG_ERR("bind failed");
+		return FALSE;
+	}
+
+	MS_DBG("bind success");
+
+	*sock_fd = sock;
+
+	return TRUE;
 }
 

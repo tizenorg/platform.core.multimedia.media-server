@@ -27,6 +27,9 @@
  * @version	1.0
  * @brief
  */
+#ifndef _MEDIA_SERVER_DB_SVC_H_
+#define _MEDIA_SERVER_DB_SVC_H_
+
 #include "media-server-global.h"
 
 typedef int (*CHECK_ITEM)(const char*, const char*, char **);
@@ -49,6 +52,7 @@ typedef int (*DELETE_ALL_ITEMS_IN_STORAGE)(void*, int, char **);
 typedef int (*DELETE_ALL_INVALID_ITMES_IN_STORAGE)(void*, int, char **);
 typedef int (*UPDATE_BEGIN)(char **);
 typedef int (*UPDATE_END)(char **);
+typedef int (*REFRESH_ITEM)(void*, const char *, int, const char*, char**);
 
 int
 ms_load_functions(void);
@@ -57,60 +61,68 @@ void
 ms_unload_functions(void);
 
 int
-ms_connect_db(void **handle);
+ms_connect_db(void ***handle);
 
 int
-ms_disconnect_db(void *handle);
+ms_disconnect_db(void ***handle);
 
 int
-ms_validate_item(void *handle, char *path);
+ms_validate_item(void **handle, char *path);
 
 int
-ms_register_file(void *handle, const char *path, GAsyncQueue* queue);
+ms_register_file(void **handle, const char *path, GAsyncQueue* queue);
 
 int
-ms_insert_item_batch(void *handle, const char *path);
+ms_insert_item_batch(void **handle, const char *path);
 
 int
-ms_insert_item(void *handle, const char *path);
+ms_insert_item(void **handle, const char *path);
 
 int
-ms_delete_item(void *handle, const char *full_file_path);
+ms_delete_item(void **handle, const char *full_file_path);
 
 int
-ms_move_item(void *handle,
-			ms_store_type_t src_store_type,
-		     	ms_store_type_t dest_store_type,
+ms_move_item(void **handle,
+			ms_storage_type_t src_store_type,
+		     	ms_storage_type_t dest_store_type,
 		     	const char *src_file_full_path,
 		     	const char *dest_file_full_path);
 
 bool
-ms_delete_all_items(void *handle, ms_store_type_t store_type);
+ms_delete_all_items(void **handle, ms_storage_type_t store_type);
 
 int
-ms_invalidate_all_items(void *handle, ms_store_type_t table_id);
+ms_invalidate_all_items(void **handle, ms_storage_type_t table_id);
 
 bool
-ms_delete_invalid_items(void *handle, ms_store_type_t store_type);
+ms_delete_invalid_items(void **handle, ms_storage_type_t store_type);
+
+int
+ms_refresh_item(void **handle, const char *path);
+
+int
+ms_check_exist(void **handle, const char *path);
 
 /****************************************************************************************************
 FOR BULK COMMIT
 *****************************************************************************************************/
 
 void
-ms_register_start(void *handle);
+ms_register_start(void **handle);
 
 void
-ms_register_end(void *handle);
+ms_register_end(void **handle);
 
 void
-ms_move_start(void *handle);
+ms_move_start(void **handle);
 
 void
-ms_move_end(void *handle);
+ms_move_end(void **handle);
 
 void
-ms_validate_start(void *handle);
+ms_validate_start(void **handle);
 
 void
-ms_validate_end(void *handle);
+ms_validate_end(void **handle);
+
+#endif /*_MEDIA_SERVER_DB_SVC_H_*/
