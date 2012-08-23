@@ -1,4 +1,3 @@
-#sbs-git:slp/pkgs/m/media-server media-server 0.1.60 e216f565fe5687a6f387f2b3ee2097b926225517
 Name:       media-server
 Summary:    File manager service server.
 Version: 0.1.88
