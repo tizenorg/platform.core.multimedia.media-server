@@ -1,9 +1,0 @@
-#!/bin/sh
-
-####################################################################
-
-vconftool set -t int db/filemanager/dbupdate "1"
-vconftool set -t int memory/filemanager/Mmc "0" -i
-
-vconftool set -t string db/private/mediaserver/mmc_info ""
-

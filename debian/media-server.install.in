@@ -1,4 +1,0 @@
-@PREFIX@/bin/*
-/etc/rc.d/init.d/mediasvr
-/etc/rc.d/rc3.d/S48mediasvr
-/etc/rc.d/rc5.d/S48mediasvr

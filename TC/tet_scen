@@ -1,7 +1,0 @@
-# auto generated tet_scen
-all
-	"Starting Full Test Suite"
-	/./utc/utc_ms_noti_update_complete
-	/./utc/utc_media_file_register
-	"Completed Full Test Suite"
-# EOF
