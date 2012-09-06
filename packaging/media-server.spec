@@ -1,6 +1,6 @@
 Name:       media-server
 Summary:    File manager service server.
-Version: 0.1.89
+Version: 0.1.90
 Release:    1
 Group:      utils
 License:    Samsung

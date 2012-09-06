@@ -641,8 +641,8 @@ ms_delete_item(void **handle, const char *path)
 	}
 
 	if (ms_is_drm_file(path)) {
-		ret = ms_drm_unregister(path);
-		res = ret;
+		ms_drm_unregister(path);
+
 	}
 
 	return res;
