@@ -1,0 +1,9 @@
+[Unit]
+Description=Media server
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/media-server
+
+[Install]
+WantedBy=multi-user.target
