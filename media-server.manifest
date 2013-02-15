@@ -1,0 +1,17 @@
+<manifest>
+	<define>
+		<domain name="media-server"/>
+	</define>
+	<request>
+		<domain name="_"/>
+	</request>
+	<assign>
+		<filesystem path="/usr/bin/media-server" label="media-server" exec_label="media-server"/>
+                <filesystem path="/usr/bin/media-scanner" label="media-server" exec_label="media-server" />
+                <filesystem path="/usr/bin/mediadb-update" label="media-server" exec_label="media-server" />
+                <filesystem path="/etc/rc.d/init.d/mediasvr" label="_" exec_label="none" />
+                <filesystem path="/etc/rc.d/rc3.d/S99mediasvr" label="_" exec_label="none" />
+                <filesystem path="/etc/rc.d/rc5.d/S99mediasvr" label="_" exec_label="none" />
+	</assign>
+</manifest>
+
