@@ -14,8 +14,6 @@ nor_directory = /etc/rc.d/rc3.d
 hib_directory = /etc/rc.d/rc5.d
 
 install-data-hook:
-	mkdir $(DESTDIR)/usr/local/bin/ -p
-	cp -a $(CURDIR)/reset_mediadb.sh $(DESTDIR)/usr/local/bin/
 	mkdir $(DESTDIR)$(nor_directory) -p
 	ln -s ../init.d/mediasvr S99mediasvr
 	mv ./S99mediasvr $(DESTDIR)$(nor_directory)
@@ -55,20 +53,18 @@ bin_PROGRAMS = media-server \
 		media-scanner \
 		mediadb-update
 
-media_server_SOURCES = common/media-server-dbus.c \
-		       common/media-server-drm.c \
-                       common/media-server-utils.c \
-                       common/media-server-external-storage.c \
-                       common/media-server-db-svc.c \
-                       common/media-server-inotify-internal.c \
-                       common/media-server-inotify.c \
-                       common/media-server-db.c \
-                       common/media-server-socket.c \
-                       common/media-server-thumb.c \
-                       common/media-server-scanner.c \
-                       common/media-server-main.c 
+media_server_SOURCES = src/common/media-common-drm.c \
+                       src/common/media-common-utils.c \
+                       src/common/media-common-external-storage.c \
+                       src/server/media-server-db-svc.c \
+                       src/server/media-server-db.c \
+                       src/server/media-server-socket.c \
+                       src/server/media-server-thumb.c \
+                       src/server/media-server-scanner.c \
+                       src/server/media-server-main.c 
 
-media_server_CFLAGS = -I${srcdir}/common/include \
+media_server_CFLAGS = -I${srcdir}/src/common/include \
+		      -I${srcdir}/src/server/include \
                       -I${srcdir}/lib/include \
                              $(GTHREAD_CFLAGS) \
                              $(GLIB_CFLAGS) \
@@ -94,16 +90,17 @@ media_server_LDADD = libmedia-utils.la \
                               -ldl \
                               $(STATUS_LIBS)
 
-media_scanner_SOURCES = common/scanner/media-scanner-drm.c \
-                       common/scanner/media-scanner-utils.c \
-                       common/scanner/media-scanner-db-svc.c \
-                       common/scanner/media-scanner-scan.c \
-                       common/scanner/media-scanner-socket.c \
-                       common/scanner/media-scanner.c
+media_scanner_SOURCES = src/common/media-common-utils.c \
+                	src/common/media-common-external-storage.c \
+		       	src/common/media-common-drm.c \
+                       	src/scanner/media-scanner-db-svc.c \
+                       	src/scanner/media-scanner-scan.c \
+                       	src/scanner/media-scanner-socket.c \
+                       	src/scanner/media-scanner.c
 
-media_scanner_CFLAGS = -I${srcdir}/common/scanner/include \
-                       -I${srcdir}/lib/include \
-                       -I${srcdir}/common/include \
+media_scanner_CFLAGS = -I${srcdir}/lib/include \
+                       -I${srcdir}/src/common/include \
+		       -I${srcdir}/src/scanner/include \
                              $(GTHREAD_CFLAGS) \
                              $(GLIB_CFLAGS) \
                              $(PHONESTATUS_CFLAGS) \
@@ -112,7 +109,8 @@ media_scanner_CFLAGS = -I${srcdir}/common/scanner/include \
                              $(AUL_CFLAG)\
                              $(LIBPMCONTROL_CFLAGS) \
                              $(HEYNOTI_CFLAGS) \
-                             $(DBUS_CFLAGS)
+                             $(DBUS_CFLAGS) \
+			     $(STATUS_CFLAGS)
 
 media_scanner_LDADD = libmedia-utils.la \
                               $(GLIB_LIBS) \
@@ -125,9 +123,10 @@ media_scanner_LDADD = libmedia-utils.la \
                               $(THUMB_GEN_LIBS) \
                               $(HEYNOTI_LIBS) \
                               $(DBUS_LIBS) \
-                              -ldl #this is for using dlsym
+                              -ldl \
+			      $(STATUS_LIBS)
 
-mediadb_update_SOURCES = common/mediadb-update.c
+mediadb_update_SOURCES = src/mediadb-update.c
 
 mediadb_update_CFLAGS = -I${srcdir}/lib/include \
                              $(GTHREAD_CFLAGS) \

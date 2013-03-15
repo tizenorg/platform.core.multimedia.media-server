@@ -64,6 +64,7 @@
 #define MS_MEDIA_ERR_DBUS_ADD_FILTER			-37  /**< DBUS add filter fails*/
 #define MS_MEDIA_ERR_DBUS_GET					-38  /**< DBUS get fails */
 #define MS_MEDIA_ERR_DATA_TAINTED				-39  /**< received data is tainted */
+#define MS_MEDIA_ERR_SEND_NOTI_FAIL			-40  /**< sending notification is failed */
 
 /* SERVER error*/
 #define MS_MEDIA_ERR_NOW_REGISTER_FILE		-41  /**< already inserting into DB */

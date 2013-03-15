@@ -34,6 +34,19 @@
 #define MS_TIMEOUT_SEC_10					10		/**< Response from Server time out */
 #define MS_TIMEOUT_SEC_20			20		/**< Response from Media server time out */
 
+#ifdef _USE_UDS_SOCKET_
+typedef enum{
+	MS_DB_BATCH_UPDATE_PORT = 0,	/**< Media DB batch update */
+	MS_SCAN_DAEMON_PORT,		/**< Port of communication between scanner and server */
+	MS_SCAN_COMM_PORT,		/**< Port of communication between scanner and server */
+	MS_SCANNER_PORT,		/**< Directory Scanner */
+	MS_DB_UPDATE_PORT,		/**< Media DB Update */
+	MS_THUMB_CREATOR_PORT,	/**< Create thumbnail */
+	MS_THUMB_COMM_PORT,		/**< Port of communication between creator and server */
+	MS_THUMB_DAEMON_PORT, 	/**< Port of Thumbnail server */
+	MS_PORT_MAX,
+}ms_msg_port_type_e;
+#else
 #define MS_SCANNER_PORT			1001		/**< Directory Scanner */
 #define MS_DB_UPDATE_PORT			1002		/**< Media DB Update */
 #define MS_THUMB_CREATOR_PORT	1003		/**< Create thumbnail */
@@ -42,6 +55,7 @@
 #define MS_DB_BATCH_UPDATE_PORT		1006	/**< Media DB batch update */
 #define MS_SCAN_DAEMON_PORT 	       1007		/**< Port of communication between scanner and server */
 #define MS_SCAN_COMM_PORT		       1008		/**< Port of communication between scanner and server */
+#endif
 
 #define MAX_MSG_SIZE				4096
 
@@ -52,6 +66,7 @@ typedef enum{
 	MS_MSG_DB_UPDATE_BATCH_END,		/**< End of media DB update batch */
 	MS_MSG_DIRECTORY_SCANNING,			/**< Non recursive Directory Scan and Media DB Update*/
 	MS_MSG_DIRECTORY_SCANNING_NON_RECURSIVE,/**< Recursive Directory Scan and Media DB Update*/
+	MS_MSG_BURSTSHOT_INSERT,
 	MS_MSG_BULK_INSERT,					/**< Request bulk insert */
 	MS_MSG_STORAGE_ALL,
 	MS_MSG_STORAGE_PARTIAL,

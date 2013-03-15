@@ -41,6 +41,8 @@
 #endif
 
 #define MS_SAFE_FREE(src)      { if(src) {free(src); src = NULL;} }
+#define MS_MALLOC(src, size)	{ if (size > SIZE_MAX || size <= 0) {src = NULL;} \
+							else { src = malloc(size); memset(src, 0x0, size);} }
 #define MS_STRING_VALID(str)	\
 	((str != NULL && strlen(str) > 0) ? TRUE : FALSE)
 
@@ -48,13 +50,6 @@
 #define MS_MEDIA_DBUS_INTERFACE "com.mediaserver.dbus.Signal"
 #define MS_MEDIA_DBUS_NAME "ms_db_updated"
 #define MS_MEDIA_DBUS_MATCH_RULE "type='signal',interface='com.mediaserver.dbus.Signal'"
-
-
-#define MS_SCAN_STATUS_DIRECTORY "file/private/mediaserver/scan_directory"
-enum{
-	VCONF_SCAN_DOING = 0,
-	VCONF_SCAN_DONE,
-};
 
 int media_db_update_db(MediaDBHandle *handle, const char *query_str);
 

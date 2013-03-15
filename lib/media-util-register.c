@@ -33,7 +33,11 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#ifdef _USE_UDS_SOCKET_
+#include <sys/un.h>
+#else
 #include <sys/socket.h>
+#endif
 #include <sys/syscall.h>
 #include <string.h>
 #include <stdbool.h>
@@ -189,68 +193,6 @@ static int _attach_callback(int *sockfd, scan_complete_cb user_callback, void *u
 	return MS_MEDIA_ERR_NONE;
 }
 
-static int __media_db_request_update_sync(ms_msg_type_e msg_type, const char *request_msg)
-{
-	int ret = MS_MEDIA_ERR_NONE;
-	int request_msg_size = 0;
-	int sockfd = -1;
-	int err = -1;
-	struct sockaddr_in serv_addr;
-	unsigned int serv_addr_len = -1;
-	int port = MS_SCANNER_PORT;
-	ms_comm_msg_s send_msg;
-
-	if(!MS_STRING_VALID(request_msg))
-	{
-		MSAPI_DBG_ERR("invalid query");
-		return MS_MEDIA_ERR_INVALID_PARAMETER;
-	}
-
-	request_msg_size = strlen(request_msg);
-	if(request_msg_size >= MAX_MSG_SIZE)
-	{
-		MSAPI_DBG_ERR("Query is Too long. [%d] query size limit is [%d]", request_msg_size, MAX_MSG_SIZE);
-		return MS_MEDIA_ERR_INVALID_PARAMETER;
-	}
-
-	MSAPI_DBG("querysize[%d] query[%s]", request_msg_size, request_msg);
-
-	memset((void *)&send_msg, 0, sizeof(ms_comm_msg_s));
-	send_msg.msg_type = msg_type;
-	send_msg.pid = syscall(__NR_getpid);
-	send_msg.msg_size= request_msg_size;
-	strncpy(send_msg.msg, request_msg, request_msg_size);
-
-	/*Create Socket*/
-	ret = ms_ipc_create_client_socket(MS_PROTOCOL_UDP, MS_TIMEOUT_SEC_10, &sockfd);
-	MSAPI_RETV_IF(ret != MS_MEDIA_ERR_NONE, ret);
-
-	ret = ms_ipc_send_msg_to_server(sockfd, port, &send_msg, &serv_addr);
-	if (ret != MS_MEDIA_ERR_NONE) {
-		MSAPI_DBG_ERR("ms_ipc_send_msg_to_server failed : %d", ret);
-		close(sockfd);
-		return ret;
-	}
-
-	/*Receive Response*/
-	ms_comm_msg_s recv_msg;
-	serv_addr_len = sizeof(serv_addr);
-
-	memset(&recv_msg, 0x0, sizeof(ms_comm_msg_s));
-	err = ms_ipc_wait_message(sockfd, &recv_msg, sizeof(recv_msg), &serv_addr, NULL);
-	if (err != MS_MEDIA_ERR_NONE) {
-		ret = err;
-	} else {
-		MSAPI_DBG("RECEIVE OK [%d]", recv_msg.result);
-		ret = recv_msg.result;
-	}
-
-	close(sockfd);
-
-	return ret;
-}
-
-
 static int __media_db_request_update_async(ms_msg_type_e msg_type, const char *request_msg, scan_complete_cb user_callback, void *user_data)
 {
 	int ret = MS_MEDIA_ERR_NONE;
@@ -283,7 +225,11 @@ static int __media_db_request_update_async(ms_msg_type_e msg_type, const char *r
 	strncpy(send_msg.msg, request_msg, request_msg_size);
 
 	/*Create Socket*/
+#ifdef _USE_UDS_SOCKET_
+	ret = ms_ipc_create_client_socket(MS_PROTOCOL_UDP, 0, &sockfd, port);
+#else
 	ret = ms_ipc_create_client_socket(MS_PROTOCOL_UDP, 0, &sockfd);
+#endif
 	MSAPI_RETV_IF(ret != MS_MEDIA_ERR_NONE, ret);
 
 	ret = ms_ipc_send_msg_to_server(sockfd, port, &send_msg, NULL);
@@ -301,7 +247,7 @@ static int __media_db_request_update_async(ms_msg_type_e msg_type, const char *r
 }
 
 
-int media_directory_scanning_async(const char *directory_path, bool recusive_on, scan_complete_cb user_callback, void *user_data)
+int media_directory_scanning_async(const char *directory_path, bool recursive_on, scan_complete_cb user_callback, void *user_data)
 {
 	int ret;
 
@@ -309,62 +255,10 @@ int media_directory_scanning_async(const char *directory_path, bool recusive_on,
 	if(ret != MS_MEDIA_ERR_NONE)
 		return ret;
 
-	if (recusive_on == TRUE)
+	if (recursive_on == TRUE)
 		ret = __media_db_request_update_async(MS_MSG_DIRECTORY_SCANNING, directory_path, user_callback, user_data);
 	else
 		ret = __media_db_request_update_async(MS_MSG_DIRECTORY_SCANNING_NON_RECURSIVE, directory_path, user_callback, user_data);
-
-	return ret;
-}
-
-static int _check_file_path(const char *file_path)
-{
-	int exist;
-	struct stat file_st;
-
-	/* check location of file */
-	/* file must exists under "/opt/usr/media" or "/opt/storage/sdcard" */
-	if(!_is_valid_path(file_path)) {
-		MSAPI_DBG("Invalid path : %s", file_path);
-		return MS_MEDIA_ERR_INVALID_PATH;
-	}
-
-	/* check the file exits actually */
-	exist = open(file_path, O_RDONLY);
-	if(exist < 0) {
-		MSAPI_DBG("Not exist path : %s", file_path);
-		return MS_MEDIA_ERR_INVALID_PATH;
-	}
-	close(exist);
-
-	/* check type of the path */
-	/* It must be a regular file */
-	memset(&file_st, 0, sizeof(struct stat));
-	if(stat(file_path, &file_st) == 0) {
-		if(!S_ISREG(file_st.st_mode)) {
-			/* In this case, it is not a regula file */
-			MSAPI_DBG("this path is not a file");
-			return MS_MEDIA_ERR_INVALID_PATH;
-		}
-	} else {
-		MSAPI_DBG("stat failed [%s]", strerror(errno));
-		return MS_MEDIA_ERR_INTERNAL;
-	}
-
-	return MS_MEDIA_ERR_NONE;
-}
-
-int media_file_register(const char *file_full_path)
-{
-	int ret;
-
-	ret = _check_file_path(file_full_path);
-	if(ret != MS_MEDIA_ERR_NONE)
-		return ret;
-
-	ret = __media_db_request_update_sync(MS_MSG_DB_UPDATE, file_full_path);
-
-	MSAPI_DBG("client receive: %d", ret);
 
 	return ret;
 }
@@ -378,5 +272,17 @@ int media_files_register(const char *list_path, insert_complete_cb user_callback
 	MSAPI_DBG("client receive: %d", ret);
 
 	return ret;
+}
+
+int media_burstshot_register(const char *list_path, insert_complete_cb user_callback, void *user_data)
+{
+	int ret;
+
+	ret = __media_db_request_update_async(MS_MSG_BURSTSHOT_INSERT, list_path, user_callback, user_data);
+
+	MSAPI_DBG("client receive: %d", ret);
+
+	return ret;
+
 }
 

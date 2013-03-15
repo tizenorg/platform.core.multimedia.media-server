@@ -1,6 +1,6 @@
 Name:       media-server
 Summary:    File manager service server.
-Version: 0.2.26
+Version: 0.2.34
 Release:    1
 Group:      utils
 License:    Apache License, Version 2.0
@@ -77,7 +77,6 @@ vconftool set -t int file/private/mediaserver/scan_directory "1" -f
 %attr(755,-,-) %{_sysconfdir}/rc.d/init.d/mediasvr
 /etc/rc.d/rc3.d/S99mediasvr
 /etc/rc.d/rc5.d/S99mediasvr
-/usr/local/bin/reset_mediadb.sh
 /usr/lib/systemd/system/media-server.service
 /usr/lib/systemd/system/multi-user.target.wants/media-server.service
 #License
@@ -94,31 +93,4 @@ vconftool set -t int file/private/mediaserver/scan_directory "1" -f
 %defattr(-,root,root,-)
 %{_libdir}/pkgconfig/libmedia-utils.pc
 %{_includedir}/media-utils/*.h
-
-%changelog
-* Mon Oct 15 2012 Hyunjun Ko <zzoon.ko@samsnug.com> - 0.1.97
-- Fix a bug in db thread
-
-* Wed Oct 10 2012 Hyunjun Ko <zzoon.ko@samsnug.com> - 0.1.96
-- Some apis are added : media_db_request_update_db_batch / start / end
-
-* Mon Sep 10 2012 Haejeong Kim <backto.kim@samsnug.com> - 0.1.86
-- Make new thread for DB write. Only Media server can update db
-
-* Mon Aug 06 2012 Yong Yeon Kim <yy9875.kim@samsnug.com> - 0.1.86
-- add notification subscribe function for application
-- fix bug : once validity checking time, call insert_item_batch two times.
-- add MS_SAFE_FREE Macro, modify check value after using snprintf by secure coding guide
-- change macro name MS_PHONE_ROOT_PATH, MS_MMC_ROOT_PATH
-- make reference directory list by each thread
-
-* Tue Jul 03 2012 Yong Yeon Kim <yy9875.kim@samsnug.com> - 0.1.80
-- manage db handle by plug-in
-
-* Wed Jun 27 2012 Yong Yeon Kim <yy9875.kim@samsnug.com> - 0.1.79
-- If item exists in media db, return directly
-
-* Tue Jun 26 2012 Yong Yeon Kim <yy9875.kim@samsnug.com> - 0.1.78
-- change modified file updating routine (delete & insert -> refresh)
-- modify return error type of media_file_register
 

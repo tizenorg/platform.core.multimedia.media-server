@@ -1,5 +1,7 @@
 [Unit]
 Description=Media server
+After=vconf-setup.service
+Requires=vconf-setup.service
 
 [Service]
 Type=simple

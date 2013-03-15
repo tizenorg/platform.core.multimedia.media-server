@@ -37,48 +37,6 @@
 extern "C" {
 #endif
 
-/**
- * @fn		int ms_media_file_register(const char *file_full_path);
- * @brief 		This function registers multimedia file to media DB
- *  			When you did some file operations such as Create, Copy, Move, Rename, and Delete in phone or mmc storage, media-server registers the result to database automatically by inotify mechanism.
- *  			However, automatic registration will have a little delay because the method is asynchronous.
- *  			If you want to register some files to database immediately, you should use this API.
- *
- * @param 	file_full_path [in]		full path of file for register
- * @return	This function returns zero(MEDIA_INFO_ERROR_NONE) on success, or negative value with error code.
- *			Please refer 'media-info-error.h' to know the exact meaning of the error.
- * @see		None.
- * @pre		None.
- * @post		None.
- * @remark	The database name is "/opt/usr/dbspace/.media.db".
- *                  You have to use this API only for registering multimedia files. If you try to register no multimedia file, this API returns error.
- * @par example
- * @code
-
-#include <media-info.h>
-
-int main()
-{
-	int result = -1;
-
-	result = ms_media_file_register("/opt/usr/media/test.mp3");
-	if( result < 0 )
-	{
-		printf("FAIL to mediainfo_register_file\n");
-		return 0;
-	}
-	else
-	{
-		printf("SUCCESS to register file\n");
-	}
-
-	return 0;
-}
-
- * 	@endcode
- */
-int media_file_register(const char *file_full_path);
-
 typedef enum
 {
 	MEDIA_DIRECTORY_SCAN = 0,
@@ -96,9 +54,11 @@ typedef struct
 typedef void (*scan_complete_cb)(media_request_result_s *, void *);
 typedef void (*insert_complete_cb)(media_request_result_s *, void *);
 
-int media_directory_scanning_async(const char *directory_path, bool recusive_on, scan_complete_cb user_callback, void *user_data);
+int media_directory_scanning_async(const char *directory_path, bool recursive_on, scan_complete_cb user_callback, void *user_data);
 
 int media_files_register(const char *list_path, insert_complete_cb user_callback, void *user_data);
+
+int media_burstshot_register(const char *list_path, insert_complete_cb user_callback, void *user_data);
 
 /**
 * @}
