@@ -66,7 +66,6 @@ ms_get_mime_in_drm_info(const char *path, char *mime)
 		MS_DBG_ERR("%s [%d]", path, ret);
 		return MS_MEDIA_ERR_DRM_GET_INFO_FAIL;
 	} else {
-		MS_DBG_ERR("DRM TYPE  [%d]", file_type);
 		/* if a drm file is OMA drm, use DRM API for getting mime information */
 		if (file_type == DRM_TYPE_OMA_V1
 		|| file_type == DRM_TYPE_OMA_V2
@@ -92,7 +91,7 @@ ms_get_mime_in_drm_info(const char *path, char *mime)
 int
 ms_drm_register(const char* path)
 {
-	MS_DBG("THIS IS DRM FILE");
+
 	int res = MS_MEDIA_ERR_NONE;
 	int ret;
 

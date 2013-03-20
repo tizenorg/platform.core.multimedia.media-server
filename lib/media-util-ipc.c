@@ -128,6 +128,8 @@ int ms_ipc_create_client_socket(ms_protocol_e protocol, int timeout_sec, int *so
 
 int ms_ipc_create_server_socket(ms_protocol_e protocol, int port, int *sock_fd)
 {
+	int i;
+	bool bind_success = false;
 	int sock = -1;
 	int n_reuse = 1;
 #ifdef _USE_UDS_SOCKET_
@@ -183,10 +185,18 @@ int ms_ipc_create_server_socket(ms_protocol_e protocol, int port, int *sock_fd)
 	serv_addr.sin_addr.s_addr = inet_addr(SERVER_IP);
 	serv_addr.sin_port = htons(serv_port);
 #endif
-
 	/* Bind to the local address */
-	if (bind(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
-		MSAPI_DBG_ERR("bind failed : %s", strerror(errno));
+	for (i = 0; i < 20; i ++) {
+		if (bind(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) == 0) {
+			bind_success = true;
+			break;
+		}
+		MSAPI_DBG("%d",i);
+		usleep(250000);
+	}
+
+	if (bind_success == false) {
+		MSAPI_DBG_ERR("bind failed : %s %d_", strerror(errno), errno);
 		close(sock);
 		return MS_MEDIA_ERR_SOCKET_CONN;
 	}

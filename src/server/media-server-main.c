@@ -99,7 +99,7 @@ bool check_process()
 				}
 			}
 		} else {
-			MS_DBG_ERR("media-server: Looking for process of name: [%s]. Cannot find. Reason: %s", APP_NAME, strerror(errno));
+			MS_DBG_ERR("Can't read file [%s]", path);
 		}
 	}
 
@@ -178,24 +178,24 @@ void _ms_signal_handler(int n)
 
 	pid = waitpid(-1, &stat, WNOHANG);
 	/* check pid of child process of thumbnail thread */
-	MS_DBG("[PID %d] signal ID %d", pid, n);
+	MS_DBG_ERR("[PID %d] signal ID %d", pid, n);
 
 	if (pid == thumb_pid) {
-		MS_DBG("Thumbnail server is dead");
+		MS_DBG_ERR("Thumbnail server is dead");
 		ms_thumb_reset_server_status();
 	} else if (pid == scanner_pid) {
-		MS_DBG("Scanner is dead");
+		MS_DBG_ERR("Scanner is dead");
 		ms_reset_scanner_status();
 	} else if (pid == -1) {
-		MS_DBG("%s", strerror(errno));
+		MS_DBG_ERR("%s", strerror(errno));
 	}
 
 	if (WIFEXITED(stat)) {
-		MS_DBG("normal termination , exit status : %d", WEXITSTATUS(stat));
+		MS_DBG_ERR("normal termination , exit status : %d", WEXITSTATUS(stat));
 	} else if (WIFSIGNALED(stat)) {
-		MS_DBG("abnormal termination , signal number : %d", WTERMSIG(stat));
+		MS_DBG_ERR("abnormal termination , signal number : %d", WTERMSIG(stat));
 	} else if (WIFSTOPPED(stat)) {
-		MS_DBG("child process is stoped, signal number : %d", WSTOPSIG(stat));
+		MS_DBG_ERR("child process is stoped, signal number : %d", WSTOPSIG(stat));
 	}
 
 	return;

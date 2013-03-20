@@ -1,6 +1,6 @@
 Name:       media-server
 Summary:    File manager service server.
-Version: 0.2.34
+Version: 0.2.39
 Release:    1
 Group:      utils
 License:    Apache License, Version 2.0
@@ -75,8 +75,8 @@ vconftool set -t int file/private/mediaserver/scan_directory "1" -f
 %{_bindir}/media-scanner
 %{_bindir}/mediadb-update
 %attr(755,-,-) %{_sysconfdir}/rc.d/init.d/mediasvr
-/etc/rc.d/rc3.d/S99mediasvr
-/etc/rc.d/rc5.d/S99mediasvr
+/etc/rc.d/rc3.d/S46mediasvr
+/etc/rc.d/rc5.d/S46mediasvr
 /usr/lib/systemd/system/media-server.service
 /usr/lib/systemd/system/multi-user.target.wants/media-server.service
 #License

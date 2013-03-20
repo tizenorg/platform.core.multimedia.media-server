@@ -31,7 +31,6 @@
 #include <dirent.h>
 #include <vconf.h>
 #include <heynoti.h>
-#include <errno.h>
 
 #include "media-common-utils.h"
 #include "media-common-drm.h"
@@ -103,7 +102,7 @@ bool check_process(void)
 				}
 			}
 		} else {
-			MSC_DBG_ERR("media-server: Looking for process of name: [%s]. Cannot find. Reason: %s", APP_NAME, strerror(errno));
+			MSC_DBG_ERR("Can't read file [%s]", path);
 		}
 	}
 
@@ -142,6 +141,13 @@ static void _power_off_cb(void* data)
 		g_async_queue_push(reg_queue, GINT_TO_POINTER(reg_data));
 	}
 
+	if (storage_queue) {
+		/*notify to register thread*/
+		MS_MALLOC(reg_data, sizeof(ms_comm_msg_s));
+		reg_data->pid = POWEROFF;
+		g_async_queue_push(storage_queue, GINT_TO_POINTER(reg_data));
+	}
+
 	if (g_main_loop_is_running(scanner_mainloop)) g_main_loop_quit(scanner_mainloop);
 }
 
@@ -149,9 +155,10 @@ void
 _msc_mmc_vconf_cb(void *data)
 {
 	int status = 0;
+/*
 	ms_comm_msg_s *scan_msg;
 	ms_dir_scan_type_t scan_type = MS_SCAN_PART;
-
+*/
 	if (!ms_config_get_int(VCONFKEY_SYSMAN_MMC_STATUS, &status)) {
 		MSC_DBG_ERR("Get VCONFKEY_SYSMAN_MMC_STATUS failed.");
 	}

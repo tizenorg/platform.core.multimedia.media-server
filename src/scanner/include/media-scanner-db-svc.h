@@ -32,24 +32,24 @@
 
 #include "media-common-types.h"
 
-typedef int (*CHECK_ITEM)(const char*, const char*, char **);
+typedef int (*CHECK_ITEM)(const char*, char **);
 typedef int (*CONNECT)(void**, char **);
 typedef int (*DISCONNECT)(void*, char **);
 typedef int (*CHECK_ITEM_EXIST)(void*, const char*, int, char **);
 typedef int (*INSERT_ITEM_BEGIN)(void*, int, int, int, char **);
 typedef int (*INSERT_ITEM_END)(void*, char **);
-typedef int (*INSERT_ITEM)(void*, const char*, int, const char*, char **);
+typedef int (*INSERT_ITEM)(void*, const char*, int, char **);
 typedef int (*SET_ALL_STORAGE_ITEMS_VALIDITY)(void*, int, int, char **);
 typedef int (*SET_ITEM_VALIDITY_BEGIN)(void*, int, char **);
 typedef int (*SET_ITEM_VALIDITY_END)(void*, char **);
-typedef int (*SET_ITEM_VALIDITY)(void*, const char*, int, const char*, int, char **);
+typedef int (*SET_ITEM_VALIDITY)(void*, const char*, int, int, char **);
 typedef int (*DELETE_ALL_ITEMS_IN_STORAGE)(void*, int, char **);
 typedef int (*DELETE_ALL_INVALID_ITMES_IN_STORAGE)(void*, int, char **);
 typedef int (*UPDATE_BEGIN)(void);
 typedef int (*UPDATE_END)(void);
 typedef int (*SET_FOLDER_ITEM_VALIDITY)(void*, const char*, int, int, char**);
 typedef int (*DELETE_ALL_INVALID_ITEMS_IN_FOLDER)(void*, const char*, char**);
-typedef int (*INSERT_BURST_ITEM)(void *, const char *, int , const char*, char **);
+typedef int (*INSERT_BURST_ITEM)(void *, const char *, int , char **);
 typedef int (*SEND_DIR_UPDATE_NOTI)(void *, const char *, char **);
 
 int

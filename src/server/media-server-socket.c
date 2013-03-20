@@ -494,10 +494,11 @@ gboolean ms_read_db_tcp_socket(GIOChannel *src, GIOCondition condition, gpointer
 			}
 		}
 
-		MS_DBG("Received [%d](%d) [%s]", recv_msg.msg_type, recv_msg.msg_size, recv_msg.msg);
+//		MS_DBG("Received [%d](%d) [%s]", recv_msg.msg_type, recv_msg.msg_size, recv_msg.msg);
 
 		if((recv_msg.msg_size <= 0) ||(recv_msg.msg_size > MS_FILE_PATH_LEN_MAX)  || (!MS_STRING_VALID(recv_msg.msg))) {
 			MS_DBG_ERR("invalid query. size[%d]", recv_msg.msg_size);
+			MS_DBG_ERR("Received [%d](%d) [%s]", recv_msg.msg_type, recv_msg.msg_size, recv_msg.msg);
 			close(client_sock);
 			return TRUE;
 		}

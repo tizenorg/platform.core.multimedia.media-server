@@ -71,9 +71,10 @@ __message_filter (DBusConnection *connection, DBusMessage *message, void *user_d
 	/* A Ping signal on the com.burtonini.dbus.Signal interface */
 	if (dbus_message_is_signal (message, MS_MEDIA_DBUS_INTERFACE, MS_MEDIA_DBUS_NAME)) {
 		int i = 0;
+		int current_type = DBUS_TYPE_INVALID;
 		DBusError error;
 		DBusMessageIter read_iter;
-		DBusBasicValue value[7];
+		DBusBasicValue value[6];
 
 		dbus_int32_t item = -1;
 		dbus_int32_t pid = 0;
@@ -82,6 +83,8 @@ __message_filter (DBusConnection *connection, DBusMessage *message, void *user_d
 		char *update_path = NULL;
 		char *uuid = NULL;
 		char *mime_type = NULL;
+		void *recevie_path = NULL;
+		int path_len = 0;
 
 		dbus_error_init (&error);
 		MSAPI_DBG("size [%d]", sizeof(value));
@@ -89,19 +92,28 @@ __message_filter (DBusConnection *connection, DBusMessage *message, void *user_d
 
 		/* get data from dbus message */
 		dbus_message_iter_init (message, &read_iter);
-		while (dbus_message_iter_get_arg_type (&read_iter)  != DBUS_TYPE_INVALID){
-	                dbus_message_iter_get_basic (&read_iter, &value[i]);
+		while ((current_type = dbus_message_iter_get_arg_type (&read_iter)) != DBUS_TYPE_INVALID){
+			if (current_type == DBUS_TYPE_ARRAY) {
+				DBusMessageIter sub;
+				dbus_message_iter_recurse(&read_iter, &sub);
+				dbus_message_iter_get_fixed_array(&sub, &recevie_path, &path_len);
+			} else {
+		                dbus_message_iter_get_basic (&read_iter, &value[i]);
+				i ++;
+			}
 			dbus_message_iter_next (&read_iter);
-			i ++;
 		}
 
 		item = value[0].i32;
 		pid = value[1].i32;
 		update_type = value[2].i32;
-		update_path = strdup(value[3].str);
-		if (value[4].str != NULL) uuid = strdup(value[4].str);
-		content_type = value[5].i32;
-		if (value[6].str != NULL) mime_type = strdup(value[6].str);
+		update_path = strndup(recevie_path, path_len);
+		if (value[3].str != NULL) uuid = strdup(value[3].str);
+		content_type = value[4].i32;
+		if (value[5].str != NULL) mime_type = strdup(value[5].str);
+
+		if (item == MS_MEDIA_ITEM_DIRECTORY)
+			content_type = MS_MEDIA_UNKNOWN;
 
 		/* getting data complete */
 		user_cb(pid,
@@ -112,6 +124,10 @@ __message_filter (DBusConnection *connection, DBusMessage *message, void *user_d
 				content_type,
 				mime_type,
 				userdata);
+
+		MS_SAFE_FREE(update_path);
+		MS_SAFE_FREE(uuid);
+		MS_SAFE_FREE(mime_type);
 
 		g_mutex_unlock(noti_mutex);
 
@@ -130,6 +146,9 @@ int media_db_update_subscribe(db_update_cb user_cb, void *user_data)
 
 	if (noti_mutex == NULL) {
 		noti_mutex = g_mutex_new();
+		if (noti_mutex == NULL) {
+			return MS_MEDIA_ERR_ALLOCATE_MEMORY_FAIL;
+		}
 	}
 
 	if (g_bus == NULL) {
@@ -141,6 +160,8 @@ int media_db_update_subscribe(db_update_cb user_cb, void *user_data)
 		if (!g_bus) {
 			MSAPI_DBG ("Failed to connect to the D-BUS daemon: %s", error.message);
 			dbus_error_free (&error);
+			g_mutex_free(noti_mutex);
+			noti_mutex = NULL;
 			return MS_MEDIA_ERR_DBUS_GET;
 		}
 
@@ -150,6 +171,8 @@ int media_db_update_subscribe(db_update_cb user_cb, void *user_data)
 		MS_MALLOC(callback_data, sizeof(noti_callback_data));
 		if (callback_data == NULL) {
 			MSAPI_DBG_ERR("MS_MALLOC failed");
+			g_mutex_free(noti_mutex);
+			noti_mutex = NULL;
 			return MS_MEDIA_ERR_ALLOCATE_MEMORY_FAIL;
 		}
 		callback_data->user_callback = user_cb;
@@ -159,6 +182,8 @@ int media_db_update_subscribe(db_update_cb user_cb, void *user_data)
 		dbus_bus_add_match (g_bus, MS_MEDIA_DBUS_MATCH_RULE, &error);
 		if( !dbus_connection_add_filter (g_bus, __message_filter, callback_data, __free_data_fuction)) {
 			MS_SAFE_FREE(callback_data);
+			g_mutex_free(noti_mutex);
+			noti_mutex = NULL;
 			return MS_MEDIA_ERR_DBUS_ADD_FILTER;
 		}
 		g_data_store = (void *)callback_data;
@@ -169,19 +194,20 @@ int media_db_update_subscribe(db_update_cb user_cb, void *user_data)
 
 int media_db_update_unsubscribe(void)
 {
+	if (g_bus == NULL) {
+		return MS_MEDIA_ERR_NONE;
+	}
+
 	g_mutex_lock(noti_mutex);
 
-	if (g_bus != NULL) {
-		dbus_connection_remove_filter(g_bus, __message_filter, g_data_store);
+	dbus_connection_remove_filter(g_bus, __message_filter, g_data_store);
+	dbus_connection_unref(g_bus);
 
-		dbus_connection_unref(g_bus);
-
-		g_bus = NULL;
-	}
+	g_bus = NULL;
 
 	g_mutex_unlock(noti_mutex);
 
-	if (noti_mutex) g_mutex_free(noti_mutex);
+	g_mutex_free(noti_mutex);
 	noti_mutex = NULL;
 
 	return MS_MEDIA_ERR_NONE;
@@ -199,6 +225,8 @@ int media_db_update_send(int pid, /* mandatory */
 	DBusMessage *message;
 	DBusConnection *bus;
 	DBusError error;
+	unsigned char *path_array = NULL;
+	int path_length = strlen(path) + 1;
 
 	/* Get a connection to the session bus */
 	dbus_error_init (&error);
@@ -209,8 +237,9 @@ int media_db_update_send(int pid, /* mandatory */
 		return MS_MEDIA_ERR_DBUS_GET;
 	}
 
-	/* Create a new signal on the "MS_DBUS_INTERFACE" interface,
-	* from the object "MS_DBUS_PATH". */
+	path_array = malloc(sizeof(unsigned char) * path_length);
+	memcpy(path_array, path, path_length);
+
 	message = dbus_message_new_signal (MS_MEDIA_DBUS_PATH, MS_MEDIA_DBUS_INTERFACE, MS_MEDIA_DBUS_NAME);
 	if (message != NULL) {
 		if (item == MS_MEDIA_ITEM_FILE) {
@@ -221,7 +250,7 @@ int media_db_update_send(int pid, /* mandatory */
 										DBUS_TYPE_INT32, &item,
 										DBUS_TYPE_INT32, &pid,
 										DBUS_TYPE_INT32, &update_type,
-										DBUS_TYPE_STRING, &path,
+										DBUS_TYPE_ARRAY, DBUS_TYPE_BYTE, &path_array, path_length,
 										DBUS_TYPE_STRING, &uuid,
 										DBUS_TYPE_INT32, &media_type,
 										DBUS_TYPE_STRING, &mime_type,
@@ -238,7 +267,7 @@ int media_db_update_send(int pid, /* mandatory */
 										DBUS_TYPE_INT32, &item,
 										DBUS_TYPE_INT32, &pid,
 										DBUS_TYPE_INT32, &update_type,
-										DBUS_TYPE_STRING, &path,
+										DBUS_TYPE_ARRAY, DBUS_TYPE_BYTE, &path_array, path_length,
 										DBUS_TYPE_STRING, &uuid,
 										DBUS_TYPE_INVALID);
 			} else {
@@ -246,12 +275,14 @@ int media_db_update_send(int pid, /* mandatory */
 										DBUS_TYPE_INT32, &item,
 										DBUS_TYPE_INT32, &pid,
 										DBUS_TYPE_INT32, &update_type,
-										DBUS_TYPE_STRING, &path,
+										DBUS_TYPE_ARRAY, DBUS_TYPE_BYTE, &path_array, path_length,
 										DBUS_TYPE_INVALID);
 			}
 		} else {
 			MSAPI_DBG("this request is wrong");
 		}
+
+		MS_SAFE_FREE(path_array);
 
 		/* Send the signal */
 		dbus_connection_send (bus, message, NULL);

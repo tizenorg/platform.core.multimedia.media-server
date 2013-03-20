@@ -180,8 +180,7 @@ bool _ms_thumb_check_process()
 				break;
 			}
 		} else {
-			MS_DBG_ERR("media-server: Looking for process of name: [%s]. Cannot find. Reason: %s", 
-				THUMB_SERVER_NAME, strerror(errno));
+			MS_DBG_ERR("Can't read file [%s]", path);
 		}
 	}
 
@@ -260,6 +259,11 @@ int _media_thumb_get_error()
 {
 	if (errno == EWOULDBLOCK) {
 		MS_DBG_ERR("Timeout. Can't try any more");
+		if (!_ms_thumb_check_process()) {
+			MS_DBG_ERR("Thumbnail server is not running!. Reset info for thumb server to execute");
+			ms_thumb_reset_server_status();
+		}
+
 		return MS_MEDIA_ERR_SOCKET_RECEIVE_TIMEOUT;
 	} else {
 		MS_DBG_ERR("recvfrom failed : %s", strerror(errno));

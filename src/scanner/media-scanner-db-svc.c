@@ -73,12 +73,12 @@ enum func_list {
 };
 
 static int
-_msc_check_category(const char *path, const char *mimetype, int index)
+_msc_check_category(const char *path, int index)
 {
 	int ret;
 	char *err_msg = NULL;
 
-	ret = ((CHECK_ITEM)func_array[index][eCHECK])(path, mimetype, &err_msg);
+	ret = ((CHECK_ITEM)func_array[index][eCHECK])(path, &err_msg);
 	if (ret != 0) {
 		MSC_DBG_ERR("error : %s [%s] %s", g_array_index(so_array, char*, index), err_msg, path);
 		MS_SAFE_FREE(err_msg);
@@ -322,44 +322,38 @@ msc_validate_item(void **handle, const char *path)
 	int res = MS_MEDIA_ERR_NONE;
 	int ret;
 	char *err_msg = NULL;
-	char mimetype[255] = {0};
 	ms_storage_type_t storage_type;
 
-	ret = ms_get_mime(path, mimetype);
-	if (ret != MS_MEDIA_ERR_NONE) {
-		MSC_DBG_ERR("err : ms_get_mime [%d]", ret);
-		return ret;
-	}
 	storage_type = ms_get_storage_type_by_full(path);
 
 	for (lib_index = 0; lib_index < lib_num; lib_index++) {
-		if (!_msc_check_category(path, mimetype, lib_index)) {
+		if (!_msc_check_category(path, lib_index)) {
 			/*check exist in Media DB, If file is not exist, insert data in DB. */
 			ret = ((CHECK_ITEM_EXIST)func_array[lib_index][eEXIST])(handle[lib_index], path, storage_type, &err_msg); /*dlopen*/
 			if (ret != 0) {
 				MSC_DBG_ERR("not exist in %d. insert data", lib_index);
 				MS_SAFE_FREE(err_msg);
 
-				ret = ((INSERT_ITEM)func_array[lib_index][eINSERT_BATCH])(handle[lib_index], path, storage_type, mimetype, &err_msg); /*dlopen*/
+				ret = ((INSERT_ITEM)func_array[lib_index][eINSERT_BATCH])(handle[lib_index], path, storage_type, &err_msg); /*dlopen*/
 				if (ret != 0) {
 					MSC_DBG_ERR("error : %s [%s] %s", g_array_index(so_array, char*, lib_index), err_msg, path);
-					MSC_DBG_ERR("[%s] %s", mimetype, path);
+					MSC_DBG_ERR("[%s]", path);
 					MS_SAFE_FREE(err_msg);
 					res = MS_MEDIA_ERR_DB_INSERT_FAIL;
 				}
 			} else {
 				/*if meta data of file exist, change valid field to "1" */
-				ret = ((SET_ITEM_VALIDITY)func_array[lib_index][eSET_VALIDITY])(handle[lib_index], path, true, mimetype, true, &err_msg); /*dlopen*/
+				ret = ((SET_ITEM_VALIDITY)func_array[lib_index][eSET_VALIDITY])(handle[lib_index], path, true, true, &err_msg); /*dlopen*/
 				if (ret != 0) {
 					MSC_DBG_ERR("error : %s [%s] %s", g_array_index(so_array, char*, lib_index), err_msg, path);
-					MSC_DBG_ERR("[%s] %s", mimetype, path);
+					MSC_DBG_ERR("[%s]", path);;
 					MS_SAFE_FREE(err_msg);
 					res = MS_MEDIA_ERR_DB_UPDATE_FAIL;
 				}
 			}
 		} else {
 			MSC_DBG_ERR("check category failed");
-			MSC_DBG_ERR("[%s] %s", mimetype, path);
+			MSC_DBG_ERR("[%s]", path);
 		}
 	}
 
@@ -396,30 +390,23 @@ msc_insert_item_batch(void **handle, const char *path)
 	int lib_index;
 	int res = MS_MEDIA_ERR_NONE;
 	int ret;
-	char mimetype[255] = {0};
 	char *err_msg = NULL;
 	ms_storage_type_t storage_type;
-
-	ret = ms_get_mime(path, mimetype);
-	if (ret != MS_MEDIA_ERR_NONE) {
-		MSC_DBG_ERR("err : ms_get_mime [%d]", ret);
-		return ret;
-	}
 
 	storage_type = ms_get_storage_type_by_full(path);
 
 	for (lib_index = 0; lib_index < lib_num; lib_index++) {
-		if (!_msc_check_category(path, mimetype, lib_index)) {
-			ret = ((INSERT_ITEM)func_array[lib_index][eINSERT_BATCH])(handle[lib_index], path, storage_type, mimetype, &err_msg); /*dlopen*/
+		if (!_msc_check_category(path, lib_index)) {
+			ret = ((INSERT_ITEM)func_array[lib_index][eINSERT_BATCH])(handle[lib_index], path, storage_type, &err_msg); /*dlopen*/
 			if (ret != 0) {
 				MSC_DBG_ERR("error : %s [%s]", g_array_index(so_array, char*, lib_index), err_msg);
-				MSC_DBG_ERR("[%s] %s", mimetype, path);
+				MSC_DBG_ERR("[%s]", path);
 				MS_SAFE_FREE(err_msg);
 				res = MS_MEDIA_ERR_DB_INSERT_FAIL;
 			}
 		} else {
 			MSC_DBG_ERR("check category failed");
-			MSC_DBG_ERR("[%s] %s", mimetype, path);
+			MSC_DBG_ERR("[%s]", path);
 		}
 	}
 
@@ -437,30 +424,23 @@ msc_insert_burst_item(void **handle, const char *path)
 	int lib_index;
 	int res = MS_MEDIA_ERR_NONE;
 	int ret;
-	char mimetype[255] = {0};
 	char *err_msg = NULL;
 	ms_storage_type_t storage_type;
-
-	ret = ms_get_mime(path, mimetype);
-	if (ret != MS_MEDIA_ERR_NONE) {
-		MSC_DBG_ERR("err : ms_get_mime [%d]", ret);
-		return ret;
-	}
 
 	storage_type = ms_get_storage_type_by_full(path);
 
 	for (lib_index = 0; lib_index < lib_num; lib_index++) {
-		if (!_msc_check_category(path, mimetype, lib_index)) {
-			ret = ((INSERT_BURST_ITEM)func_array[lib_index][eINSERT_BURST])(handle[lib_index], path, storage_type, mimetype, &err_msg); /*dlopen*/
+		if (!_msc_check_category(path, lib_index)) {
+			ret = ((INSERT_BURST_ITEM)func_array[lib_index][eINSERT_BURST])(handle[lib_index], path, storage_type, &err_msg); /*dlopen*/
 			if (ret != 0) {
 				MSC_DBG_ERR("error : %s [%s]", g_array_index(so_array, char*, lib_index), err_msg);
-				MSC_DBG_ERR("[%s] %s", mimetype, path);
+				MSC_DBG_ERR("[%s]", path);
 				MS_SAFE_FREE(err_msg);
 				res = MS_MEDIA_ERR_DB_INSERT_FAIL;
 			}
 		} else {
 			MSC_DBG_ERR("check category failed");
-			MSC_DBG_ERR("[%s] %s", mimetype, path);
+			MSC_DBG_ERR("[%s]", path);
 		}
 	}
 

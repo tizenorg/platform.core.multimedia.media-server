@@ -158,18 +158,6 @@ static int _ms_check_stop_status(ms_storage_type_t storage_type)
 	return ret;
 }
 
-static void _msc_insert_array(GArray *garray, ms_comm_msg_s *insert_data)
-{
-	MSC_DBG_INFO("path : %s", insert_data->msg);
-	MSC_DBG_INFO("scan_type : %d", insert_data->msg_type);
-
-	if (insert_data->pid == POWEROFF) {
-		g_array_prepend_val(garray, insert_data);
-	} else {
-		g_array_append_val(garray, insert_data);
-	}
-}
-
 void _msc_check_dir_path(char *dir_path)
 {
 	/* need implementation */
@@ -344,42 +332,17 @@ static int _msc_db_update(void **handle, const ms_comm_msg_s * scan_data)
 gboolean msc_directory_scan_thread(void *data)
 {
 	ms_comm_msg_s *scan_data = NULL;
-	ms_comm_msg_s *insert_data = NULL;
-	GArray *garray = NULL;
-	int length;
 	int err;
 	int ret;
 	void **handle = NULL;
 	ms_storage_type_t storage_type;
 	int scan_type;
 
-	/*create array for processing overlay data*/
-	garray = g_array_new (FALSE, FALSE, sizeof (ms_comm_msg_s *));
-	if (garray == NULL) {
-		MSC_DBG_ERR("g_array_new error");
-		return false;
-	}
-
 	while (1) {
-		length  = g_async_queue_length(scan_queue);
-
-		/*updating requests remain*/
-		if (garray->len != 0 && length == 0) {
-			scan_data = g_array_index(garray, ms_comm_msg_s*, 0);
-			g_array_remove_index (garray, 0);
-			if (scan_data->pid == POWEROFF) {
-				MSC_DBG_INFO("power off");
-				goto _POWEROFF;
-			}
-		} else if (length != 0) {
-			insert_data = g_async_queue_pop(scan_queue);
-			_msc_insert_array(garray, insert_data);
-			continue;
-		} else if (garray->len == 0 && length == 0) {
-			/*Threre is no request, Wait until pushung new request*/
-			insert_data = g_async_queue_pop(scan_queue);
-			_msc_insert_array(garray, insert_data);
-			continue;
+		scan_data = g_async_queue_pop(scan_queue);
+		if (scan_data->pid == POWEROFF) {
+			MSC_DBG_INFO("power off");
+			goto _POWEROFF;
 		}
 
 		MSC_DBG_INFO("DIRECTORY SCAN START");
@@ -445,7 +408,6 @@ NEXT:
 
 _POWEROFF:
 	MS_SAFE_FREE(scan_data);
-	if (garray) g_array_free (garray, TRUE);
 	if (handle) msc_disconnect_db(&handle);
 
 	return false;
@@ -455,43 +417,18 @@ _POWEROFF:
 gboolean msc_storage_scan_thread(void *data)
 {
 	ms_comm_msg_s *scan_data = NULL;
-	ms_comm_msg_s *insert_data = NULL;
-	GArray *garray = NULL;
 	bool res;
 	int ret;
-	int length;
 	int err;
 	void **handle = NULL;
 	ms_storage_type_t storage_type;
 	int scan_type;
 
-	/*create array for processing overlay data*/
-	garray = g_array_new (FALSE, FALSE, sizeof (ms_comm_msg_s *));
-	if (garray == NULL) {
-		MSC_DBG_ERR("g_array_new error");
-		return false;
-	}
-
 	while (1) {
-		length  = g_async_queue_length(storage_queue);
-
-		/*updating requests remain*/
-		if (garray->len != 0 && length == 0) {
-			scan_data = g_array_index(garray, ms_comm_msg_s*, 0);
-			g_array_remove_index (garray, 0);
-			if (scan_data->pid == POWEROFF) {
-				MSC_DBG_INFO("power off");
-				goto _POWEROFF;
-			}
-		} else if (length != 0) {
-			insert_data = g_async_queue_pop(storage_queue);
-			_msc_insert_array(garray, insert_data);
-			continue;
-		} else if (garray->len == 0 && length == 0) {
-			/*Threre is no request, Wait until pushing new request*/
-			insert_data = g_async_queue_pop(storage_queue);
-			_msc_insert_array(garray, insert_data);
-			continue;
+		scan_data = g_async_queue_pop(storage_queue);
+		if (scan_data->pid == POWEROFF) {
+			MSC_DBG_INFO("power off");
+			goto _POWEROFF;
 		}
 
 		MSC_DBG_INFO("STORAGE SCAN START");
@@ -589,7 +526,6 @@ NEXT:
 
 _POWEROFF:
 	MS_SAFE_FREE(scan_data);
-	if (garray) g_array_free (garray, TRUE);
 	if (handle) msc_disconnect_db(&handle);
 
 	return false;

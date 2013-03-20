@@ -15,11 +15,11 @@ hib_directory = /etc/rc.d/rc5.d
 
 install-data-hook:
 	mkdir $(DESTDIR)$(nor_directory) -p
-	ln -s ../init.d/mediasvr S99mediasvr
-	mv ./S99mediasvr $(DESTDIR)$(nor_directory)
+	ln -s ../init.d/mediasvr S46mediasvr
+	mv ./S46mediasvr $(DESTDIR)$(nor_directory)
 	mkdir $(DESTDIR)$(hib_directory) -p
-	ln -s ../init.d/mediasvr S99mediasvr
-	mv ./S99mediasvr $(DESTDIR)$(hib_directory)
+	ln -s ../init.d/mediasvr S46mediasvr
+	mv ./S46mediasvr $(DESTDIR)$(hib_directory)
 
 # init.d script
 fmsvcdir = /etc/rc.d/init.d
