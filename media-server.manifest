@@ -1,6 +1,9 @@
 <manifest>
 	<define>
 		<domain name="media-server" policy="restricted" plist="media-thumbnail-server, media-data"/>
+		<request>
+			<smack request="system::media" type="rwxat"/>
+		</request>
 	</define>
 	<request>
 		<domain name="_"/>

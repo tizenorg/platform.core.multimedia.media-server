@@ -44,6 +44,7 @@
 DBusConnection *g_bus;
 void *g_data_store;
 GMutex *noti_mutex = NULL;
+int ref_count;
 
 typedef struct noti_callback_data{
 	db_update_cb user_callback;
@@ -141,6 +142,7 @@ __message_filter (DBusConnection *connection, DBusMessage *message, void *user_d
 
 int media_db_update_subscribe(db_update_cb user_cb, void *user_data)
 {
+	int ret = MS_MEDIA_ERR_NONE;
 	DBusError error;
 	noti_callback_data *callback_data = NULL;
 
@@ -151,6 +153,8 @@ int media_db_update_subscribe(db_update_cb user_cb, void *user_data)
 		}
 	}
 
+	g_mutex_lock(noti_mutex);
+
 	if (g_bus == NULL) {
 		dbus_g_thread_init();
 
@@ -160,9 +164,8 @@ int media_db_update_subscribe(db_update_cb user_cb, void *user_data)
 		if (!g_bus) {
 			MSAPI_DBG ("Failed to connect to the D-BUS daemon: %s", error.message);
 			dbus_error_free (&error);
-			g_mutex_free(noti_mutex);
-			noti_mutex = NULL;
-			return MS_MEDIA_ERR_DBUS_GET;
+			ret = MS_MEDIA_ERR_DBUS_GET;
+			goto ERROR;
 		}
 
 		dbus_connection_setup_with_g_main (g_bus, NULL);
@@ -171,9 +174,8 @@ int media_db_update_subscribe(db_update_cb user_cb, void *user_data)
 		MS_MALLOC(callback_data, sizeof(noti_callback_data));
 		if (callback_data == NULL) {
 			MSAPI_DBG_ERR("MS_MALLOC failed");
-			g_mutex_free(noti_mutex);
-			noti_mutex = NULL;
-			return MS_MEDIA_ERR_ALLOCATE_MEMORY_FAIL;
+			ret = MS_MEDIA_ERR_ALLOCATE_MEMORY_FAIL;
+			goto ERROR;
 		}
 		callback_data->user_callback = user_cb;
 		callback_data->user_data = user_data;
@@ -181,15 +183,32 @@ int media_db_update_subscribe(db_update_cb user_cb, void *user_data)
 		/* listening to messages from all objects as no path is specified */
 		dbus_bus_add_match (g_bus, MS_MEDIA_DBUS_MATCH_RULE, &error);
 		if( !dbus_connection_add_filter (g_bus, __message_filter, callback_data, __free_data_fuction)) {
-			MS_SAFE_FREE(callback_data);
-			g_mutex_free(noti_mutex);
-			noti_mutex = NULL;
-			return MS_MEDIA_ERR_DBUS_ADD_FILTER;
+			dbus_bus_remove_match (g_bus, MS_MEDIA_DBUS_MATCH_RULE, NULL);
+			ret =  MS_MEDIA_ERR_DBUS_ADD_FILTER;
+			goto ERROR;
 		}
 		g_data_store = (void *)callback_data;
 	}
 
+	ref_count ++;
+
+	g_mutex_unlock(noti_mutex);
+
 	return MS_MEDIA_ERR_NONE;
+
+ERROR:
+
+	if (g_bus != NULL) {
+		dbus_connection_unref(g_bus);
+		g_bus = NULL;
+	}
+	MS_SAFE_FREE(callback_data);
+
+	g_mutex_unlock(noti_mutex);
+	g_mutex_free(noti_mutex);
+	noti_mutex = NULL;
+
+	return ret;
 }
 
 int media_db_update_unsubscribe(void)
@@ -200,15 +219,22 @@ int media_db_update_unsubscribe(void)
 
 	g_mutex_lock(noti_mutex);
 
-	dbus_connection_remove_filter(g_bus, __message_filter, g_data_store);
-	dbus_connection_unref(g_bus);
+	if (ref_count == 1) {
+		dbus_connection_remove_filter(g_bus, __message_filter, g_data_store);
+		dbus_bus_remove_match (g_bus, MS_MEDIA_DBUS_MATCH_RULE, NULL);
+		dbus_connection_unref(g_bus);
 
-	g_bus = NULL;
+		g_bus = NULL;
+	}
+
+	ref_count --;
 
 	g_mutex_unlock(noti_mutex);
 
-	g_mutex_free(noti_mutex);
-	noti_mutex = NULL;
+	if (ref_count == 0) {
+		g_mutex_free(noti_mutex);
+		noti_mutex = NULL;
+	}
 
 	return MS_MEDIA_ERR_NONE;
 }
