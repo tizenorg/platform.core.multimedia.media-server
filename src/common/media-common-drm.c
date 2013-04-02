@@ -39,19 +39,21 @@
 bool
 ms_is_drm_file(const char *path)
 {
+#ifdef __SUPPORT_DRM
 	int ret;
 	drm_bool_type_e is_drm_file = DRM_UNKNOWN;
 
 	ret = drm_is_drm_file(path,&is_drm_file);
 	if(DRM_RETURN_SUCCESS == ret && DRM_TRUE == is_drm_file)
 		return true;
-
+#endif
 	return false;
 }
 
 int
 ms_get_mime_in_drm_info(const char *path, char *mime)
 {
+#ifdef __SUPPORT_DRM
 	int ret;
 	drm_content_info_s contentInfo;
 	drm_file_type_e file_type = DRM_TYPE_UNDEFINED;
@@ -86,6 +88,9 @@ ms_get_mime_in_drm_info(const char *path, char *mime)
 	}
 
 	return MS_MEDIA_ERR_NONE;
+#else
+	return MS_MEDIA_ERR_DRM_GET_INFO_FAIL;
+#endif
 }
 
 int
@@ -93,51 +98,57 @@ ms_drm_register(const char* path)
 {
 
 	int res = MS_MEDIA_ERR_NONE;
+#ifdef __SUPPORT_DRM
 	int ret;
-
 	ret = drm_process_request(DRM_REQUEST_TYPE_REGISTER_FILE, (void *)path, NULL);
 	if (ret != DRM_RETURN_SUCCESS) {
 		MS_DBG_ERR("drm_svc_register_file error : %d", ret);
 		res = MS_MEDIA_ERR_DRM_REGISTER_FAIL;
 	}
-
+#endif
 	return res;
 }
 
 void
 ms_drm_unregister(const char* path)
 {
+#ifdef __SUPPORT_DRM
 	int ret;
 
 	ret = drm_process_request(DRM_REQUEST_TYPE_UNREGISTER_FILE, (void *)path, NULL);
 	if (ret != DRM_RETURN_SUCCESS)
 		MS_DBG_ERR("drm_process_request error : %d", ret);
+#endif
 }
 
 void
 ms_drm_unregister_all(void)
 {
+#ifdef __SUPPORT_DRM
 	if (drm_process_request(DRM_REQUEST_TYPE_UNREGISTER_ALL_FILES , NULL, NULL) == DRM_RETURN_SUCCESS)
 		MS_DBG("drm_svc_unregister_all_contents OK");
+#endif
 }
 
 bool
 ms_drm_insert_ext_memory(void)
 {
+#ifdef __SUPPORT_DRM
 	MS_DBG("");
 	if (drm_process_request(DRM_REQUEST_TYPE_INSERT_EXT_MEMORY, NULL, NULL) != DRM_RETURN_SUCCESS)
 		return false;
-
+#endif
 	return true;
 }
 
 bool
 ms_drm_extract_ext_memory(void)
 {
+#ifdef __SUPPORT_DRM
 	MS_DBG("");
 	if (drm_process_request(DRM_REQUEST_TYPE_EXTRACT_EXT_MEMORY , NULL, NULL)  != DRM_RETURN_SUCCESS)
 		return false;
-
+#endif
 	return true;
 }
 
