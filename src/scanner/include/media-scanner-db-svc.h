@@ -51,6 +51,7 @@ typedef int (*SET_FOLDER_ITEM_VALIDITY)(void*, const char*, int, int, char**);
 typedef int (*DELETE_ALL_INVALID_ITEMS_IN_FOLDER)(void*, const char*, char**);
 typedef int (*INSERT_BURST_ITEM)(void *, const char *, int , char **);
 typedef int (*SEND_DIR_UPDATE_NOTI)(void *, const char *, char **);
+typedef int (*COUNT_DELETE_ITEMS_IN_FOLDER)(void *, const char *, int *, char **);
 
 int
 msc_load_functions(void);
@@ -90,6 +91,9 @@ msc_delete_invalid_items_in_folder(void **handle, const char*path);
 
 int
 msc_send_dir_update_noti(void **handle, const char*path);
+
+int
+msc_count_delete_items_in_folder(void **handle, const char*path, int *count);
 
 /****************************************************************************************************
 FOR BULK COMMIT

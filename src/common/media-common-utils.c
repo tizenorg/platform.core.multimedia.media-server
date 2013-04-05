@@ -29,7 +29,6 @@
  */
 
 #include <errno.h>
-#include <pmapi.h>
 #include <vconf.h>
 #include <aul/aul.h>
 

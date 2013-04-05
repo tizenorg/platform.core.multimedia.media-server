@@ -48,6 +48,7 @@ GArray *so_array;
 void ***func_array;
 int lib_num;
 void **scan_func_handle = NULL; /*dlopen handel*/
+extern int insert_count;
 
 enum func_list {
 	eCHECK,
@@ -69,6 +70,7 @@ enum func_list {
 	eDELETE_FOLDER,
 	eINSERT_BURST,
 	eSEND_DIR_UPDATE_NOTI,
+	eCOUNT_DELETE_ITEMS_IN_FOLDER,
 	eFUNC_MAX
 };
 
@@ -161,6 +163,7 @@ msc_load_functions(void)
 		"delete_all_invalid_items_in_folder",
 		"insert_burst_item",
 		"send_dir_update_noti",
+		"count_delete_items_in_folder",
 		};
 	/*init array for adding name of so*/
 	so_array = g_array_new(FALSE, FALSE, sizeof(char*));
@@ -340,6 +343,8 @@ msc_validate_item(void **handle, const char *path)
 					MSC_DBG_ERR("[%s]", path);
 					MS_SAFE_FREE(err_msg);
 					res = MS_MEDIA_ERR_DB_INSERT_FAIL;
+				} else {
+					insert_count++;
 				}
 			} else {
 				/*if meta data of file exist, change valid field to "1" */
@@ -546,6 +551,26 @@ msc_send_dir_update_noti(void **handle, const char*path)
 	}
 
 	return MS_MEDIA_ERR_NONE;
+}
+
+int
+msc_count_delete_items_in_folder(void **handle, const char*path, int *count)
+{
+	int lib_index;
+	int ret;
+	char *err_msg = NULL;
+
+	for (lib_index = 0; lib_index < lib_num; lib_index++) {
+		ret = ((COUNT_DELETE_ITEMS_IN_FOLDER)func_array[lib_index][eCOUNT_DELETE_ITEMS_IN_FOLDER])(handle[lib_index], path, count, &err_msg); /*dlopen*/
+		if (ret != 0) {
+			MSC_DBG_ERR("error : %s [%s]", g_array_index(so_array, char*, lib_index), err_msg);
+			MS_SAFE_FREE(err_msg);
+			return MS_MEDIA_ERR_INTERNAL;
+		}
+	}
+
+	return MS_MEDIA_ERR_NONE;
+
 }
 
 /****************************************************************************************************

@@ -54,6 +54,7 @@ bool power_off;
 GAsyncQueue * storage_queue;
 GAsyncQueue *scan_queue;
 GAsyncQueue *reg_queue;
+int insert_count;
 
 #ifdef FMS_PERF
 extern struct timeval g_mmc_start_time;
@@ -286,7 +287,6 @@ static int _msc_db_update(void **handle, const ms_comm_msg_s * scan_data)
 	int scan_type;
 	int err = MS_MEDIA_ERR_NONE;
 	char *start_path = NULL;
-	char *noti_path = NULL;
 	ms_storage_type_t storage_type;
 
 	storage_type = ms_get_storage_type_by_full(scan_data->msg);
@@ -301,10 +301,6 @@ static int _msc_db_update(void **handle, const ms_comm_msg_s * scan_data)
 		err = _msc_dir_scan(handle, start_path, storage_type, scan_type);
 		if (err != MS_MEDIA_ERR_NONE) {
 			MSC_DBG_ERR("error : %d", err);
-		} else {
-			noti_path = strndup(scan_data->msg, scan_data->msg_size);
-			msc_send_dir_update_noti(handle, noti_path);
-			MS_SAFE_FREE(noti_path);
 		}
 	} else if ( scan_type == MS_MSG_STORAGE_INVALID) {
 		MSC_DBG_INFO("INVALID");
@@ -313,12 +309,6 @@ static int _msc_db_update(void **handle, const ms_comm_msg_s * scan_data)
 		err = msc_invalidate_all_items(handle, storage_type);
 		if (err != MS_MEDIA_ERR_NONE) {
 			MSC_DBG_ERR("error : %d", err);
-		} else {
-			if (storage_type == MS_STORAGE_INTERNAL) {
-				msc_send_dir_update_noti(handle, MEDIA_ROOT_PATH_INTERNAL);
-			} else {
-				msc_send_dir_update_noti(handle, MEDIA_ROOT_PATH_SDCARD);
-			}
 		}
 	}
 
@@ -337,6 +327,7 @@ gboolean msc_directory_scan_thread(void *data)
 	void **handle = NULL;
 	ms_storage_type_t storage_type;
 	int scan_type;
+	char *noti_path = NULL;
 
 	while (1) {
 		scan_data = g_async_queue_pop(scan_queue);
@@ -385,8 +376,23 @@ gboolean msc_directory_scan_thread(void *data)
 
 		if (ret == MS_MEDIA_ERR_NONE) {
 			MSC_DBG_INFO("working normally");
+			int count = 0;
+
+			noti_path = strndup(scan_data->msg, scan_data->msg_size);
+			msc_count_delete_items_in_folder(handle, noti_path, &count);
+
+			MSC_DBG_INFO("delete count %d", count);
+			MSC_DBG_INFO("insert count %d", insert_count);
+
 			msc_delete_invalid_items_in_folder(handle, scan_data->msg);
+
+			if ( !(count == 0 && insert_count == 0)) {
+				msc_send_dir_update_noti(handle, noti_path);
+			}
+			MS_SAFE_FREE(noti_path);
 		}
+
+		insert_count = 0;
 
 		if (power_off) {
 			MSC_DBG_INFO("power off");
@@ -423,6 +429,7 @@ gboolean msc_storage_scan_thread(void *data)
 	void **handle = NULL;
 	ms_storage_type_t storage_type;
 	int scan_type;
+	char *noti_path = NULL;
 
 	while (1) {
 		scan_data = g_async_queue_pop(storage_queue);
@@ -494,6 +501,11 @@ gboolean msc_storage_scan_thread(void *data)
 				msc_delete_invalid_items(handle, storage_type);
 			}
 		}
+
+		/* send notification */
+		noti_path = strndup(scan_data->msg, scan_data->msg_size);
+		msc_send_dir_update_noti(handle, noti_path);
+		MS_SAFE_FREE(noti_path);
 
 #ifdef FMS_PERF
 		if (storage_type == MS_STORAGE_EXTERNAL) {
