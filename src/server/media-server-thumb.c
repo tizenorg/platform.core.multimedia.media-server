@@ -964,7 +964,6 @@ gboolean _ms_thumb_agent_read_socket(GIOChannel *src,
 
 	if ((client_sock = accept(sock, (struct sockaddr*)&client_addr, &client_addr_len)) < 0) {
 		MS_DBG_ERR("accept failed : %s", strerror(errno));
-		close(client_sock);
 		return TRUE;
 	}
 
