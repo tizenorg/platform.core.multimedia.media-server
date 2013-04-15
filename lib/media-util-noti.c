@@ -170,7 +170,6 @@ int media_db_update_subscribe(db_update_cb user_cb, void *user_data)
 
 		dbus_connection_setup_with_g_main (g_bus, NULL);
 
-		callback_data = malloc(sizeof(noti_callback_data));
 		MS_MALLOC(callback_data, sizeof(noti_callback_data));
 		if (callback_data == NULL) {
 			MSAPI_DBG_ERR("MS_MALLOC failed");
@@ -225,6 +224,7 @@ int media_db_update_unsubscribe(void)
 		dbus_connection_unref(g_bus);
 
 		g_bus = NULL;
+		MS_SAFE_FREE(g_data_store);
 	}
 
 	ref_count --;
@@ -263,11 +263,11 @@ int media_db_update_send(int pid, /* mandatory */
 		return MS_MEDIA_ERR_DBUS_GET;
 	}
 
-	path_array = malloc(sizeof(unsigned char) * path_length);
-	memcpy(path_array, path, path_length);
-
 	message = dbus_message_new_signal (MS_MEDIA_DBUS_PATH, MS_MEDIA_DBUS_INTERFACE, MS_MEDIA_DBUS_NAME);
 	if (message != NULL) {
+		path_array = malloc(sizeof(unsigned char) * path_length);
+		memcpy(path_array, path, path_length);
+
 		if (item == MS_MEDIA_ITEM_FILE) {
 			MSAPI_DBG("FILE CHANGED");
 			if (uuid != NULL && mime_type != NULL) {
