@@ -59,6 +59,10 @@ ms_make_default_path_mmc(void)
 			if (ret < 0) {
 				MS_DBG("make fail");
 			}
+			/*this fuction for emulator*/
+			/*at the first time, the directroies are made permission 755*/
+			chmod(default_path[i], 0777);
+			chown(default_path[i], 5000, 5000);
 		} else {
 			closedir(dp);
 		}
