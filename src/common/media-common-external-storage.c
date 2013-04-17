@@ -57,12 +57,18 @@ ms_make_default_path_mmc(void)
 		if (dp == NULL) {
 			ret = mkdir(default_path[i], 0777);
 			if (ret < 0) {
-				MS_DBG("make fail");
+				MS_DBG_ERR("make fail");
 			}
 			/*this fuction for emulator*/
 			/*at the first time, the directroies are made permission 755*/
-			chmod(default_path[i], 0777);
-			chown(default_path[i], 5000, 5000);
+			ret = chmod(default_path[i], 0777);
+			if (ret != 0) {
+				MS_DBG_ERR("chmod failed [%s]", strerror(errno));
+			}
+			ret = chown(default_path[i], 5000, 5000);
+			if (ret != 0) {
+				MS_DBG_ERR("chown failed [%s]", strerror(errno));
+			}
 		} else {
 			closedir(dp);
 		}
