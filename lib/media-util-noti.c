@@ -55,6 +55,7 @@ static void
 __free_data_fuction(void *memory)
 {
 	MS_SAFE_FREE(memory);
+	g_data_store = NULL;
 }
 
 static DBusHandlerResult
@@ -224,7 +225,6 @@ int media_db_update_unsubscribe(void)
 		dbus_connection_unref(g_bus);
 
 		g_bus = NULL;
-		MS_SAFE_FREE(g_data_store);
 	}
 
 	ref_count --;
