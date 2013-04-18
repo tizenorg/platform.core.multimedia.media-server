@@ -79,7 +79,11 @@ gboolean ms_db_thread(void *data)
 	}
 
 	/* Create TCP Socket for batch query*/
+#ifdef _USE_UDS_SOCKET_TCP_
+	ret = ms_ipc_create_server_tcp_socket(MS_PROTOCOL_TCP, MS_DB_BATCH_UPDATE_TCP_PORT, &tcp_sockfd);
+#else
 	ret = ms_ipc_create_server_socket(MS_PROTOCOL_TCP, MS_DB_BATCH_UPDATE_PORT, &tcp_sockfd);
+#endif
 	if(ret != MS_MEDIA_ERR_NONE) {
 		/* Disconnect DB*/
 		media_db_disconnect(db_handle);

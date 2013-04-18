@@ -452,6 +452,8 @@ gboolean ms_read_db_tcp_socket(GIOChannel *src, GIOCondition condition, gpointer
 {
 #ifdef _USE_UDS_SOCKET_
 	struct sockaddr_un client_addr;
+#elif defined(_USE_UDS_SOCKET_TCP_)
+	struct sockaddr_un client_addr;
 #else
 	struct sockaddr_in client_addr;
 #endif

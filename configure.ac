@@ -37,6 +37,7 @@ CPPFLAGS="${CPPFLAGS} -DRND_LINUX"
 
 #using UDS socket
 #CPPFLAGS="${CPPFLAGS} -D_USE_UDS_SOCKET_"
+CPPFLAGS="${CPPFLAGS} -D_USE_UDS_SOCKET_TCP_"
 
 # FMS_DEBUG - File Manager Service debug options
 # To open debug options:

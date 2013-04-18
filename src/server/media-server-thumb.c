@@ -195,6 +195,8 @@ _ms_thumb_create_socket(int sock_type, int *sock)
 
 #ifdef _USE_UDS_SOCKET_
 	if ((sock_fd = socket(AF_UNIX, SOCK_STREAM, 0)) < 0) {
+#elif defined(_USE_UDS_SOCKET_TCP_)
+	if ((sock_fd = socket(AF_UNIX, SOCK_STREAM, 0)) < 0) {
 #else
 	if ((sock_fd = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0) {
 #endif
@@ -943,6 +945,8 @@ gboolean _ms_thumb_agent_read_socket(GIOChannel *src,
 {
 #ifdef _USE_UDS_SOCKET_
 	struct sockaddr_un client_addr;
+#elif defined(_USE_UDS_SOCKET_TCP_)
+	struct sockaddr_un client_addr;
 #else
 	struct sockaddr_in client_addr;
 #endif
@@ -1059,7 +1063,11 @@ gboolean _ms_thumb_agent_prepare_tcp_socket(int *sock_fd)
 	int sock;
 	unsigned short serv_port;
 
+#ifdef _USE_UDS_SOCKET_TCP_
+	serv_port = MS_THUMB_CREATOR_TCP_PORT;
+#else
 	serv_port = MS_THUMB_CREATOR_PORT;
+#endif
 
 #if 0
 #ifdef _USE_UDS_SOCKET_
@@ -1100,7 +1108,12 @@ gboolean _ms_thumb_agent_prepare_tcp_socket(int *sock_fd)
 
 	MS_DBG("Listening...");
 #endif
+
+#ifdef _USE_UDS_SOCKET_TCP_
+	if (ms_ipc_create_server_tcp_socket(MS_PROTOCOL_TCP, serv_port, &sock) < 0) {
+#else
 	if (ms_ipc_create_server_socket(MS_PROTOCOL_TCP, serv_port, &sock) < 0) {
+#endif
 		MS_DBG_ERR("_ms_thumb_create_socket failed");
 		return FALSE;
 	}

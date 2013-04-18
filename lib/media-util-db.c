@@ -203,12 +203,17 @@ static int __media_db_get_client_tcp_sock()
 
 #ifdef _USE_UDS_SOCKET_
 extern char MEDIA_IPC_PATH[][50];
+#elif defined(_USE_UDS_SOCKET_TCP_)
+extern char MEDIA_IPC_PATH[][50];
 #endif
+
 static int __media_db_prepare_tcp_client_socket()
 {
 	int ret = MS_MEDIA_ERR_NONE;
 	int sockfd = -1;
 #ifdef _USE_UDS_SOCKET_
+	struct sockaddr_un serv_addr;
+#elif defined(_USE_UDS_SOCKET_TCP_)
 	struct sockaddr_un serv_addr;
 #else
 	struct sockaddr_in serv_addr;
@@ -218,6 +223,8 @@ static int __media_db_prepare_tcp_client_socket()
 	/*Create TCP Socket*/
 #ifdef _USE_UDS_SOCKET_
 	ret = ms_ipc_create_client_socket(MS_PROTOCOL_TCP, MS_TIMEOUT_SEC_10, &sockfd, 0);
+#elif defined(_USE_UDS_SOCKET_TCP_)
+	ret = ms_ipc_create_client_tcp_socket(MS_PROTOCOL_TCP, MS_TIMEOUT_SEC_10, &sockfd, MS_DB_BATCH_UPDATE_TCP_PORT);
 #else
 	ret = ms_ipc_create_client_socket(MS_PROTOCOL_TCP, MS_TIMEOUT_SEC_10, &sockfd);
 #endif
@@ -229,9 +236,14 @@ static int __media_db_prepare_tcp_client_socket()
 	serv_addr.sun_family = AF_UNIX;
 	MSAPI_DBG("%s", MEDIA_IPC_PATH[port]);
 	strcpy(serv_addr.sun_path, MEDIA_IPC_PATH[port]);
+#elif defined(_USE_UDS_SOCKET_TCP_)
+	serv_addr.sun_family = AF_UNIX;
+	MSAPI_DBG("%s", MEDIA_IPC_PATH[MS_DB_BATCH_UPDATE_TCP_PORT]);
+	strcpy(serv_addr.sun_path, MEDIA_IPC_PATH[MS_DB_BATCH_UPDATE_TCP_PORT]);
 #else
 	serv_addr.sin_family = AF_INET;
-	serv_addr.sin_addr.s_addr = inet_addr(SERVER_IP);
+	serv_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+	//serv_addr.sin_addr.s_addr = inet_addr(SERVER_IP);
 	serv_addr.sin_port = htons(port);
 #endif
 
