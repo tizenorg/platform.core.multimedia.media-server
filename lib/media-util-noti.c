@@ -64,12 +64,6 @@ __message_filter (DBusConnection *connection, DBusMessage *message, void *user_d
 	db_update_cb user_cb = ((noti_callback_data*)user_data)->user_callback;
 	void *userdata = ((noti_callback_data*)user_data)->user_data;
 
-	if (noti_mutex != NULL) {
-		g_mutex_lock(noti_mutex);
-	} else {
-		MSAPI_DBG_ERR("subscribe function is already unreferenced");
-	}
-
 	/* A Ping signal on the com.burtonini.dbus.Signal interface */
 	if (dbus_message_is_signal (message, MS_MEDIA_DBUS_INTERFACE, MS_MEDIA_DBUS_NAME)) {
 		int i = 0;
@@ -131,12 +125,8 @@ __message_filter (DBusConnection *connection, DBusMessage *message, void *user_d
 		MS_SAFE_FREE(uuid);
 		MS_SAFE_FREE(mime_type);
 
-		g_mutex_unlock(noti_mutex);
-
 		return DBUS_HANDLER_RESULT_HANDLED;
 	}
-
-	g_mutex_unlock(noti_mutex);
 
 	return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
 }
