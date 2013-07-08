@@ -1,0 +1,8 @@
+Change-Id: Ifd0fa715c65ff59c5eaebd12a395228388a4eeb2
+Code-Review+2: Ryan Ware <ware@linux.intel.com>
+Verified+1: Ryan Ware <ware@linux.intel.com>
+Submitted-by: Ryan Ware <ware@linux.intel.com>
+Submitted-at: Mon, 08 Jul 2013 10:06:12 -0700
+Reviewed-on: https://review.tizen.org/gerrit/4606
+Project: platform/core/multimedia/media-server
+Branch: refs/heads/tizen
