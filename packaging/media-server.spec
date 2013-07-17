@@ -6,7 +6,9 @@ Group:      Multimedia/Service
 License:    Apache-2.0
 Source0:    %{name}-%{version}.tar.gz
 Source1:    media-server.service
-Source1001: 	media-server.manifest
+Source1001:	%{name}.manifest
+Source1002:	libmedia-utils.manifest
+Source1003:	libmedia-utils-devel.manifest
 
 Requires(post): /usr/bin/vconftool
 BuildRequires:  pkgconfig(glib-2.0)
@@ -42,7 +44,7 @@ Description: media server development library.
 
 %prep
 %setup -q
-cp %{SOURCE1001} .
+cp %{SOURCE1001} %{SOURCE1002} %{SOURCE1003} .
 
 %build
 
@@ -71,7 +73,6 @@ vconftool set -t int file/private/mediaserver/scan_directory "1" -f
 
 %files
 %manifest %{name}.manifest
-#%manifest media-server.manifest
 %defattr(-,root,root,-)
 %{_bindir}/media-server
 %{_bindir}/media-scanner
@@ -85,15 +86,14 @@ vconftool set -t int file/private/mediaserver/scan_directory "1" -f
 
 
 %files -n libmedia-utils
-%manifest %{name}.manifest
+%manifest libmedia-utils.manifest
 %license LICENSE.APLv2.0
-#%manifest libmedia-utils.manifest
 %defattr(-,root,root,-)
 %{_libdir}/libmedia-utils.so.0
 %{_libdir}/libmedia-utils.so.0.0.0
 
 %files -n libmedia-utils-devel
-%manifest %{name}.manifest
+%manifest libmedia-utils-devel.manifest
 %defattr(-,root,root,-)
 %{_libdir}/libmedia-utils.so
 %{_libdir}/pkgconfig/libmedia-utils.pc
