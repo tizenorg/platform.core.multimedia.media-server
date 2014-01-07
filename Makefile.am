@@ -75,7 +75,8 @@ media_server_CFLAGS = -I${srcdir}/src/common/include \
 			     $(LIBPMCONTROL_CFLAGS) \
 			     $(HEYNOTI_CFLAGS) \
 			     $(DBUS_CFLAGS) \
-                             $(STATUS_CFLAGS)
+                             $(STATUS_CFLAGS) \
+                             $(GIO_CFLAGS)
 
 media_server_LDADD = libmedia-utils.la \
 			      $(GLIB_LIBS) \
@@ -88,7 +89,9 @@ media_server_LDADD = libmedia-utils.la \
 			      $(HEYNOTI_LIBS) \
 			      $(DBUS_LIBS) \
                               -ldl \
-                              $(STATUS_LIBS)
+                              $(STATUS_LIBS) \
+                              $(GIO_LIBS)
+
 
 media_scanner_SOURCES = src/common/media-common-utils.c \
                 	src/common/media-common-external-storage.c \

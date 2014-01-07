@@ -35,6 +35,7 @@
 #include <malloc.h>
 #include <vconf.h>
 #include <heynoti.h>
+#include <gio/gio.h>
 
 #include "media-util.h"
 #include "media-common-utils.h"
@@ -48,10 +49,16 @@
 #include "media-server-scanner.h"
 
 #define APP_NAME "media-server"
+#define TIMEOUT_INTERNAL 3000
 
 extern GMutex *scanner_mutex;
 
 GMainLoop *mainloop = NULL;
+
+static GHashTable *hash_monitors = NULL;
+static guint timeout_internal = 0;
+static guint timeout_external = 0;
+static void _ms_add_file_monitors(const char *path);
 
 bool check_process()
 {
@@ -156,7 +163,10 @@ static void _db_clear(void)
 
 	/*update just valid type*/
 	if (ms_invalidate_all_items(handle, MS_STORAGE_EXTERNAL)  != MS_MEDIA_ERR_NONE)
-		MS_DBG_ERR("ms_change_valid_type fail");
+		MS_DBG_ERR("invalidate external storage failed");
+
+	if (ms_invalidate_all_items(handle, MS_STORAGE_INTERNAL)  != MS_MEDIA_ERR_NONE)
+		MS_DBG_ERR("invalidate internal storage failed");
 
 	/*disconnect form media db*/
 	if (handle) ms_disconnect_db(&handle);
@@ -214,11 +224,18 @@ static void _ms_free_global_variable(void)
 	if (scanner_mutex) g_mutex_free(scanner_mutex);
 }
 
+static void _ms_mmc_stop_monitor(gpointer data)
+{
+	char *key = data;
+	if (g_str_has_prefix(key, MEDIA_ROOT_PATH_SDCARD))
+		g_hash_table_remove(hash_monitors, key);
+}
 
 void
 _ms_mmc_vconf_cb(void *data)
 {
 	int status = 0;
+	GList *keys;
 
 	if (!ms_config_get_int(VCONFKEY_SYSMAN_MMC_STATUS, &status)) {
 		MS_DBG_ERR("Get VCONFKEY_SYSMAN_MMC_STATUS failed.");
@@ -238,6 +255,8 @@ _ms_mmc_vconf_cb(void *data)
 			MS_DBG_ERR("ms_drm_extract_ext_memory failed");
 
 		ms_send_storage_scan_request(MS_STORAGE_EXTERNAL, MS_SCAN_INVALID);
+		keys = g_hash_table_get_keys(hash_monitors);
+		g_list_free_full(keys, _ms_mmc_stop_monitor);
 	} else if (status == VCONFKEY_SYSMAN_MMC_MOUNTED) {
 
 		ms_make_default_path_mmc();
@@ -248,11 +267,131 @@ _ms_mmc_vconf_cb(void *data)
 			MS_DBG_ERR("ms_drm_insert_ext_memory failed");
 
 		ms_send_storage_scan_request(MS_STORAGE_EXTERNAL, ms_get_mmc_state());
+		_ms_add_file_monitors(MEDIA_ROOT_PATH_SDCARD);
 	}
 
 	return;
 }
 
+static gboolean _ms_save_changed_db(gpointer data)
+{
+	ms_storage_type_t type = GPOINTER_TO_INT(data);
+	ms_dir_scan_type_t scan_type;
+
+	_db_clear();
+	if (type == MS_STORAGE_EXTERNAL)
+		scan_type = ms_get_mmc_state();
+	else
+		scan_type = MS_SCAN_PART;
+	ms_send_storage_scan_request(type, scan_type);
+
+	if (type == MS_STORAGE_EXTERNAL)
+		timeout_external = 0;
+	else
+		timeout_internal = 0;
+	return FALSE;
+}
+
+static void _ms_timeout_schedule(guint *id, gpointer data)
+{
+	if (*id)
+		g_source_remove(*id);
+	*id = g_timeout_add(TIMEOUT_INTERNAL,
+			    _ms_save_changed_db, data);
+}
+
+static void
+_ms_monitor_changed(GFileMonitor *monitor, GFile *file, GFile *other_file,
+		    GFileMonitorEvent  event_type, gpointer user_data)
+{
+	ms_storage_type_t type = GPOINTER_TO_INT(user_data);
+	GFileType file_type;
+	char *path;
+
+	if (event_type == G_FILE_MONITOR_EVENT_PRE_UNMOUNT ||
+	    event_type == G_FILE_MONITOR_EVENT_UNMOUNTED ||
+	    event_type == G_FILE_MONITOR_EVENT_CHANGES_DONE_HINT)
+		return;
+
+	if (type == MS_STORAGE_EXTERNAL)
+		_ms_timeout_schedule(&timeout_external, user_data);
+	else
+		_ms_timeout_schedule(&timeout_internal, user_data);
+
+	path = g_file_get_path(file);
+	if (event_type == G_FILE_MONITOR_EVENT_DELETED) {
+		/* It's easier to remove from the hash right away than
+		   first look if it is present and then remove.
+		 */
+		g_hash_table_remove(hash_monitors, path);
+	} else if (event_type == G_FILE_MONITOR_EVENT_CREATED) {
+		file_type = g_file_query_file_type(file,
+						   G_FILE_QUERY_INFO_NONE,
+						   NULL);
+		if (file_type == G_FILE_TYPE_DIRECTORY) {
+			_ms_add_file_monitors(path);
+		}
+	}
+	g_free(path);
+}
+
+static void _ms_add_file_monitor(GFile *file)
+{
+	ms_storage_type_t type;
+	GFileMonitor *monitor;
+	char *path = g_file_get_path(file);
+	monitor = g_file_monitor_directory(file, G_FILE_MONITOR_NONE,
+					   NULL, NULL);
+	if (g_str_has_prefix(path, MEDIA_ROOT_PATH_SDCARD))
+		type = MS_STORAGE_EXTERNAL;
+	else
+		type = MS_STORAGE_INTERNAL;
+	g_signal_connect(monitor, "changed", G_CALLBACK(_ms_monitor_changed),
+			 GINT_TO_POINTER(type));
+	g_hash_table_insert(hash_monitors, path, monitor);
+}
+
+static void _ms_add_file_monitors(const char *path)
+{
+	char buf[PATH_MAX];
+	GFile *file;
+	GFileEnumerator *f_enum;
+	GFileInfo *f_info;
+
+	file = g_file_new_for_path(path);
+	_ms_add_file_monitor(file);
+	snprintf(buf, sizeof(buf), "%s,%s,%s", G_FILE_ATTRIBUTE_STANDARD_NAME,
+		 G_FILE_ATTRIBUTE_STANDARD_IS_HIDDEN,
+		 G_FILE_ATTRIBUTE_STANDARD_TYPE);
+	f_enum = g_file_enumerate_children(file, buf,
+					   G_FILE_QUERY_INFO_NONE, NULL, NULL);
+	if (f_enum) {
+		while ((f_info = g_file_enumerator_next_file(f_enum, NULL, NULL))) {
+			if (!f_info)
+				continue;
+			if  (g_file_info_get_file_type(f_info) == G_FILE_TYPE_DIRECTORY &&
+			     !g_file_info_get_is_hidden(f_info)) {
+				snprintf(buf, sizeof(buf), "%s%s%s", path,
+					 G_DIR_SEPARATOR_S,
+					 g_file_info_get_name(f_info));
+				_ms_add_file_monitors(buf);
+			}
+			g_object_unref(f_info);
+		}
+		g_object_unref(f_enum);
+	}
+	g_object_unref(file);
+}
+
+static void _key_destroy(gpointer data)
+{
+	g_free(data);
+}
+
+static void _value_destroy(gpointer data)
+{
+	g_object_unref(data);
+}
 
 int main(int argc, char **argv)
 {
@@ -268,12 +407,18 @@ int main(int argc, char **argv)
 	struct sigaction sigset;
 
 	check_result = check_process();
+
+	hash_monitors = g_hash_table_new_full(g_str_hash, g_str_equal,
+					      _key_destroy, _value_destroy);
+
 	if (check_result == false)
 		exit(0);
 
 	if (!g_thread_supported()) {
 		g_thread_init(NULL);
 	}
+
+	g_type_init();
 
 	/*Init main loop*/
 	mainloop = g_main_loop_new(NULL, FALSE);
@@ -354,7 +499,10 @@ int main(int argc, char **argv)
 		ms_present_mmc_status(MS_SDCARD_INSERTED);
 
 		ms_send_storage_scan_request(MS_STORAGE_EXTERNAL, ms_get_mmc_state());
+		_ms_add_file_monitors(MEDIA_ROOT_PATH_SDCARD);
 	}
+
+	_ms_add_file_monitors(MEDIA_ROOT_PATH_INTERNAL);
 
 	/*Active flush */
 	malloc_trim(0);
@@ -366,6 +514,8 @@ int main(int argc, char **argv)
 	g_main_loop_run(mainloop);
 	g_thread_join(db_thread);
 	g_thread_join(thumb_thread);
+
+	g_hash_table_destroy(hash_monitors);
 
 	/*close an IO channel*/
 	g_io_channel_shutdown(channel,  FALSE, NULL);

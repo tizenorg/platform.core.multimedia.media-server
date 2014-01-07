@@ -12,6 +12,7 @@ Source1003:	libmedia-utils-devel.manifest
 
 Requires(post): /usr/bin/vconftool
 BuildRequires:  pkgconfig(glib-2.0)
+BuildRequires:  pkgconfig(gio-2.0)
 BuildRequires:  pkgconfig(vconf)
 BuildRequires:  pkgconfig(dlog)
 BuildRequires:  pkgconfig(drm-client)
