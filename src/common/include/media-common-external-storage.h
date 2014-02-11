@@ -24,6 +24,9 @@
 #include "media-common-types.h"
 
 void
+ms_init_default_path(void);
+
+void
 ms_make_default_path_mmc(void);
 
 int
