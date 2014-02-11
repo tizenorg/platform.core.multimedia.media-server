@@ -9,7 +9,7 @@ Source1:    media-server.service
 Source1001:	%{name}.manifest
 Source1002:	libmedia-utils.manifest
 Source1003:	libmedia-utils-devel.manifest
-
+Source1004: 	media-data-sdk_create_db.sh
 Requires(post): /usr/bin/vconftool
 BuildRequires:  pkgconfig(glib-2.0)
 BuildRequires:  pkgconfig(vconf)
@@ -22,6 +22,7 @@ BuildRequires:  pkgconfig(dbus-glib-1)
 BuildRequires:  pkgconfig(sqlite3)
 BuildRequires:  pkgconfig(db-util)
 BuildRequires:  pkgconfig(notification)
+BuildRequires:  pkgconfig(libtzplatform-config)
 
 %description
 Description: File manager service server
@@ -29,6 +30,7 @@ Description: File manager service server
 %package -n libmedia-utils
 Summary:   media server runtime library.
 Group:     Multimedia/Libraries
+Requires:  media-server = %{version}-%{release}
 
 %description -n libmedia-utils
 Description : media server runtime library.
@@ -38,6 +40,7 @@ Description : media server runtime library.
 Summary:   media server development library.
 Group:     Development/Multimedia
 Requires:  libmedia-utils = %{version}-%{release}
+Requires:  libtzplatform-config-devel
 
 %description -n libmedia-utils-devel
 Description: media server development library.
@@ -59,6 +62,20 @@ make %{?jobs:-j%jobs}
 mkdir -p %{buildroot}/usr/lib/systemd/system/multi-user.target.wants
 install -m 644 %{SOURCE1} %{buildroot}/usr/lib/systemd/system/media-server.service
 ln -s ../media-server.service %{buildroot}/usr/lib/systemd/system/multi-user.target.wants/media-server.service
+mkdir -p %{buildroot}%{TZ_SYS_DATA}/data-media/Camera
+mkdir -p %{buildroot}%{TZ_SYS_DATA}/data-media/Downloads
+mkdir -p %{buildroot}%{TZ_SYS_DATA}/data-media/Images
+mkdir -p %{buildroot}%{TZ_SYS_DATA}/data-media/Sounds/Voice\ recorder
+mkdir -p %{buildroot}%{TZ_SYS_DATA}/data-media/Videos
+mkdir -p %{buildroot}%{TZ_SYS_DATA}/data-media/file-manager-service/.thumb/mmc
+mkdir -p %{buildroot}%{TZ_SYS_DATA}/data-media/file-manager-service/.thumb/phone
+install -m 0775 ./data-media/Images/* %{buildroot}%{TZ_SYS_DATA}/data-media/Images/
+install -m 0775 ./data-media/dbspace/file-manager-service/.thumb/thumb_default.png %{buildroot}%{TZ_SYS_DATA}/data-media/file-manager-service/.thumb/
+install -D -m 0775 ./data-media/dbspace/file-manager-service/.thumb/mmc/* %{buildroot}%{TZ_SYS_DATA}/data-media/file-manager-service/.thumb/mmc/
+install -m 0775 ./data-media/dbspace/file-manager-service/.thumb/phone/PHONE_THUMB_HERE %{buildroot}%{TZ_SYS_DATA}/data-media/file-manager-service/.thumb/phone/
+install -m 0775 ./data-media/dbspace/file-manager-service/.thumb/phone/.jpg* %{buildroot}%{TZ_SYS_DATA}/data-media/file-manager-service/.thumb/phone/
+install -D -m 0775 ./data-media/dbspace/file-manager-service/* %{buildroot}%{TZ_SYS_DATA}/data-media/file-manager-service/
+install -m 0775 %{SOURCE1004} %{buildroot}%{_bindir}/media-data-sdk_create_db.sh
 
 %post
 vconftool set -t int db/filemanager/dbupdate "1" -f
@@ -66,7 +83,8 @@ vconftool set -t int memory/filemanager/Mmc "0" -i -f
 vconftool set -t string db/private/mediaserver/mmc_info "" -f
 vconftool set -t int file/private/mediaserver/scan_internal "1" -f
 vconftool set -t int file/private/mediaserver/scan_directory "1" -f
-
+chgrp %TZ_SYS_USER_GROUP %{_bindir}/media-data-sdk_create_db.sh
+chgrp -R %TZ_SYS_USER_GROUP %{TZ_SYS_DATA}/data-media
 %post -n libmedia-utils -p /sbin/ldconfig
 
 %postun -n libmedia-utils -p /sbin/ldconfig
@@ -83,7 +101,9 @@ vconftool set -t int file/private/mediaserver/scan_directory "1" -f
 /usr/lib/systemd/system/media-server.service
 /usr/lib/systemd/system/multi-user.target.wants/media-server.service
 %license LICENSE.APLv2.0
-
+%{_bindir}/media-data-sdk_create_db.sh
+%{TZ_SYS_DATA}/data-media/*
+%{TZ_SYS_DATA}/data-media/file-manager-service/.thumb/*
 
 %files -n libmedia-utils
 %manifest libmedia-utils.manifest
@@ -98,4 +118,3 @@ vconftool set -t int file/private/mediaserver/scan_directory "1" -f
 %{_libdir}/libmedia-utils.so
 %{_libdir}/pkgconfig/libmedia-utils.pc
 %{_includedir}/media-utils/*.h
-

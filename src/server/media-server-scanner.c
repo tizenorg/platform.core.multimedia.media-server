@@ -32,7 +32,11 @@
 #include "media-server-socket.h"
 #include "media-server-scanner.h"
 
+#include <tzplatform_config.h>
+
 #define MS_NO_REMAIN_TASK 0
+
+#define MEDIA_SERVER_PATH tzplatform_mkpath(TZ_SYS_BIN,"media-scanner")
 
 extern GMainLoop *mainloop;
 extern GArray *owner_list;
@@ -241,7 +245,7 @@ ms_scanner_start(void)
 		/* child process */
 		MS_DBG_ERR("CHILD PROCESS");
 		MS_DBG("EXECUTE MEDIA SCANNER");
-		execl("/usr/bin/media-scanner", "media-scanner", NULL);
+		execl(MEDIA_SERVER_PATH, "media-scanner", NULL);
 		g_mutex_unlock(scanner_mutex);
 	}
 

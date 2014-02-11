@@ -27,7 +27,8 @@
  * @version	1.0
  * @brief
  */
-
+#include <sys/stat.h>
+#include <sys/wait.h>
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
@@ -65,14 +66,56 @@ static int __media_db_busy_handler(void *pData, int count)
 
 	return 100 - count;
 }
-
+int _xsystem(const char *argv[])
+{
+	int status = 0;
+	pid_t pid;
+	pid = fork();
+	switch (pid) {
+	case -1:
+		perror("fork failed");
+		return -1;
+	case 0:
+		/* child */
+		execvp(argv[0], (char *const *)argv);
+		_exit(-1);
+	default:
+		/* parent */
+		break;
+	}
+	if (waitpid(pid, &status, 0) == -1)
+	{
+		perror("waitpid failed");
+		return -1;
+	}
+	if (WIFSIGNALED(status))
+	{
+		perror("signal");
+		return -1;
+	}
+	if (!WIFEXITED(status))
+	{
+		/* shouldn't happen */
+		perror("should not happen");
+		return -1;
+	}
+	return WEXITSTATUS(status);
+}
+#define SCRIPT_INIT_DB "/usr/bin/media-data-sdk_create_db.sh"
 static int __media_db_connect_db_with_handle(sqlite3 **db_handle)
 {
 	int ret = MS_MEDIA_ERR_NONE;
 
-	/*Connect DB*/
+	/*Init DB*/
+	struct stat sts;
+	/* Check if the DB exists; if not, create it and initialize it */
+	ret = stat(MEDIA_DB_NAME, &sts);
+	if (ret == -1 && errno == ENOENT)
+	{
+		const char *argv_script[] = {"/bin/sh", SCRIPT_INIT_DB, NULL };
+		ret = _xsystem(argv_script);
+	}
 	ret = db_util_open(MEDIA_DB_NAME, db_handle, DB_UTIL_REGISTER_HOOK_METHOD);
-
 	if (SQLITE_OK != ret) {
 
 		MSAPI_DBG_ERR("error when db open");
