@@ -31,6 +31,8 @@
 #include <glib.h>
 #include "media-util.h"
 
+#include <tzplatform_config.h>
+
 GMainLoop * mainloop = NULL;
 
 void callback(media_request_result_s * result, void *user_data)
@@ -51,8 +53,8 @@ void print_help()
 	printf("\n");
 	printf("db-update --help for check this messages.\n");
 	printf("\n");
-	printf("A file or directory must exists under /opt/usr/media or /opt/storage/sdcard.\n");
-	printf("Using /opt/storage/sdcard is allowed SD card is mounted.\n");
+	printf("A file or directory must exists under %s or %s.\n",tzplatform_mkpath(TZ_USER_CONTENT,""),tzplatform_mkpath(TZ_SYS_STORAGE,"sdcard"));
+	printf("Using %s is allowed SD card is mounted.\n",tzplatform_mkpath(TZ_SYS_STORAGE,"sdcard"));
 	printf("\n");
 	printf("=======================================================================================\n");
 }

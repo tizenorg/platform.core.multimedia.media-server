@@ -37,6 +37,8 @@
 #include <stdbool.h>
 #include <unistd.h>
 
+#include <tzplatform_config.h>
+
 #define FMS_PERF
 
 #define MS_VALIND 1
@@ -49,7 +51,7 @@
 
 /*Use for Poweroff sequence*/
 #define POWEROFF_NOTI_NAME "power_off_start" /*poeroff noti from system-server*/
-#define POWEROFF_DIR_PATH "/opt/usr/media/_POWER_OFF" /*This path uses for stopping Inotify thread and Socket thread*/
+#define POWEROFF_DIR_PATH tzplatform_mkpath(TZ_USER_CONTENT,"_POWER_OFF") /*This path uses for stopping Inotify thread and Socket thread*/
 #define POWEROFF_DIR_NAME "_POWER_OFF" /*This path uses for stopping Inotify thread and Socket thread*/
 #define POWEROFF -1 /*This number uses for stopping Scannig thread*/
 
