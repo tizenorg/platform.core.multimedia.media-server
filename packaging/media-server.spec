@@ -38,6 +38,7 @@ Description : media server runtime library.
 Summary:   media server development library.
 Group:     Development/Multimedia
 Requires:  libmedia-utils = %{version}-%{release}
+Requires:  libtzplatform-config-devel
 
 %description -n libmedia-utils-devel
 Description: media server development library.
