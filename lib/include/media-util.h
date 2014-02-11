@@ -28,10 +28,12 @@
 #include <media-util-noti.h>
 #include <media-util-ipc.h>
 
+#include <tzplatform_config.h>
+
 #define MOUNT_PATH "/opt/usr"
 
 #define MEDIA_ROOT_PATH_INTERNAL	MOUNT_PATH"/media"
-#define MEDIA_ROOT_PATH_SDCARD	"/opt/storage/sdcard"
+#define MEDIA_ROOT_PATH_SDCARD	tzplatform_mkpath(TZ_SYS_STORAGE,"sdcard")
 #define MEDIA_DATA_PATH			MOUNT_PATH"/data/file-manager-service"
 #define MEDIA_DB_NAME				MOUNT_PATH"/dbspace/.media.db"		/**<  media db name*/
 

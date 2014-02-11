@@ -1,3 +1,3 @@
 #!/bin/sh
-/usr/bin/media-server&
+${TZ_SYS_BIN}/media-server&
 

@@ -27,6 +27,8 @@
 #include "media-server-dbg.h"
 #include "media-server-thumb.h"
 
+#include <tzplatform_config.h>
+
 #ifdef LOG_TAG
 #undef LOG_TAG
 #endif
@@ -34,6 +36,8 @@
 #define LOG_TAG "MEDIA_SERVER_THUMB"
 
 #define THUMB_SERVER_NAME "media-thumbnail"
+
+#define THUMB_SERVER_PATH tzplatform_mkpath(TZ_SYS_BIN,"media-thumbnail-server")
 
 gboolean _ms_thumb_agent_timer();
 
@@ -488,7 +492,7 @@ gboolean _ms_thumb_agent_execute_server()
 	if (pid < 0) {
 		return FALSE;
 	} else if (pid == 0) {
-		execl("/usr/bin/media-thumbnail-server", "media-thumbnail-server", NULL);
+		execl(THUMB_SERVER_PATH, "media-thumbnail-server", NULL);
 	} else {
 		MS_DBG("Child process is %d", pid);
 		g_folk_thumb_server = TRUE;

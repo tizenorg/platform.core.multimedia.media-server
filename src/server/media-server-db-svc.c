@@ -37,7 +37,9 @@
 #include "media-server-dbg.h"
 #include "media-server-db-svc.h"
 
-#define CONFIG_PATH "/opt/usr/data/file-manager-service/plugin-config"
+#include <tzplatform_config.h>
+
+#define CONFIG_PATH tzplatform_mkpath(TZ_USER_DATA,"file-manager-service/plugin-config")
 #define EXT ".so"
 #define EXT_LEN 3
 
