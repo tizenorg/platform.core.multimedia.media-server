@@ -33,7 +33,15 @@
 #include "media-common-drm.h"
 #include "media-common-external-storage.h"
 
+#include <pwd.h>
+#include <tzplatform_config.h>
+
 #define MMC_INFO_SIZE 256
+#define PATH_IMAGES tzplatform_mkpath(TZ_SYS_STORAGE,"sdcard/Images")
+#define PATH_VIDEOS tzplatform_mkpath(TZ_SYS_STORAGE,"sdcard/Videos")
+#define PATH_SOUNDS tzplatform_mkpath(TZ_SYS_STORAGE,"sdcard/Sounds")
+#define PATH_DOWNLOADS tzplatform_mkpath(TZ_SYS_STORAGE,"sdcard/Downloads")
+#define PATH_CAMERA tzplatform_mkpath(TZ_SYS_STORAGE,"sdcard/Camera")
 
 char default_path[][MS_FILE_NAME_LEN_MAX + 1] = {
 		{"/opt/storage/sdcard/Images"},
@@ -43,7 +51,18 @@ char default_path[][MS_FILE_NAME_LEN_MAX + 1] = {
 		{"/opt/storage/sdcard/Camera"}
 };
 
+
 #define DIR_NUM       ((int)(sizeof(default_path)/sizeof(default_path[0])))
+
+void
+ms_init_default_path(void){
+
+	strcpy (default_path[0], PATH_IMAGES);
+	strcpy (default_path[1], PATH_VIDEOS);
+	strcpy (default_path[2], PATH_SOUNDS);
+	strcpy (default_path[3], PATH_DOWNLOADS);
+	strcpy (default_path[4], PATH_CAMERA);
+}
 
 void
 ms_make_default_path_mmc(void)
@@ -51,7 +70,7 @@ ms_make_default_path_mmc(void)
 	int i = 0;
 	int ret = 0;
 	DIR *dp = NULL;
-
+ 	ms_init_default_path();
 	for (i = 0; i < DIR_NUM; ++i) {
 		dp = opendir(default_path[i]);
 		if (dp == NULL) {
@@ -65,7 +84,7 @@ ms_make_default_path_mmc(void)
 			if (ret != 0) {
 				MS_DBG_ERR("chmod failed [%s]", strerror(errno));
 			}
-			ret = chown(default_path[i], 5000, 5000);
+			ret = chown(default_path[i], tzplatform_getuid(TZ_USER_NAME), tzplatform_getgid(TZ_SYS_USER_GROUP));
 			if (ret != 0) {
 				MS_DBG_ERR("chown failed [%s]", strerror(errno));
 			}
