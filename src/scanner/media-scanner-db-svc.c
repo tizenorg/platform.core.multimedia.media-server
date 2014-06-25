@@ -39,7 +39,7 @@
 
 #include <tzplatform_config.h>
 
-#define CONFIG_PATH tzplatform_mkpath(TZ_USER_DATA,"file-manager-service/plugin-config")
+#define CONFIG_PATH tzplatform_mkpath(TZ_SYS_DATA,"data-media/file-manager-service/plugin-config")
 #define EXT ".so"
 #define EXT_LEN 3
 #define MSC_REGISTER_COUNT 100 /*For bundle commit*/

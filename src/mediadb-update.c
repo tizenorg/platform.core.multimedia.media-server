@@ -53,7 +53,7 @@ void print_help()
 	printf("\n");
 	printf("db-update --help for check this messages.\n");
 	printf("\n");
-	printf("A file or directory must exists under %s or %s.\n",tzplatform_mkpath(TZ_USER_CONTENT,""),tzplatform_mkpath(TZ_SYS_STORAGE,"sdcard"));
+	printf("A file or directory must exists under %s or %s.\n",tzplatform_mkpath(TZ_SYS_DATA,"data-media"),tzplatform_mkpath(TZ_SYS_STORAGE,"sdcard"));
 	printf("Using %s is allowed SD card is mounted.\n",tzplatform_mkpath(TZ_SYS_STORAGE,"sdcard"));
 	printf("\n");
 	printf("=======================================================================================\n");
