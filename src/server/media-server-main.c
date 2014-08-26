@@ -35,6 +35,7 @@
 #include <malloc.h>
 #include <vconf.h>
 #include <heynoti.h>
+#include <sys/stat.h>
 
 #include "media-util.h"
 #include "media-common-utils.h"
@@ -152,10 +153,10 @@ static void _db_clear(void)
 	}
 
 	/*connect to media db, if conneting is failed, db updating is stopped*/
-	ms_connect_db(&handle);
+	ms_connect_db(&handle,tzplatform_getuid(TZ_USER_NAME));
 
 	/*update just valid type*/
-	if (ms_invalidate_all_items(handle, MS_STORAGE_EXTERNAL)  != MS_MEDIA_ERR_NONE)
+	if (ms_invalidate_all_items(handle, MS_STORAGE_EXTERNAL, tzplatform_getuid(TZ_USER_NAME))  != MS_MEDIA_ERR_NONE)
 		MS_DBG_ERR("ms_change_valid_type fail");
 
 	/*disconnect form media db*/
@@ -253,6 +254,23 @@ _ms_mmc_vconf_cb(void *data)
 	return;
 }
 
+static int _mkdir(const char *dir, mode_t mode) {
+        char tmp[256];
+        char *p = NULL;
+        size_t len;
+
+        snprintf(tmp, sizeof(tmp),"%s",dir);
+        len = strlen(tmp);
+        if(tmp[len - 1] == '/')
+                tmp[len - 1] = 0;
+        for(p = tmp + 1; *p; p++)
+                if(*p == '/') {
+                        *p = 0;
+                        mkdir(tmp, mode);
+                        *p = '/';
+                }
+        return mkdir(tmp, mode);
+}
 
 int main(int argc, char **argv)
 {
@@ -294,6 +312,9 @@ int main(int argc, char **argv)
 	_ms_new_global_variable();
 
 	/*prepare socket*/
+	/* create dir socket */
+	_mkdir("/var/run/media-server",S_IRWXU | S_IRWXG | S_IRWXO);
+	
 	/* Create and bind new UDP socket */
 	if (ms_ipc_create_server_socket(MS_PROTOCOL_UDP, MS_SCANNER_PORT, &sockfd)
 		!= MS_MEDIA_ERR_NONE) {
@@ -341,10 +362,6 @@ int main(int argc, char **argv)
 		MS_DBG("wait db thread");
 		sleep(1);
 	}
-
-	_db_clear();
-
-	ms_send_storage_scan_request(MS_STORAGE_INTERNAL, MS_SCAN_PART);
 
 	if (ms_is_mmc_inserted()) {
 		if (!ms_drm_insert_ext_memory())

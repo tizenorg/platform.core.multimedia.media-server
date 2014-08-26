@@ -49,7 +49,7 @@ void
 ms_end(void);
 
 ms_storage_type_t
-ms_get_storage_type_by_full(const char *path);
+ms_get_storage_type_by_full(const char *path, uid_t uid);
 
 int
 ms_get_mime(const char *path, char *mimetype);

@@ -39,7 +39,7 @@
 
 #include <tzplatform_config.h>
 
-#define CONFIG_PATH tzplatform_mkpath(TZ_SYS_DATA,"data-media/file-manager-service/plugin-config")
+#define CONFIG_PATH tzplatform_mkpath(TZ_SYS_DATA,"file-manager-service/plugin-config")
 #define EXT ".so"
 #define EXT_LEN 3
 #define MSC_REGISTER_COUNT 100 /*For bundle commit*/
@@ -268,7 +268,7 @@ msc_unload_functions(void)
 }
 
 int
-msc_connect_db(void ***handle)
+msc_connect_db(void ***handle, uid_t uid)
 {
 	int lib_index;
 	int ret;
@@ -280,7 +280,7 @@ msc_connect_db(void ***handle)
 	MS_MALLOC(*handle, sizeof (void*) * lib_num);
 
 	for (lib_index = 0; lib_index < lib_num; lib_index++) {
-		ret = ((CONNECT)func_array[lib_index][eCONNECT])(&((*handle)[lib_index]), &err_msg); /*dlopen*/
+		ret = ((CONNECT)func_array[lib_index][eCONNECT])(&((*handle)[lib_index]), uid, &err_msg); /*dlopen*/
 		if (ret != 0) {
 			MSC_DBG_ERR("error : %s [%s]", g_array_index(so_array, char*, lib_index), err_msg);
 			MS_SAFE_FREE(err_msg);
@@ -321,7 +321,7 @@ msc_disconnect_db(void ***handle)
 }
 
 int
-msc_validate_item(void **handle, const char *path)
+msc_validate_item(void **handle, const char *path, uid_t uid)
 {
 	int lib_index;
 	int res = MS_MEDIA_ERR_NONE;
@@ -329,7 +329,7 @@ msc_validate_item(void **handle, const char *path)
 	char *err_msg = NULL;
 	ms_storage_type_t storage_type;
 
-	storage_type = ms_get_storage_type_by_full(path);
+	storage_type = ms_get_storage_type_by_full(path,uid);
 
 	for (lib_index = 0; lib_index < lib_num; lib_index++) {
 		if (!_msc_check_category(path, lib_index)) {
@@ -339,7 +339,7 @@ msc_validate_item(void **handle, const char *path)
 				MSC_DBG_ERR("not exist in %d. insert data", lib_index);
 				MS_SAFE_FREE(err_msg);
 
-				ret = ((INSERT_ITEM)func_array[lib_index][eINSERT_BATCH])(handle[lib_index], path, storage_type, &err_msg); /*dlopen*/
+				ret = ((INSERT_ITEM)func_array[lib_index][eINSERT_BATCH])(handle[lib_index], path, storage_type, uid, &err_msg); /*dlopen*/
 				if (ret != 0) {
 					MSC_DBG_ERR("error : %s [%s] %s", g_array_index(so_array, char*, lib_index), err_msg, path);
 					MSC_DBG_ERR("[%s]", path);
@@ -372,7 +372,7 @@ msc_validate_item(void **handle, const char *path)
 }
 
 int
-msc_invalidate_all_items(void **handle, ms_storage_type_t store_type)
+msc_invalidate_all_items(void **handle, ms_storage_type_t store_type , uid_t uid)
 {
 	int lib_index;
 	int res = MS_MEDIA_ERR_NONE;
@@ -380,7 +380,7 @@ msc_invalidate_all_items(void **handle, ms_storage_type_t store_type)
 	char *err_msg = NULL;
 
 	for (lib_index = 0; lib_index < lib_num; lib_index++) {
-		ret = ((SET_ALL_STORAGE_ITEMS_VALIDITY)func_array[lib_index][eSET_ALL_VALIDITY])(handle[lib_index], store_type, false, &err_msg); /*dlopen*/
+		ret = ((SET_ALL_STORAGE_ITEMS_VALIDITY)func_array[lib_index][eSET_ALL_VALIDITY])(handle[lib_index], store_type, false, uid, &err_msg); /*dlopen*/
 		if (ret != 0) {
 			MSC_DBG_ERR("error : %s [%s]", g_array_index(so_array, char*, lib_index), err_msg);
 			MS_SAFE_FREE(err_msg);
@@ -392,7 +392,7 @@ msc_invalidate_all_items(void **handle, ms_storage_type_t store_type)
 }
 
 int
-msc_insert_item_batch(void **handle, const char *path)
+msc_insert_item_batch(void **handle, const char *path, uid_t uid)
 {
 	int lib_index;
 	int res = MS_MEDIA_ERR_NONE;
@@ -400,11 +400,11 @@ msc_insert_item_batch(void **handle, const char *path)
 	char *err_msg = NULL;
 	ms_storage_type_t storage_type;
 
-	storage_type = ms_get_storage_type_by_full(path);
+	storage_type = ms_get_storage_type_by_full(path,uid);
 
 	for (lib_index = 0; lib_index < lib_num; lib_index++) {
 		if (!_msc_check_category(path, lib_index)) {
-			ret = ((INSERT_ITEM)func_array[lib_index][eINSERT_BATCH])(handle[lib_index], path, storage_type, &err_msg); /*dlopen*/
+			ret = ((INSERT_ITEM)func_array[lib_index][eINSERT_BATCH])(handle[lib_index], path, storage_type, uid, &err_msg); /*dlopen*/
 			if (ret != 0) {
 				MSC_DBG_ERR("error : %s [%s]", g_array_index(so_array, char*, lib_index), err_msg);
 				MSC_DBG_ERR("[%s]", path);
@@ -426,7 +426,7 @@ msc_insert_item_batch(void **handle, const char *path)
 }
 
 int
-msc_insert_burst_item(void **handle, const char *path)
+msc_insert_burst_item(void **handle, const char *path , uid_t uid)
 {
 	int lib_index;
 	int res = MS_MEDIA_ERR_NONE;
@@ -434,11 +434,11 @@ msc_insert_burst_item(void **handle, const char *path)
 	char *err_msg = NULL;
 	ms_storage_type_t storage_type;
 
-	storage_type = ms_get_storage_type_by_full(path);
+	storage_type = ms_get_storage_type_by_full(path,uid);
 
 	for (lib_index = 0; lib_index < lib_num; lib_index++) {
 		if (!_msc_check_category(path, lib_index)) {
-			ret = ((INSERT_BURST_ITEM)func_array[lib_index][eINSERT_BURST])(handle[lib_index], path, storage_type, &err_msg); /*dlopen*/
+			ret = ((INSERT_BURST_ITEM)func_array[lib_index][eINSERT_BURST])(handle[lib_index], uid, path, storage_type, &err_msg); /*dlopen*/
 			if (ret != 0) {
 				MSC_DBG_ERR("error : %s [%s]", g_array_index(so_array, char*, lib_index), err_msg);
 				MSC_DBG_ERR("[%s]", path);
@@ -460,7 +460,7 @@ msc_insert_burst_item(void **handle, const char *path)
 }
 
 bool
-msc_delete_all_items(void **handle, ms_storage_type_t store_type)
+msc_delete_all_items(void **handle, ms_storage_type_t store_type, uid_t uid)
 {
 	int lib_index;
 	int ret = 0;
@@ -468,7 +468,7 @@ msc_delete_all_items(void **handle, ms_storage_type_t store_type)
 
 	/* To reset media db when differnet mmc is inserted. */
 	for (lib_index = 0; lib_index < lib_num; lib_index++) {
-		ret = ((DELETE_ALL_ITEMS_IN_STORAGE)func_array[lib_index][eDELETE_ALL])(handle[lib_index], store_type, &err_msg); /*dlopen*/
+		ret = ((DELETE_ALL_ITEMS_IN_STORAGE)func_array[lib_index][eDELETE_ALL])(handle[lib_index], store_type, uid, &err_msg); /*dlopen*/
 		if (ret != 0) {
 			MSC_DBG_ERR("error : %s [%s]", g_array_index(so_array, char*, lib_index), err_msg);
 			MS_SAFE_FREE(err_msg);
@@ -480,14 +480,14 @@ msc_delete_all_items(void **handle, ms_storage_type_t store_type)
 }
 
 bool
-msc_delete_invalid_items(void **handle, ms_storage_type_t store_type)
+msc_delete_invalid_items(void **handle, ms_storage_type_t store_type, uid_t uid)
 {
 	int lib_index;
 	int ret;
 	char *err_msg = NULL;
 
 	for (lib_index = 0; lib_index < lib_num; lib_index++) {
-		ret = ((DELETE_ALL_INVALID_ITMES_IN_STORAGE)func_array[lib_index][eDELETE_INVALID_ITEMS])(handle[lib_index], store_type, &err_msg); /*dlopen*/
+		ret = ((DELETE_ALL_INVALID_ITMES_IN_STORAGE)func_array[lib_index][eDELETE_INVALID_ITEMS])(handle[lib_index], store_type, uid, &err_msg); /*dlopen*/
 		if (ret != 0) {
 			MSC_DBG_ERR("error : %s [%s]", g_array_index(so_array, char*, lib_index), err_msg);
 			MS_SAFE_FREE(err_msg);
@@ -499,14 +499,14 @@ msc_delete_invalid_items(void **handle, ms_storage_type_t store_type)
 }
 
 int
-msc_set_folder_validity(void **handle, const char *path, int validity, int recursive)
+msc_set_folder_validity(void **handle, const char *path, int validity, int recursive, uid_t uid)
 {
 	int lib_index;
 	int ret;
 	char *err_msg = NULL;
 
 	for (lib_index = 0; lib_index < lib_num; lib_index++) {
-		ret = ((SET_FOLDER_ITEM_VALIDITY)func_array[lib_index][eSET_FOLDER_VALIDITY])(handle[lib_index], path, validity, recursive,&err_msg); /*dlopen*/
+		ret = ((SET_FOLDER_ITEM_VALIDITY)func_array[lib_index][eSET_FOLDER_VALIDITY])(handle[lib_index], path, validity, recursive, uid, &err_msg); /*dlopen*/
 		if (ret != 0) {
 			MSC_DBG_ERR("error : %s [%s]", g_array_index(so_array, char*, lib_index), err_msg);
 			MS_SAFE_FREE(err_msg);
@@ -518,14 +518,14 @@ msc_set_folder_validity(void **handle, const char *path, int validity, int recur
 }
 
 int
-msc_delete_invalid_items_in_folder(void **handle, const char*path)
+msc_delete_invalid_items_in_folder(void **handle, const char*path, uid_t uid)
 {
 	int lib_index;
 	int ret;
 	char *err_msg = NULL;
 
 	for (lib_index = 0; lib_index < lib_num; lib_index++) {
-		ret = ((DELETE_ALL_INVALID_ITEMS_IN_FOLDER)func_array[lib_index][eDELETE_FOLDER])(handle[lib_index], path, &err_msg); /*dlopen*/
+		ret = ((DELETE_ALL_INVALID_ITEMS_IN_FOLDER)func_array[lib_index][eDELETE_FOLDER])(handle[lib_index], path, uid, &err_msg); /*dlopen*/
 		if (ret != 0) {
 			MSC_DBG_ERR("error : %s [%s]", g_array_index(so_array, char*, lib_index), err_msg);
 			MS_SAFE_FREE(err_msg);
@@ -596,14 +596,14 @@ msc_register_start(void **handle, ms_noti_status_e noti_status, int pid)
 }
 
 void
-msc_register_end(void **handle)
+msc_register_end(void **handle, uid_t uid)
 {
 	int lib_index;
 	int ret = 0;
 	char *err_msg = NULL;
 
 	for (lib_index = 0; lib_index < lib_num; lib_index++) {
-		ret = ((INSERT_ITEM_END)func_array[lib_index][eINSERT_END])(handle[lib_index], &err_msg);/*dlopen*/
+		ret = ((INSERT_ITEM_END)func_array[lib_index][eINSERT_END])(handle[lib_index], uid, &err_msg);/*dlopen*/
 		if (ret != 0) {
 			MSC_DBG_ERR("error : %s [%s]", g_array_index(so_array, char*, lib_index), err_msg);
 			MS_SAFE_FREE(err_msg);
@@ -611,7 +611,7 @@ msc_register_end(void **handle)
 	}
 
 	for (lib_index = 0; lib_index < lib_num; lib_index++) {
-		ret = ((UPDATE_END)func_array[lib_index][eUPDATE_END])();/*dlopen*/
+		ret = ((UPDATE_END)func_array[lib_index][eUPDATE_END])(uid);/*dlopen*/
 		if (ret != 0) {
 			MSC_DBG_ERR("error : %s [%s]", g_array_index(so_array, char*, lib_index), err_msg);
 			MS_SAFE_FREE(err_msg);
@@ -636,14 +636,14 @@ msc_validate_start(void **handle)
 }
 
 void
-msc_validate_end(void **handle)
+msc_validate_end(void **handle, uid_t uid)
 {
 	int lib_index;
 	int ret = 0;
 	char *err_msg = NULL;
 
 	for (lib_index = 0; lib_index < lib_num; lib_index++) {
-		ret = ((SET_ITEM_VALIDITY_END)func_array[lib_index][eSET_VALIDITY_END])(handle[lib_index], &err_msg);/*dlopen*/
+		ret = ((SET_ITEM_VALIDITY_END)func_array[lib_index][eSET_VALIDITY_END])(handle[lib_index], uid, &err_msg);/*dlopen*/
 		if (ret != 0) {
 			MSC_DBG_ERR("error : %s [%s]", g_array_index(so_array, char*, lib_index), err_msg);
 			MS_SAFE_FREE(err_msg);

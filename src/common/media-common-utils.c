@@ -28,9 +28,13 @@
  * @brief       This file implements main database operation.
  */
 
+#define _GNU_SOURCE
+
 #include <errno.h>
 #include <vconf.h>
 #include <aul/aul.h>
+#include <grp.h>
+#include <pwd.h>
 
 #include "media-util.h"
 #include "media-server-ipc.h"
@@ -46,6 +50,7 @@ struct timeval g_mmc_end_time;
 #endif
 
 #define MS_DRM_CONTENT_TYPE_LENGTH 100
+#define GLOBAL_USER	0 //#define 	tzplatform_getenv(TZ_GLOBAL) //TODO
 
 #ifdef FMS_PERF
 void
@@ -85,11 +90,55 @@ ms_is_mmc_inserted(void)
 		return true;
 	}
 }
+static char* __media_get_path(uid_t uid)
+{
+	char *result_psswd = NULL;
+	struct group *grpinfo = NULL;
+	if(uid == getuid())
+	{
+		result_psswd = strdup(MEDIA_ROOT_PATH_INTERNAL);
+		grpinfo = getgrnam("users");
+		if(grpinfo == NULL) {
+			MS_DBG_ERR("getgrnam(users) returns NULL !");
+			return NULL;
+		}
+	}
+	else
+	{
+		struct passwd *userinfo = getpwuid(uid);
+		if(userinfo == NULL) {
+			MS_DBG_ERR("getpwuid(%d) returns NULL !", uid);
+			return NULL;
+		}
+		grpinfo = getgrnam("users");
+		if(grpinfo == NULL) {
+			MS_DBG_ERR("getgrnam(users) returns NULL !");
+			return NULL;
+		}
+		// Compare git_t type and not group name
+		if (grpinfo->gr_gid != userinfo->pw_gid) {
+			MS_DBG_ERR("UID [%d] does not belong to 'users' group!", uid);
+			return NULL;
+		}
+		asprintf(&result_psswd, "%s", userinfo->pw_dir);
+	}
+
+	return result_psswd;
+}
 
 ms_storage_type_t
-ms_get_storage_type_by_full(const char *path)
+ms_get_storage_type_by_full(const char *path, uid_t uid)
 {
-	if (strncmp(path, MEDIA_ROOT_PATH_INTERNAL, strlen(MEDIA_ROOT_PATH_INTERNAL)) == 0) {
+	int lenght_path;
+	char * user_path = NULL;
+	
+	if (path == NULL)
+		return false;
+
+	user_path = __media_get_path(uid);
+	lenght_path = strlen(user_path);
+
+	if (strncmp(path, user_path, lenght_path) == 0) {
 		return MS_STORAGE_INTERNAL;
 	} else if (strncmp(path, MEDIA_ROOT_PATH_SDCARD, strlen(MEDIA_ROOT_PATH_SDCARD)) == 0) {
 		return MS_STORAGE_EXTERNAL;

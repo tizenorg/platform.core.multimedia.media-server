@@ -53,7 +53,7 @@ void print_help()
 	printf("\n");
 	printf("db-update --help for check this messages.\n");
 	printf("\n");
-	printf("A file or directory must exists under %s or %s.\n",tzplatform_mkpath(TZ_SYS_DATA,"data-media"),tzplatform_mkpath(TZ_SYS_STORAGE,"sdcard"));
+	printf("A file or directory must exists under %s or %s.\n",tzplatform_getenv(TZ_USER_HOME),tzplatform_mkpath(TZ_SYS_STORAGE,"sdcard"));
 	printf("Using %s is allowed SD card is mounted.\n",tzplatform_mkpath(TZ_SYS_STORAGE,"sdcard"));
 	printf("\n");
 	printf("=======================================================================================\n");
@@ -61,12 +61,12 @@ void print_help()
 
 int dir_scan_non_recursive(char *path)
 {
-	return media_directory_scanning_async(path, FALSE, callback, NULL);
+	return media_directory_scanning_async(path, FALSE, callback, NULL, tzplatform_getuid(TZ_USER_NAME));
 }
 
 int dir_scan_recursive(char *path)
 {
-	return media_directory_scanning_async(path, TRUE, callback, NULL);
+	return media_directory_scanning_async(path, TRUE, callback, NULL, tzplatform_getuid(TZ_USER_NAME));
 }
 
 typedef enum {

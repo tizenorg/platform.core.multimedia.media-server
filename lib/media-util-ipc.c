@@ -33,38 +33,72 @@
 #include <errno.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <grp.h>
+#include <pwd.h>
+#include <sys/socket.h>
+#include <sys/un.h>
 
 #include "media-util-dbg.h"
 #include "media-util.h"
 
 #ifdef _USE_UDS_SOCKET_
-char MEDIA_IPC_PATH[][50] ={
-	{"/tmp/media_ipc_dbbatchupdate.dat"},
-	{"/tmp/media_ipc_scandaemon.dat"},
-	{"/tmp/media_ipc_scancomm.dat"},
-	{"/tmp/media_ipc_scanner.dat"},
-	{"/tmp/media_ipc_dbupdate.dat"},
-	{"/tmp/media_ipc_thumbcreator.dat"},
-	{"/tmp/media_ipc_thumbcomm.dat"},
-	{"/tmp/media_ipc_thumbdaemon.dat"},
+char MEDIA_IPC_PATH[][70] ={
+	{"/var/run/media-server/media_ipc_dbbatchupdate.socket"},
+	{"/var/run/media-server/media_ipc_scandaemon.socket"},
+	{"/var/run/media-server/media_ipc_scancomm.socket"},
+	{"/var/run/media-server/media_ipc_scanner.socket"},
+	{"/var/run/media-server/media_ipc_dbupdate.socket"},
+	{"/var/run/media-server/media_ipc_thumbcreator.socket"},
+	{"/var/run/media-server/media_ipc_thumbcomm.socket"},
+	{"/var/run/media-server/media_ipc_thumbdaemon.socket"},
 };
 
-char MEDIA_IPC_PATH_CLIENT[][50] ={
-	{"/tmp/media_ipc_dbbatchupdate_client.dat"},
-	{"/tmp/media_ipc_scandaemon_client.dat"},
-	{"/tmp/media_ipc_scancomm_client.dat"},
-	{"/tmp/media_ipc_scanner_client.dat"},
-	{"/tmp/media_ipc_dbupdate_client.dat"},
-	{"/tmp/media_ipc_thumbcreator_client.dat"},
-	{"/tmp/media_ipc_thumbcomm_client.dat"},
-	{"/tmp/media_ipc_thumbdaemon_client.dat"},
+char MEDIA_IPC_PATH_CLIENT[][80] ={
+	{"/var/run/user/%i/media-server/media_ipc_dbbatchupdate_client%i.socket"},
+	{"/var/run/user/%i/media-server/media_ipc_scandaemon_client%i.socket"},
+	{"/var/run/user/%i/media-server/media_ipc_scancomm_client%i.socket"},
+	{"/var/run/user/%i/media-server/media_ipc_scanner_client%i.socket"},
+	{"/var/run/user/%i/media-server/media_ipc_dbupdate_client%i.socket"},
+	{"/var/run/user/%i/media-server/media_ipc_thumbcreator_client%i.socket"},
+	{"/var/run/user/%i/media-server/media_ipc_thumbcomm_client%i.socket"},
+	{"/var/run/user/%i/media-server/media_ipc_thumbdaemon_client%i.socket"},
 };
+
+char MEDIA_IPC_PATH_CLIENT_ROOT[][80] ={
+	{"/var/run/media-server/media_ipc_dbbatchupdate_client%i.socket"},
+	{"/var/run/media-server/media_ipc_scandaemon_client%i.socket"},
+	{"/var/run/media-server/media_ipc_scancomm_client%i.socket"},
+	{"/var/run/media-server/media_ipc_scanner_client%i.socket"},
+	{"/var/run/media-server/media_ipc_dbupdate_client%i.socket"},
+	{"/var/run/media-server/media_ipc_thumbcreator_client%i.socket"},
+	{"/var/run/media-server/media_ipc_thumbcomm_client%i.socket"},
+	{"/var/run/media-server/media_ipc_thumbdaemon_client%i.socket"},
+};
+
 #elif defined(_USE_UDS_SOCKET_TCP_)
 char MEDIA_IPC_PATH[][50] ={
 	{"/tmp/media_ipc_dbbatchupdate.dat"},
 	{"/tmp/media_ipc_thumbcreator.dat"},
 };
 #endif
+
+static int _mkdir(const char *dir, mode_t mode) {
+        char tmp[256];
+        char *p = NULL;
+        size_t len;
+
+        snprintf(tmp, sizeof(tmp),"%s",dir);
+        len = strlen(tmp);
+        if(tmp[len - 1] == '/')
+                tmp[len - 1] = 0;
+        for(p = tmp + 1; *p; p++)
+                if(*p == '/') {
+                        *p = 0;
+                        mkdir(tmp, mode);
+                        *p = '/';
+                }
+        return mkdir(tmp, mode);
+}
 
 #ifdef _USE_UDS_SOCKET_
 int ms_ipc_create_client_socket(ms_protocol_e protocol, int timeout_sec, int *sock_fd, int port)
@@ -76,6 +110,30 @@ int ms_ipc_create_client_socket(ms_protocol_e protocol, int timeout_sec, int *so
 
 	struct timeval tv_timeout = { timeout_sec, 0 };
 
+	char *buffer;
+	char *path;
+	int cx,len;
+
+#ifdef _USE_UDS_SOCKET_
+	mode_t orig_mode;
+
+	if (tzplatform_getuid(TZ_USER_NAME) == 0 ){
+		cx = snprintf ( NULL, 0, MEDIA_IPC_PATH_CLIENT_ROOT[port],getpid());
+		buffer = (char*)malloc((cx + 1 )*sizeof(char));
+		snprintf ( buffer, cx + 1,  MEDIA_IPC_PATH_CLIENT_ROOT[port],getpid());
+	} else {
+		len = snprintf ( NULL, 0, "/var/run/user/%i/media-server", tzplatform_getuid(TZ_USER_NAME));
+		path = (char*)malloc((len + 1 )*sizeof(char));
+		snprintf ( path, len + 1, "/var/run/user/%i/media-server", tzplatform_getuid(TZ_USER_NAME));
+		_mkdir(path, 0777);
+		free(path);
+		cx = snprintf ( NULL, 0, MEDIA_IPC_PATH_CLIENT[port], tzplatform_getuid(TZ_USER_NAME),getpid());
+		buffer = (char*)malloc((cx + 1 )*sizeof(char));
+		snprintf ( buffer, cx + 1,  MEDIA_IPC_PATH_CLIENT[port],tzplatform_getuid(TZ_USER_NAME),getpid());
+	}
+	orig_mode = umask(0111);
+#endif
+		
 	if(protocol == MS_PROTOCOL_UDP)
 	{
 #ifdef _USE_UDS_SOCKET_
@@ -95,14 +153,18 @@ int ms_ipc_create_client_socket(ms_protocol_e protocol, int timeout_sec, int *so
 #ifdef _USE_UDS_SOCKET_
 		memset(&serv_addr, 0, sizeof(serv_addr));
 		serv_addr.sun_family = AF_UNIX;
-		MSAPI_DBG("%s", MEDIA_IPC_PATH_CLIENT[port]);
-		unlink(MEDIA_IPC_PATH_CLIENT[port]);
-		strcpy(serv_addr.sun_path, MEDIA_IPC_PATH_CLIENT[port]);
-
+		MSAPI_DBG("%s", buffer);
+		unlink(buffer);
+		strcpy(serv_addr.sun_path, buffer);
+		
 		/* Bind to the local address */
 		if (bind(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
 			MSAPI_DBG_ERR("bind failed : %s", strerror(errno));
 			close(sock);
+#ifdef _USE_UDS_SOCKET_
+			free(buffer);
+			umask(orig_mode);
+#endif
 			return MS_MEDIA_ERR_SOCKET_CONN;
 		}
 #endif
@@ -116,6 +178,10 @@ int ms_ipc_create_client_socket(ms_protocol_e protocol, int timeout_sec, int *so
 		if ((sock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0) {
 #endif
 			MSAPI_DBG_ERR("socket failed: %s", strerror(errno));
+#ifdef _USE_UDS_SOCKET_
+			free(buffer);
+			umask(orig_mode);
+#endif
 			return MS_MEDIA_ERR_SOCKET_CONN;
 		}
 	}
@@ -124,11 +190,19 @@ int ms_ipc_create_client_socket(ms_protocol_e protocol, int timeout_sec, int *so
 		if (setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv_timeout, sizeof(tv_timeout)) == -1) {
 			MSAPI_DBG_ERR("setsockopt failed: %s", strerror(errno));
 			close(sock);
+#ifdef _USE_UDS_SOCKET_
+			free(buffer);
+			umask(orig_mode);
+#endif
 			return MS_MEDIA_ERR_SOCKET_CONN;
 		}
 	}
 
 	*sock_fd = sock;
+#ifdef _USE_UDS_SOCKET_
+	free(buffer);
+	umask(orig_mode);
+#endif
 
 	return MS_MEDIA_ERR_NONE;
 }
@@ -167,7 +241,7 @@ int ms_ipc_create_server_tcp_socket(ms_protocol_e protocol, int port, int *sock_
 
 	struct sockaddr_un serv_addr;
 	mode_t orig_mode;
-	orig_mode = umask(0);
+	orig_mode = umask(0111);
 
 	/* Create a TCP socket */
 	if ((sock = socket(PF_FILE, SOCK_STREAM, 0)) < 0) {
@@ -225,6 +299,8 @@ int ms_ipc_create_server_socket(ms_protocol_e protocol, int port, int *sock_fd)
 	int n_reuse = 1;
 #ifdef _USE_UDS_SOCKET_
 	struct sockaddr_un serv_addr;
+	mode_t orig_mode;
+	orig_mode = umask(0111);
 #else
 	struct sockaddr_in serv_addr;
 #endif
@@ -241,6 +317,9 @@ int ms_ipc_create_server_socket(ms_protocol_e protocol, int port, int *sock_fd)
 		if ((sock = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0) {
 #endif
 			MSAPI_DBG_ERR("socket failed: %s", strerror(errno));
+#ifdef _USE_UDS_SOCKET_
+			umask(orig_mode);
+#endif
 			return MS_MEDIA_ERR_SOCKET_CONN;
 		}
 	}
@@ -253,6 +332,9 @@ int ms_ipc_create_server_socket(ms_protocol_e protocol, int port, int *sock_fd)
 		if ((sock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0) {
 #endif
 			MSAPI_DBG_ERR("socket failed: %s", strerror(errno));
+#ifdef _USE_UDS_SOCKET_
+			umask(orig_mode);
+#endif
 			return MS_MEDIA_ERR_SOCKET_CONN;
 		}
 	}
@@ -289,6 +371,9 @@ int ms_ipc_create_server_socket(ms_protocol_e protocol, int port, int *sock_fd)
 	if (bind_success == false) {
 		MSAPI_DBG_ERR("bind failed : %s %d_", strerror(errno), errno);
 		close(sock);
+#ifdef _USE_UDS_SOCKET_
+			umask(orig_mode);
+#endif
 		return MS_MEDIA_ERR_SOCKET_CONN;
 	}
 
@@ -299,6 +384,9 @@ int ms_ipc_create_server_socket(ms_protocol_e protocol, int port, int *sock_fd)
 		if (listen(sock, SOMAXCONN) < 0) {
 			MSAPI_DBG_ERR("listen failed : %s", strerror(errno));
 			close(sock);
+#ifdef _USE_UDS_SOCKET_
+			umask(orig_mode);
+#endif
 			return MS_MEDIA_ERR_SOCKET_CONN;
 		}
 
@@ -306,6 +394,9 @@ int ms_ipc_create_server_socket(ms_protocol_e protocol, int port, int *sock_fd)
 	}
 
 	*sock_fd = sock;
+#ifdef _USE_UDS_SOCKET_
+	umask(orig_mode);
+#endif
 
 	return MS_MEDIA_ERR_NONE;
 }

@@ -32,9 +32,9 @@
 
 #include "media-common-types.h"
 
-typedef int (*CONNECT)(void**, char **);
+typedef int (*CONNECT)(void**, uid_t, char **);
 typedef int (*DISCONNECT)(void*, char **);
-typedef int (*SET_ALL_STORAGE_ITEMS_VALIDITY)(void*, int, int, char **);
+typedef int (*SET_ALL_STORAGE_ITEMS_VALIDITY)(void*, int, int, uid_t,char **);
 
 int
 ms_load_functions(void);
@@ -43,12 +43,12 @@ void
 ms_unload_functions(void);
 
 int
-ms_connect_db(void ***handle);
+ms_connect_db(void ***handle, uid_t uid);
 
 int
 ms_disconnect_db(void ***handle);
 
 int
-ms_invalidate_all_items(void **handle, ms_storage_type_t store_type);
+ms_invalidate_all_items(void **handle, ms_storage_type_t store_type, uid_t uid);
 
 #endif /*_MEDIA_SERVER_DB_SVC_H_*/

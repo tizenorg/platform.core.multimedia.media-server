@@ -30,9 +30,9 @@
 
 #include <tzplatform_config.h>
 
-#define MEDIA_ROOT_PATH_INTERNAL	tzplatform_mkpath(TZ_SYS_DATA,"data-media")
+#define MEDIA_ROOT_PATH_INTERNAL	tzplatform_getenv(TZ_USER_HOME)
 #define MEDIA_ROOT_PATH_SDCARD	tzplatform_mkpath(TZ_SYS_STORAGE, "sdcard")
 #define MEDIA_DATA_PATH		tzplatform_mkpath(TZ_SYS_DATA, "file-manager-service")
-#define MEDIA_DB_NAME		tzplatform_mkpath(TZ_SYS_DB, ".media.db")		/**<  media db name*/
+#define MEDIA_DB_NAME		tzplatform_mkpath(TZ_USER_DB, ".media.db")		/**<  media db name*/
 
 #endif /*_MEDIA_UTIL_H_*/

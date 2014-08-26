@@ -36,19 +36,19 @@ extern "C" {
 
 typedef void MediaDBHandle;		/**< Handle */
 
-int media_db_connect(MediaDBHandle **handle);
+int media_db_connect(MediaDBHandle **handle, uid_t uid);
 
 int media_db_disconnect(MediaDBHandle *handle);
 
-int media_db_request_update_db(const char *query_str);
+int media_db_request_update_db(const char *query_str, uid_t uid);
 
-int media_db_request_update_db_batch_start(const char *query_str);
+int media_db_request_update_db_batch_start(const char *query_str, uid_t uid);
 
-int media_db_request_update_db_batch(const char *query_str);
+int media_db_request_update_db_batch(const char *query_str, uid_t uid);
 
-int media_db_request_update_db_batch_end(const char *query_str);
+int media_db_request_update_db_batch_end(const char *query_str, uid_t uid);
 
-int media_db_request_directory_scan(const char *directory_path);
+int media_db_request_directory_scan(const char *directory_path , uid_t uid);
 
 /**
 * @}

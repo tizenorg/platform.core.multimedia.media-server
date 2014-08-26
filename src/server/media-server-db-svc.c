@@ -39,7 +39,7 @@
 
 #include <tzplatform_config.h>
 
-#define CONFIG_PATH tzplatform_mkpath(TZ_SYS_DATA,"data-media/file-manager-service/plugin-config")
+#define CONFIG_PATH tzplatform_mkpath(TZ_SYS_DATA,"file-manager-service/plugin-config")
 #define EXT ".so"
 #define EXT_LEN 3
 
@@ -218,7 +218,7 @@ ms_unload_functions(void)
 }
 
 int
-ms_connect_db(void ***handle)
+ms_connect_db(void ***handle, uid_t uid)
 {
 	int lib_index;
 	int ret;
@@ -227,7 +227,7 @@ ms_connect_db(void ***handle)
 	MS_MALLOC(*handle, sizeof (void*) * lib_num);
 
 	for (lib_index = 0; lib_index < lib_num; lib_index++) {
-		ret = ((CONNECT)func_array[lib_index][eCONNECT])(&((*handle)[lib_index]), &err_msg); /*dlopen*/
+		ret = ((CONNECT)func_array[lib_index][eCONNECT])(&((*handle)[lib_index]), uid, &err_msg); /*dlopen*/
 		if (ret != 0) {
 			MS_DBG_ERR("error : %s [%s]", g_array_index(so_array, char*, lib_index), err_msg);
 			MS_SAFE_FREE(err_msg);
@@ -264,7 +264,7 @@ ms_disconnect_db(void ***handle)
 }
 
 int
-ms_invalidate_all_items(void **handle, ms_storage_type_t store_type)
+ms_invalidate_all_items(void **handle, ms_storage_type_t store_type, uid_t uid)
 {
 	int lib_index;
 	int res = MS_MEDIA_ERR_NONE;
@@ -272,7 +272,7 @@ ms_invalidate_all_items(void **handle, ms_storage_type_t store_type)
 	char *err_msg = NULL;
 	MS_DBG("");
 	for (lib_index = 0; lib_index < lib_num; lib_index++) {
-		ret = ((SET_ALL_STORAGE_ITEMS_VALIDITY)func_array[lib_index][eSET_ALL_VALIDITY])(handle[lib_index], store_type, false, &err_msg); /*dlopen*/
+		ret = ((SET_ALL_STORAGE_ITEMS_VALIDITY)func_array[lib_index][eSET_ALL_VALIDITY])(handle[lib_index], store_type, false, uid, &err_msg); /*dlopen*/
 		if (ret != 0) {
 			MS_DBG_ERR("error : %s [%s]", g_array_index(so_array, char*, lib_index), err_msg);
 			MS_SAFE_FREE(err_msg);
