@@ -61,12 +61,12 @@ void print_help()
 
 int dir_scan_non_recursive(char *path)
 {
-	return media_directory_scanning_async(path, FALSE, callback, NULL);
+	return media_directory_scanning_async(path, FALSE, callback, NULL, tzplatform_getuid(TZ_USER_NAME));
 }
 
 int dir_scan_recursive(char *path)
 {
-	return media_directory_scanning_async(path, TRUE, callback, NULL);
+	return media_directory_scanning_async(path, TRUE, callback, NULL, tzplatform_getuid(TZ_USER_NAME));
 }
 
 typedef enum {

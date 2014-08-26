@@ -43,6 +43,8 @@
 #include <stdbool.h>
 #include <dirent.h>
 #include <vconf.h>
+#include <grp.h>
+#include <pwd.h>
 
 #include "media-server-ipc.h"
 #include "media-util-internal.h"
@@ -55,12 +57,58 @@ typedef struct media_callback_data{
 	void *user_data;
 } media_callback_data;
 
-static bool _is_valid_path(const char *path)
-{
-       if (path == NULL)
-               return false;
+#define GLOBAL_USER	0 //#define 	tzplatform_getenv(TZ_GLOBAL) //TODO
 
-	if (strncmp(path, MEDIA_ROOT_PATH_INTERNAL, strlen(MEDIA_ROOT_PATH_INTERNAL)) == 0) {
+static char* __media_get_path(uid_t uid)
+{
+	char *result_psswd = NULL;
+	struct group *grpinfo = NULL;
+	char * dir = NULL;
+	if(uid == GLOBAL_USER)
+	{
+		result_psswd = strdup(MEDIA_ROOT_PATH_INTERNAL);
+		grpinfo = getgrnam("root");
+		if(grpinfo == NULL) {
+			MSAPI_DBG_ERR("getgrnam(users) returns NULL !");
+			return NULL;
+		}
+	}
+	else
+	{
+		struct passwd *userinfo = getpwuid(uid);
+		if(userinfo == NULL) {
+			MSAPI_DBG_ERR("getpwuid(%d) returns NULL !", uid);
+			return NULL;
+		}
+		grpinfo = getgrnam("users");
+		if(grpinfo == NULL) {
+			MSAPI_DBG_ERR("getgrnam(users) returns NULL !");
+			return NULL;
+		}
+		// Compare git_t type and not group name
+		if (grpinfo->gr_gid != userinfo->pw_gid) {
+			MSAPI_DBG_ERR("UID [%d] does not belong to 'users' group!", uid);
+			return NULL;
+		}
+		asprintf(&result_psswd, "%s", userinfo->pw_dir);
+	}
+
+	return result_psswd;
+}
+
+static bool _is_valid_path(const char *path, uid_t uid)
+{
+	
+	int lenght_path;
+	char * user_path = NULL;
+	
+	if (path == NULL)
+		return false;
+
+	user_path = __media_get_path(uid);
+	lenght_path = strlen(user_path);
+
+	if (strncmp(path, user_path, lenght_path) == 0) {
 		return true;
 	} else if (strncmp(path, MEDIA_ROOT_PATH_SDCARD, strlen(MEDIA_ROOT_PATH_SDCARD)) == 0) {
 		return true;
@@ -70,12 +118,12 @@ static bool _is_valid_path(const char *path)
        return true;
 }
 
-static int _check_dir_path(const char *dir_path)
+static int _check_dir_path(const char *dir_path, uid_t uid)
 {
 	struct stat sb;
 	DIR *dp = NULL;
 
-	if (!_is_valid_path(dir_path)) {
+	if (!_is_valid_path(dir_path,uid)) {
 		MSAPI_DBG("Invalid path : %s", dir_path);
 		return MS_MEDIA_ERR_INVALID_PATH;
 	}
@@ -193,7 +241,7 @@ static int _attach_callback(int *sockfd, scan_complete_cb user_callback, void *u
 	return MS_MEDIA_ERR_NONE;
 }
 
-static int __media_db_request_update_async(ms_msg_type_e msg_type, const char *request_msg, scan_complete_cb user_callback, void *user_data)
+static int __media_db_request_update_async(ms_msg_type_e msg_type, const char *request_msg, scan_complete_cb user_callback, void *user_data, uid_t uid)
 {
 	int ret = MS_MEDIA_ERR_NONE;
 	int request_msg_size = 0;
@@ -222,6 +270,7 @@ static int __media_db_request_update_async(ms_msg_type_e msg_type, const char *r
 	send_msg.msg_type = msg_type;
 	send_msg.pid = syscall(__NR_getpid);
 	send_msg.msg_size = request_msg_size;
+	send_msg.uid = uid;
 	strncpy(send_msg.msg, request_msg, request_msg_size);
 
 	/*Create Socket*/
@@ -247,38 +296,38 @@ static int __media_db_request_update_async(ms_msg_type_e msg_type, const char *r
 }
 
 
-int media_directory_scanning_async(const char *directory_path, bool recursive_on, scan_complete_cb user_callback, void *user_data)
+int media_directory_scanning_async(const char *directory_path, bool recursive_on, scan_complete_cb user_callback, void *user_data, uid_t uid)
 {
 	int ret;
 
-	ret = _check_dir_path(directory_path);
+	ret = _check_dir_path(directory_path,uid);
 	if(ret != MS_MEDIA_ERR_NONE)
 		return ret;
 
 	if (recursive_on == TRUE)
-		ret = __media_db_request_update_async(MS_MSG_DIRECTORY_SCANNING, directory_path, user_callback, user_data);
+		ret = __media_db_request_update_async(MS_MSG_DIRECTORY_SCANNING, directory_path, user_callback, user_data, uid);
 	else
-		ret = __media_db_request_update_async(MS_MSG_DIRECTORY_SCANNING_NON_RECURSIVE, directory_path, user_callback, user_data);
+		ret = __media_db_request_update_async(MS_MSG_DIRECTORY_SCANNING_NON_RECURSIVE, directory_path, user_callback, user_data, uid);
 
 	return ret;
 }
 
-int media_files_register(const char *list_path, insert_complete_cb user_callback, void *user_data)
+int media_files_register(const char *list_path, insert_complete_cb user_callback, void *user_data, uid_t uid)
 {
 	int ret;
 
-	ret = __media_db_request_update_async(MS_MSG_BULK_INSERT, list_path, user_callback, user_data);
+	ret = __media_db_request_update_async(MS_MSG_BULK_INSERT, list_path, user_callback, user_data, uid);
 
 	MSAPI_DBG("client receive: %d", ret);
 
 	return ret;
 }
 
-int media_burstshot_register(const char *list_path, insert_complete_cb user_callback, void *user_data)
+int media_burstshot_register(const char *list_path, insert_complete_cb user_callback, void *user_data, uid_t uid)
 {
 	int ret;
 
-	ret = __media_db_request_update_async(MS_MSG_BURSTSHOT_INSERT, list_path, user_callback, user_data);
+	ret = __media_db_request_update_async(MS_MSG_BURSTSHOT_INSERT, list_path, user_callback, user_data, uid);
 
 	MSAPI_DBG("client receive: %d", ret);
 

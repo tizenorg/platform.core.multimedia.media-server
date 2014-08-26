@@ -34,6 +34,8 @@
 #include <malloc.h>
 #include <pmapi.h>
 #include <vconf.h>
+#include <grp.h>
+#include <pwd.h>
 
 #include "media-util.h"
 #include "media-server-ipc.h"
@@ -43,6 +45,8 @@
 #include "media-scanner-db-svc.h"
 #include "media-scanner-socket.h"
 #include "media-scanner-scan.h"
+
+#define GLOBAL_USER	0 //#define 	tzplatform_getenv(TZ_GLOBAL) //TODO
 
 typedef struct msc_scan_data {
 	char *name;
@@ -169,7 +173,7 @@ void _msc_check_dir_path(char *dir_path)
 		dir_path[len -1] = '\0';
 }
 
-static int _msc_dir_scan(void **handle, const char*start_path, ms_storage_type_t storage_type, int scan_type)
+static int _msc_dir_scan(void **handle, const char*start_path, ms_storage_type_t storage_type, int scan_type, uid_t uid)
 {
 	DIR *dp = NULL;
 	GArray *dir_array = NULL;
@@ -180,7 +184,7 @@ static int _msc_dir_scan(void **handle, const char*start_path, ms_storage_type_t
 	char *new_path = NULL;
 	char *current_path = NULL;
 	char path[MS_FILE_PATH_LEN_MAX] = { 0 };
-	int (*scan_function)(void **, const char*) = NULL;
+	int (*scan_function)(void **, const char*, uid_t) = NULL;
 
 	/* make new array for storing directory */
 	dir_array = g_array_new (FALSE, FALSE, sizeof (char*));
@@ -235,7 +239,7 @@ static int _msc_dir_scan(void **handle, const char*start_path, ms_storage_type_t
 						continue;
 					}
 					/* insert into media DB */
-					if (scan_function(handle,path) != MS_MEDIA_ERR_NONE) {
+					if (scan_function(handle,path,uid) != MS_MEDIA_ERR_NONE) {
 						MSC_DBG_ERR("failed to update db : %d\n", scan_type);
 						continue;
 					}
@@ -289,7 +293,7 @@ static int _msc_db_update(void **handle, const ms_comm_msg_s * scan_data)
 	char *start_path = NULL;
 	ms_storage_type_t storage_type;
 
-	storage_type = ms_get_storage_type_by_full(scan_data->msg);
+	storage_type = ms_get_storage_type_by_full(scan_data->msg,scan_data->uid);
 	scan_type = scan_data->msg_type;
 
 	/*if scan type is not MS_SCAN_NONE, check data in db. */
@@ -298,7 +302,7 @@ static int _msc_db_update(void **handle, const ms_comm_msg_s * scan_data)
 		start_path = strndup(scan_data->msg, scan_data->msg_size);
 		scan_type = scan_data->msg_type;
 
-		err = _msc_dir_scan(handle, start_path, storage_type, scan_type);
+		err = _msc_dir_scan(handle, start_path, storage_type, scan_type,scan_data->uid);
 		if (err != MS_MEDIA_ERR_NONE) {
 			MSC_DBG_ERR("error : %d", err);
 		}
@@ -306,7 +310,7 @@ static int _msc_db_update(void **handle, const ms_comm_msg_s * scan_data)
 		MSC_DBG_INFO("INVALID");
 		/*In this case, update just validation record*/
 		/*update just valid type*/
-		err = msc_invalidate_all_items(handle, storage_type);
+		err = msc_invalidate_all_items(handle, storage_type,scan_data->uid);
 		if (err != MS_MEDIA_ERR_NONE) {
 			MSC_DBG_ERR("error : %d", err);
 		}
@@ -325,7 +329,6 @@ gboolean msc_directory_scan_thread(void *data)
 	int err;
 	int ret;
 	void **handle = NULL;
-	ms_storage_type_t storage_type;
 	int scan_type;
 	char *noti_path = NULL;
 
@@ -339,11 +342,10 @@ gboolean msc_directory_scan_thread(void *data)
 		MSC_DBG_INFO("DIRECTORY SCAN START");
 
 		/*connect to media db, if conneting is failed, db updating is stopped*/
-		err = msc_connect_db(&handle);
+		err = msc_connect_db(&handle, scan_data->uid);
 		if (err != MS_MEDIA_ERR_NONE)
 			continue;
 
-		storage_type = ms_get_storage_type_by_full(scan_data->msg);
 		scan_type = scan_data->msg_type;
 
 		if (scan_type != MS_MSG_DIRECTORY_SCANNING
@@ -357,9 +359,9 @@ gboolean msc_directory_scan_thread(void *data)
 
 		/*change validity before scanning*/
 		if (scan_type == MS_MSG_DIRECTORY_SCANNING)
-			err = msc_set_folder_validity(handle, scan_data->msg, MS_INVALID, MS_RECURSIVE);
+			err = msc_set_folder_validity(handle, scan_data->msg, MS_INVALID, MS_RECURSIVE,scan_data->uid);
 		else
-			err = msc_set_folder_validity(handle, scan_data->msg, MS_INVALID, MS_NON_RECURSIVE);
+			err = msc_set_folder_validity(handle, scan_data->msg, MS_INVALID, MS_NON_RECURSIVE,scan_data->uid);
 		if (err != MS_MEDIA_ERR_NONE)
 			MSC_DBG_ERR("error : %d", err);
 
@@ -369,10 +371,10 @@ gboolean msc_directory_scan_thread(void *data)
 
 		/*insert data into media db */
 		ret = _msc_db_update(handle, scan_data);
-
+		
 		/*call for bundle commit*/
-		msc_register_end(handle);
-		msc_validate_end(handle);
+		msc_register_end(handle,scan_data->uid);
+		msc_validate_end(handle,scan_data->uid);
 
 		if (ret == MS_MEDIA_ERR_NONE) {
 			MSC_DBG_INFO("working normally");
@@ -384,7 +386,7 @@ gboolean msc_directory_scan_thread(void *data)
 			MSC_DBG_INFO("delete count %d", count);
 			MSC_DBG_INFO("insert count %d", insert_count);
 
-			msc_delete_invalid_items_in_folder(handle, scan_data->msg);
+			msc_delete_invalid_items_in_folder(handle, scan_data->msg,scan_data->uid);
 
 			if ( !(count == 0 && insert_count == 0)) {
 				msc_send_dir_update_noti(handle, noti_path);
@@ -449,11 +451,11 @@ gboolean msc_storage_scan_thread(void *data)
 			goto NEXT;
 		}
 
-		storage_type = ms_get_storage_type_by_full(scan_data->msg);
+		storage_type = ms_get_storage_type_by_full(scan_data->msg,scan_data->uid);
 		MSC_DBG_INFO("%d", storage_type);
 
 		/*connect to media db, if conneting is failed, db updating is stopped*/
-		err = msc_connect_db(&handle);
+		err = msc_connect_db(&handle,scan_data->uid);
 		if (err != MS_MEDIA_ERR_NONE)
 			continue;
 
@@ -462,12 +464,12 @@ gboolean msc_storage_scan_thread(void *data)
 
 		/*Delete all data before full scanning*/
 		if (scan_type == MS_MSG_STORAGE_ALL) {
-			res = msc_delete_all_items(handle, storage_type);
+			res = msc_delete_all_items(handle, storage_type,scan_data->uid);
 			if (res != true) {
 				MSC_DBG_ERR("msc_delete_all_record fails");
 			}
 		} else if (scan_type == MS_MSG_STORAGE_PARTIAL) {
-			err = msc_invalidate_all_items(handle, storage_type);
+			err = msc_invalidate_all_items(handle, storage_type,scan_data->uid);
 			if (err != MS_MEDIA_ERR_NONE)
 				MSC_DBG_ERR("error : %d", err);
 		}
@@ -492,13 +494,13 @@ gboolean msc_storage_scan_thread(void *data)
 		ret = _msc_db_update(handle, scan_data);
 
 		/*call for bundle commit*/
-		msc_register_end(handle);
+		msc_register_end(handle,scan_data->uid);
 		if (scan_type == MS_MSG_STORAGE_PARTIAL) {
 			/*disable bundle commit*/
-			msc_validate_end(handle);
+			msc_validate_end(handle,scan_data->uid);
 			if (ret == MS_MEDIA_ERR_NONE) {
 				MSC_DBG_INFO("working normally");
-				msc_delete_invalid_items(handle, storage_type);
+				msc_delete_invalid_items(handle, storage_type,scan_data->uid);
 			}
 		}
 
@@ -523,7 +525,7 @@ gboolean msc_storage_scan_thread(void *data)
 		}
 
 		/*disconnect form media db*/
-		if (handle) msc_disconnect_db(&handle);
+		if (handle)	msc_disconnect_db(&handle);
 
 NEXT:
 		/*Active flush */
@@ -555,6 +557,44 @@ static void _msc_insert_register_request(GArray *register_array, ms_comm_msg_s *
 		g_array_append_val(register_array, insert_data);
 	}
 }
+
+static char* __media_get_path(uid_t uid)
+{
+	char *result_psswd = NULL;
+	struct group *grpinfo = NULL;
+	char * dir = NULL;
+	if(uid == GLOBAL_USER)
+	{
+		result_psswd = strdup(MEDIA_ROOT_PATH_INTERNAL);
+		grpinfo = getgrnam("root");
+		if(grpinfo == NULL) {
+			MSC_DBG_ERR("getgrnam(users) returns NULL !");
+			return NULL;
+		}
+	}
+	else
+	{
+		struct passwd *userinfo = getpwuid(uid);
+		if(userinfo == NULL) {
+			MSC_DBG_ERR("getpwuid(%d) returns NULL !", uid);
+			return NULL;
+		}
+		grpinfo = getgrnam("users");
+		if(grpinfo == NULL) {
+			MSC_DBG_ERR("getgrnam(users) returns NULL !");
+			return NULL;
+		}
+		// Compare git_t type and not group name
+		if (grpinfo->gr_gid != userinfo->pw_gid) {
+			MSC_DBG_ERR("UID [%d] does not belong to 'users' group!", uid);
+			return NULL;
+		}
+		asprintf(&result_psswd, "%s", userinfo->pw_dir);
+	}
+
+	return result_psswd;
+}
+
 
 static bool _is_valid_path(const char *path)
 {
@@ -626,7 +666,7 @@ gboolean msc_register_thread(void *data)
 	int ret;
 	void **handle = NULL;
 	ms_msg_type_e current_msg = MS_MSG_MAX;
-	int (*insert_function)(void **, const char*) = NULL;
+	int (*insert_function)(void **, uid_t, const char*) = NULL;
 
 	/*create array for processing overlay data*/
 	register_array = g_array_new (FALSE, FALSE, sizeof (ms_comm_msg_s *));
@@ -694,7 +734,7 @@ gboolean msc_register_thread(void *data)
 		}
 
 		/* connect to media db, if conneting is failed, db updating is stopped */
-		err = msc_connect_db(&handle);
+		err = msc_connect_db(&handle,register_data->uid);
 		if (err != MS_MEDIA_ERR_NONE)
 			goto FREE_RESOURCE;
 
@@ -728,18 +768,18 @@ gboolean msc_register_thread(void *data)
 			}
 
 			/* insert to db */
-			err = insert_function(handle, insert_path);
+			err = insert_function(handle, insert_path, register_data->uid);
 
 			if (power_off) {
 				MSC_DBG_INFO("power off");
 				/*call for bundle commit*/
-				msc_register_end(handle);
+				msc_register_end(handle, register_data->uid);
 				goto _POWEROFF;
 			}
 		}
 
 		/*call for bundle commit*/
-		msc_register_end(handle);
+		msc_register_end(handle, register_data->uid);
 
 		/*disconnect form media db*/
 		if (handle) msc_disconnect_db(&handle);

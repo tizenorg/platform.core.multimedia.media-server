@@ -27,6 +27,7 @@
  * @version	1.0
  * @brief
  */
+ 
 #include <arpa/inet.h>
 #include <sys/types.h>
 #ifdef _USE_UDS_SOCKET_
@@ -162,7 +163,7 @@ gboolean ms_read_socket(GIOChannel *src, GIOCondition condition, gpointer data)
 		return TRUE;
 	}
 
-	MS_DBG("receive msg from [%d] %d, %s", recv_msg.pid, recv_msg.msg_type, recv_msg.msg);
+	MS_DBG("receive msg from [%d] %d, %s, uid %d", recv_msg.pid, recv_msg.msg_type, recv_msg.msg, recv_msg.uid);
 
 	if (recv_msg.msg_size > 0 && recv_msg.msg_size < MS_FILE_PATH_LEN_MAX) {
 		msg_size = recv_msg.msg_size;
@@ -213,6 +214,7 @@ gboolean ms_read_socket(GIOChannel *src, GIOCondition condition, gpointer data)
 		scan_msg.msg_type = req_num;
 		scan_msg.pid = pid;
 		scan_msg.msg_size = msg_size;
+		scan_msg.uid = recv_msg.uid;
 		ms_strcopy(scan_msg.msg, path_size, "%s", recv_msg.msg);
 
 		g_mutex_unlock(scanner_mutex);
@@ -332,6 +334,8 @@ int ms_send_storage_scan_request(ms_storage_type_t storage_type, ms_dir_scan_typ
 		.msg = {0},
 	};
 
+	scan_msg.uid = tzplatform_getuid(TZ_USER_NAME);
+	
 	/* msg_type */
 	switch (scan_type) {
 		case MS_SCAN_PART:
@@ -400,7 +404,7 @@ gboolean ms_read_db_socket(GIOChannel *src, GIOCondition condition, gpointer dat
 	int send_msg = MS_MEDIA_ERR_NONE;
 	int sockfd = MS_SOCK_NOT_ALLOCATE;
 	int ret = MS_MEDIA_ERR_NONE;
-	MediaDBHandle *db_handle = (MediaDBHandle *)data;
+	MediaDBHandle *db_handle = NULL;
 	ms_comm_msg_s msg;
 	char * sql_query = NULL;
 
@@ -425,6 +429,8 @@ gboolean ms_read_db_socket(GIOChannel *src, GIOCondition condition, gpointer dat
 		return TRUE;
 	}
 
+	media_db_connect(&db_handle, recv_msg.uid);
+
 	sql_query = strndup(recv_msg.msg, recv_msg.msg_size);
 	if (sql_query != NULL) {
 		ret = media_db_update_db(db_handle, sql_query);
@@ -441,6 +447,8 @@ gboolean ms_read_db_socket(GIOChannel *src, GIOCondition condition, gpointer dat
 	msg.result = send_msg;
 
 	ms_ipc_send_msg_to_client(sockfd, &msg, &client_addr);
+
+	media_db_disconnect(db_handle);
 
 	/*Active flush */
 	malloc_trim(0);
@@ -466,7 +474,7 @@ gboolean ms_read_db_tcp_socket(GIOChannel *src, GIOCondition condition, gpointer
 	int recv_msg_size = -1;
 	int ret = MS_MEDIA_ERR_NONE;
 	char * sql_query = NULL;
-	MediaDBHandle *db_handle = (MediaDBHandle *)data;
+	MediaDBHandle *db_handle = NULL;
 
 	sock = g_io_channel_unix_get_fd(src);
 	if (sock < 0) {
@@ -507,6 +515,7 @@ gboolean ms_read_db_tcp_socket(GIOChannel *src, GIOCondition condition, gpointer
 
 		sql_query = strndup(recv_msg.msg, recv_msg.msg_size);
 		if (sql_query != NULL) {
+			media_db_connect(&db_handle, recv_msg.uid);
 			if (recv_msg.msg_type == MS_MSG_DB_UPDATE_BATCH_START) {
 				ret = media_db_update_db_batch_start(sql_query);
 			} else if(recv_msg.msg_type == MS_MSG_DB_UPDATE_BATCH_END) {
@@ -516,6 +525,7 @@ gboolean ms_read_db_tcp_socket(GIOChannel *src, GIOCondition condition, gpointer
 			} else {
 
 			}
+			media_db_disconnect(db_handle);
 
 			MS_SAFE_FREE(sql_query);
 			send_msg = ret;

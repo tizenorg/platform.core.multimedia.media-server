@@ -77,7 +77,7 @@ gboolean msc_receive_request(GIOChannel *src, GIOCondition condition, gpointer d
 		return TRUE;
 	}
 
-	MSC_DBG_INFO("receive msg from [%d] %d, %s", recv_msg->pid, recv_msg->msg_type, recv_msg->msg);
+	MSC_DBG_INFO("receive msg from [%d] %d, %s, uid %d", recv_msg->pid, recv_msg->msg_type, recv_msg->msg, recv_msg->uid);
 
 	/* copy from recived data */
 	req_num = recv_msg->msg_type;
@@ -128,6 +128,7 @@ int msc_send_scan_result(int result, ms_comm_msg_s *scan_data)
 	send_msg.pid = scan_data->pid;
 	send_msg.result = result;
 	send_msg.msg_size = strlen(scan_data->msg);
+	send_msg.uid = scan_data->uid;
 	strncpy(send_msg.msg, scan_data->msg, send_msg.msg_size);
 
 	ret = ms_ipc_send_msg_to_server(sockfd, MS_SCAN_COMM_PORT, &send_msg, NULL);

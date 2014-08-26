@@ -39,7 +39,8 @@ libmedia_utils_la_CFLAGS = -I${srcdir}/lib/include \
 			      $(SQLITE3_CFLAGS) \
 			      $(DB_UTIL_CFLAGS) \
 			      $(PHONESTATUS_CFLAGS) \
-			      $(TZ_PLATFORM_CONFIG_CFLAGS)
+			      $(TZ_PLATFORM_CONFIG_CFLAGS) \
+			      $(LIBSMACK_CFLAGS)
 
 libmedia_utils_la_LIBADD  =   $(GLIB_LIBS) \
                               $(DLOG_LIBS) \
@@ -47,7 +48,8 @@ libmedia_utils_la_LIBADD  =   $(GLIB_LIBS) \
 			      $(SQLITE3_LIBS) \
 			      $(DB_UTIL_LIBS) \
 			      $(PHONESTATUS_LIBS) \
-			      $(TZ_PLATFORM_CONFIG_LIBS)
+			      $(TZ_PLATFORM_CONFIG_LIBS) \
+			      $(LIBSMACK_LIBS)
 
 
 ### file-manager-server ###

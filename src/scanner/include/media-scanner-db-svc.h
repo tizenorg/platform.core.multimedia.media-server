@@ -33,23 +33,23 @@
 #include "media-common-types.h"
 
 typedef int (*CHECK_ITEM)(const char*, char **);
-typedef int (*CONNECT)(void**, char **);
+typedef int (*CONNECT)(void**, uid_t, char **);
 typedef int (*DISCONNECT)(void*, char **);
 typedef int (*CHECK_ITEM_EXIST)(void*, const char*, int, char **);
 typedef int (*INSERT_ITEM_BEGIN)(void*, int, int, int, char **);
-typedef int (*INSERT_ITEM_END)(void*, char **);
-typedef int (*INSERT_ITEM)(void*, const char*, int, char **);
-typedef int (*SET_ALL_STORAGE_ITEMS_VALIDITY)(void*, int, int, char **);
+typedef int (*INSERT_ITEM_END)(void*, uid_t, char **);
+typedef int (*INSERT_ITEM)(void*, const char*, int, uid_t, char **);
+typedef int (*SET_ALL_STORAGE_ITEMS_VALIDITY)(void*, int, int, uid_t, char **);
 typedef int (*SET_ITEM_VALIDITY_BEGIN)(void*, int, char **);
-typedef int (*SET_ITEM_VALIDITY_END)(void*, char **);
+typedef int (*SET_ITEM_VALIDITY_END)(void*, uid_t, char **);
 typedef int (*SET_ITEM_VALIDITY)(void*, const char*, int, int, char **);
-typedef int (*DELETE_ALL_ITEMS_IN_STORAGE)(void*, int, char **);
-typedef int (*DELETE_ALL_INVALID_ITMES_IN_STORAGE)(void*, int, char **);
+typedef int (*DELETE_ALL_ITEMS_IN_STORAGE)(void*, int, uid_t, char **);
+typedef int (*DELETE_ALL_INVALID_ITMES_IN_STORAGE)(void*, int, uid_t, char **);
 typedef int (*UPDATE_BEGIN)(void);
-typedef int (*UPDATE_END)(void);
-typedef int (*SET_FOLDER_ITEM_VALIDITY)(void*, const char*, int, int, char**);
-typedef int (*DELETE_ALL_INVALID_ITEMS_IN_FOLDER)(void*, const char*, char**);
-typedef int (*INSERT_BURST_ITEM)(void *, const char *, int , char **);
+typedef int (*UPDATE_END)(uid_t);
+typedef int (*SET_FOLDER_ITEM_VALIDITY)(void*, const char*, int, int, uid_t, char**);
+typedef int (*DELETE_ALL_INVALID_ITEMS_IN_FOLDER)(void*, const char*, uid_t, char**);
+typedef int (*INSERT_BURST_ITEM)(void *, const char *, int, uid_t, char **);
 typedef int (*SEND_DIR_UPDATE_NOTI)(void *, const char *, char **);
 typedef int (*COUNT_DELETE_ITEMS_IN_FOLDER)(void *, const char *, int *, char **);
 
@@ -60,34 +60,34 @@ void
 msc_unload_functions(void);
 
 int
-msc_connect_db(void ***handle);
+msc_connect_db(void ***handle, uid_t uid);
 
 int
 msc_disconnect_db(void ***handle);
 
 int
-msc_validate_item(void **handle, const char *path);
+msc_validate_item(void **handle, const char *path, uid_t uid);
 
 int
-msc_insert_item_batch(void **handle, const char *path);
+msc_insert_item_batch(void **handle, const char *path, uid_t uid);
 
 int
-msc_insert_burst_item(void **handle, const char *path);
+msc_insert_burst_item(void **handle, const char *path, uid_t uid);
 
 bool
-msc_delete_all_items(void **handle, ms_storage_type_t store_type);
+msc_delete_all_items(void **handle, ms_storage_type_t store_type, uid_t uid);
 
 int
-msc_invalidate_all_items(void **handle, ms_storage_type_t store_type);
+msc_invalidate_all_items(void **handle, ms_storage_type_t store_type, uid_t uid);
 
 bool
-msc_delete_invalid_items(void **handle, ms_storage_type_t store_type);
+msc_delete_invalid_items(void **handle, ms_storage_type_t store_type, uid_t uid);
 
 int
-msc_set_folder_validity(void **handle, const char *path, int validity, int recursive);
+msc_set_folder_validity(void **handle, const char *path, int validity, int recursive, uid_t uid);
 
 int
-msc_delete_invalid_items_in_folder(void **handle, const char*path);
+msc_delete_invalid_items_in_folder(void **handle, const char*path, uid_t uid);
 
 int
 msc_send_dir_update_noti(void **handle, const char*path);
@@ -107,12 +107,12 @@ void
 msc_register_start(void **handle, ms_noti_status_e noti_status, int pid);
 
 void
-msc_register_end(void **handle);
+msc_register_end(void **handle, uid_t uid);
 
 void
 msc_validate_start(void **handle);
 
 void
-msc_validate_end(void **handle);
+msc_validate_end(void **handle, uid_t uid);
 
 #endif /*_MEDIA_SCANNER_DB_SVC_H_*/
