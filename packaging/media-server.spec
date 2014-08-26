@@ -22,6 +22,7 @@ BuildRequires:  pkgconfig(dbus-glib-1)
 BuildRequires:  pkgconfig(sqlite3)
 BuildRequires:  pkgconfig(db-util)
 BuildRequires:  pkgconfig(notification)
+BuildRequires:  pkgconfig(libsmack)
 BuildRequires:  pkgconfig(libtzplatform-config)
 
 %description
@@ -66,14 +67,14 @@ mkdir -p %{buildroot}%{TZ_SYS_DATA}/data-media/Downloads
 mkdir -p %{buildroot}%{TZ_SYS_DATA}/data-media/Images
 mkdir -p %{buildroot}%{TZ_SYS_DATA}/data-media/Sounds/Voice\ recorder
 mkdir -p %{buildroot}%{TZ_SYS_DATA}/data-media/Videos
-mkdir -p %{buildroot}%{TZ_SYS_DATA}/data-media/file-manager-service/.thumb/mmc
-mkdir -p %{buildroot}%{TZ_SYS_DATA}/data-media/file-manager-service/.thumb/phone
+mkdir -p %{buildroot}%{TZ_SYS_DATA}/file-manager-service/.thumb/mmc
+mkdir -p %{buildroot}%{TZ_SYS_DATA}/file-manager-service/.thumb/phone
 install -m 0775 ./data-media/Images/* %{buildroot}%{TZ_SYS_DATA}/data-media/Images/
-install -m 0775 ./data-media/dbspace/file-manager-service/.thumb/thumb_default.png %{buildroot}%{TZ_SYS_DATA}/data-media/file-manager-service/.thumb/
-install -D -m 0775 ./data-media/dbspace/file-manager-service/.thumb/mmc/* %{buildroot}%{TZ_SYS_DATA}/data-media/file-manager-service/.thumb/mmc/
-install -m 0775 ./data-media/dbspace/file-manager-service/.thumb/phone/PHONE_THUMB_HERE %{buildroot}%{TZ_SYS_DATA}/data-media/file-manager-service/.thumb/phone/
-install -m 0775 ./data-media/dbspace/file-manager-service/.thumb/phone/.jpg* %{buildroot}%{TZ_SYS_DATA}/data-media/file-manager-service/.thumb/phone/
-install -D -m 0775 ./data-media/dbspace/file-manager-service/* %{buildroot}%{TZ_SYS_DATA}/data-media/file-manager-service/
+install -m 0775 ./data-media/dbspace/file-manager-service/.thumb/thumb_default.png %{buildroot}%{TZ_SYS_DATA}/file-manager-service/.thumb/
+install -D -m 0775 ./data-media/dbspace/file-manager-service/.thumb/mmc/* %{buildroot}%{TZ_SYS_DATA}/file-manager-service/.thumb/mmc/
+install -m 0775 ./data-media/dbspace/file-manager-service/.thumb/phone/PHONE_THUMB_HERE %{buildroot}%{TZ_SYS_DATA}/file-manager-service/.thumb/phone/
+install -m 0775 ./data-media/dbspace/file-manager-service/.thumb/phone/.jpg* %{buildroot}%{TZ_SYS_DATA}/file-manager-service/.thumb/phone/
+install -D -m 0775 ./data-media/dbspace/file-manager-service/* %{buildroot}%{TZ_SYS_DATA}/file-manager-service/
 install -m 0775 %{SOURCE1004} %{buildroot}%{_bindir}/media-data-sdk_create_db.sh
 
 %post
@@ -84,6 +85,7 @@ vconftool set -t int file/private/mediaserver/scan_internal "1" -f
 vconftool set -t int file/private/mediaserver/scan_directory "1" -f
 chgrp %TZ_SYS_USER_GROUP %{_bindir}/media-data-sdk_create_db.sh
 chgrp -R %TZ_SYS_USER_GROUP %{TZ_SYS_DATA}/data-media
+chgrp -R %TZ_SYS_USER_GROUP %{TZ_SYS_DATA}/file-manager-service
 %post -n libmedia-utils -p /sbin/ldconfig
 
 %postun -n libmedia-utils -p /sbin/ldconfig
@@ -102,7 +104,8 @@ chgrp -R %TZ_SYS_USER_GROUP %{TZ_SYS_DATA}/data-media
 %license LICENSE.APLv2.0
 %{_bindir}/media-data-sdk_create_db.sh
 %{TZ_SYS_DATA}/data-media/*
-%{TZ_SYS_DATA}/data-media/file-manager-service/.thumb/*
+%{TZ_SYS_DATA}/file-manager-service/.thumb/*
+%{TZ_SYS_DATA}/file-manager-service/plugin-config
 
 %files -n libmedia-utils
 %manifest libmedia-utils.manifest

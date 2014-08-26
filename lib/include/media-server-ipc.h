@@ -91,6 +91,7 @@ typedef struct
 {
 	ms_msg_type_e msg_type;
 	int pid;
+	uid_t uid;
 	int result;
 	size_t msg_size; /*this is size of message below and this does not include the terminationg null byte ('\0'). */
 	char msg[MAX_MSG_SIZE];
@@ -115,6 +116,7 @@ typedef struct _thumbMsg{
 	int thumb_type;
 	int status;
 	int pid;
+	uid_t uid;
 	int thumb_size;
 	int thumb_width;
 	int thumb_height;

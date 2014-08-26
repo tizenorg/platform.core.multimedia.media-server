@@ -58,7 +58,8 @@ typedef struct {
 } thumbRequest;
 
 #ifdef _USE_UDS_SOCKET_
-extern char MEDIA_IPC_PATH[][50];
+extern char MEDIA_IPC_PATH[][70];
+
 #endif
 
 gboolean _ms_thumb_agent_start_jobs(gpointer data)

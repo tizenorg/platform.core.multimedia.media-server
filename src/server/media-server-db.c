@@ -62,17 +62,10 @@ gboolean ms_db_thread(void *data)
 	GMainContext *context = NULL;
 	MediaDBHandle *db_handle = NULL;
 
-	/* Connect Media DB*/
-	if(media_db_connect(&db_handle) != MS_MEDIA_ERR_NONE) {
-		MS_DBG_ERR("Failed to connect DB\n");
-		return FALSE;
-	}
 
 	/* Create Socket*/
 	ret = ms_ipc_create_server_socket(MS_PROTOCOL_UDP, MS_DB_UPDATE_PORT, &sockfd);
 	if(ret != MS_MEDIA_ERR_NONE) {
-		/* Disconnect DB*/
-		media_db_disconnect(db_handle);
 
 		MS_DBG_ERR("Failed to create socket\n");
 		return FALSE;
@@ -85,8 +78,6 @@ gboolean ms_db_thread(void *data)
 	ret = ms_ipc_create_server_socket(MS_PROTOCOL_TCP, MS_DB_BATCH_UPDATE_PORT, &tcp_sockfd);
 #endif
 	if(ret != MS_MEDIA_ERR_NONE) {
-		/* Disconnect DB*/
-		media_db_disconnect(db_handle);
 		close(sockfd);
 		MS_DBG_ERR("Failed to create socket\n");
 		return FALSE;
@@ -130,8 +121,6 @@ gboolean ms_db_thread(void *data)
 	g_io_channel_shutdown(channel,  FALSE, NULL);
 	g_io_channel_unref(channel);
 
-	/* Disconnect DB*/
-	media_db_disconnect(db_handle);
 
 	/*close socket*/
 	close(sockfd);
