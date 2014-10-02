@@ -1,5 +1,5 @@
 Name:       media-server
-Summary:    File manager service server.
+Summary:    File manager service server
 Version:    0.2.47
 Release:    0
 Group:      Multimedia/Service
@@ -11,6 +11,7 @@ Source1002:     libmedia-utils.manifest
 Source1003:     libmedia-utils-devel.manifest
 Source1004:     media-data-sdk_create_db.sh
 Requires(post): /usr/bin/vconftool
+BuildRequires:  pkgconfig
 BuildRequires:  pkgconfig(glib-2.0)
 BuildRequires:  pkgconfig(vconf)
 BuildRequires:  pkgconfig(dlog)
@@ -26,24 +27,24 @@ BuildRequires:  pkgconfig(libsmack)
 BuildRequires:  pkgconfig(libtzplatform-config)
 
 %description
-Description: File manager service server
+File manager service server (main package).
 
 %package -n libmedia-utils
-Summary:   Media server runtime library.
+Summary:   Media server library
 Group:     Multimedia/Libraries
 Requires:  media-server = %{version}-%{release}
 
 %description -n libmedia-utils
-Description : media server runtime library.
+Media server runtime library.
 
 %package -n libmedia-utils-devel
-Summary:   Media server development library.
+Summary:   Media server development library
 Group:     Development/Multimedia
 Requires:  libmedia-utils = %{version}-%{release}
 Requires:  libtzplatform-config-devel
 
 %description -n libmedia-utils-devel
-Description: media server development library.
+Mdia server library (development files).
 
 %prep
 %setup -q
@@ -54,7 +55,7 @@ rm -rf autom4te.cache
 rm -f aclocal.m4 ltmain.sh
 mkdir -p m4
 %reconfigure --prefix=%{_prefix} --disable-static
-%__make %{?jobs:-j%jobs}
+%__make %{?_smp_mflags}
 
 %install
 %make_install
@@ -86,6 +87,7 @@ vconftool set -t int file/private/mediaserver/scan_directory "1" -f
 chgrp %TZ_SYS_USER_GROUP %{_bindir}/media-data-sdk_create_db.sh
 chgrp -R %TZ_SYS_USER_GROUP %{TZ_SYS_DATA}/data-media
 chgrp -R %TZ_SYS_USER_GROUP %{TZ_SYS_DATA}/file-manager-service
+
 %post -n libmedia-utils -p /sbin/ldconfig
 
 %postun -n libmedia-utils -p /sbin/ldconfig
