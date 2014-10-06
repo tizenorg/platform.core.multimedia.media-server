@@ -6,6 +6,7 @@ Group:      Multimedia/Service
 License:    Apache-2.0
 Source0:    %{name}-%{version}.tar.gz
 Source1:    media-server.service
+Source2:	media-server-user.service
 Source1001:     %{name}.manifest
 Source1002:     libmedia-utils.manifest
 Source1003:     libmedia-utils-devel.manifest
@@ -61,6 +62,8 @@ mkdir -p m4
 
 mkdir -p %{buildroot}%{_unitdir}/multi-user.target.wants
 install -m 644 %{SOURCE1} %{buildroot}%{_unitdir}/media-server.service
+mkdir -p %{buildroot}%{_unitdir_user}
+install -m 644 %{SOURCE2} %{buildroot}%{_unitdir_user}/media-server-user.service
 ln -s ../media-server.service %{buildroot}%{_unitdir}/multi-user.target.wants/media-server.service
 mkdir -p %{buildroot}%{TZ_SYS_DATA}/data-media/Camera
 mkdir -p %{buildroot}%{TZ_SYS_DATA}/data-media/Downloads
@@ -86,6 +89,11 @@ vconftool set -t int file/private/mediaserver/scan_directory "1" -f
 chgrp %TZ_SYS_USER_GROUP %{_bindir}/media-data-sdk_create_db.sh
 chgrp -R %TZ_SYS_USER_GROUP %{TZ_SYS_DATA}/data-media
 chgrp -R %TZ_SYS_USER_GROUP %{TZ_SYS_DATA}/file-manager-service
+
+# setup dbupdate in user session
+mkdir -p %{_unitdir_user}/default.target.requires/
+ln -sf ../media-server-user.service  %{_unitdir_user}/default.target.wants/
+
 %post -n libmedia-utils -p /sbin/ldconfig
 
 %postun -n libmedia-utils -p /sbin/ldconfig
@@ -101,6 +109,7 @@ chgrp -R %TZ_SYS_USER_GROUP %{TZ_SYS_DATA}/file-manager-service
 %exclude /etc/rc.d/rc5.d/S46mediasvr
 %{_unitdir}/media-server.service
 %{_unitdir}/multi-user.target.wants/media-server.service
+%{_unitdir_user}/media-server-user.service
 %license LICENSE.APLv2.0
 %{_bindir}/media-data-sdk_create_db.sh
 %{TZ_SYS_DATA}/data-media/*

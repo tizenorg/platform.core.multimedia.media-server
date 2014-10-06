@@ -1,0 +1,12 @@
+[Unit]
+Description=Media server user
+
+[Service]
+type=oneshot
+CPUAccounting=true
+CPUQuota=10
+ExecStartPre=sleep 5
+ExecStart=/usr/bin/mediadb-update -r $HOME
+
+[Install]
+WantedBy=default.target
