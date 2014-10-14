@@ -2,11 +2,11 @@
 Description=Media server user
 
 [Service]
-type=oneshot
+Type=oneshot
 CPUAccounting=true
 CPUQuota=10
-ExecStartPre=sleep 5
-ExecStart=/usr/bin/mediadb-update -r $HOME
+ExecStartPre=/bin/sleep 5
+ExecStart=/usr/bin/mediadb-update -r %h
 
 [Install]
 WantedBy=default.target
