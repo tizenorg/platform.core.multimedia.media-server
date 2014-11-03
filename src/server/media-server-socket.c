@@ -28,6 +28,8 @@
  * @brief
  */
  
+#define _GNU_SOURCE
+ 
 #include <arpa/inet.h>
 #include <sys/types.h>
 #ifdef _USE_UDS_SOCKET_
@@ -60,6 +62,7 @@ typedef struct ms_req_owner_data
 	int index;
 #ifdef _USE_UDS_SOCKET_
 	struct sockaddr_un *client_addr;
+	int client_socket;
 #else
 	struct sockaddr_in *client_addr;
 #endif
@@ -129,6 +132,9 @@ gboolean ms_read_socket(GIOChannel *src, GIOCondition condition, gpointer data)
 	int pid;
 	int req_num;
 	int path_size;
+	int client_sock = -1;
+	struct ucred cr;
+	int cl = sizeof(struct ucred);
 
 	g_mutex_lock(scanner_mutex);
 
@@ -155,7 +161,7 @@ gboolean ms_read_socket(GIOChannel *src, GIOCondition condition, gpointer data)
 #else
 	client_addr_len = sizeof(struct sockaddr_in);
 #endif
-	ret = ms_ipc_receive_message(sockfd, &recv_msg, sizeof(recv_msg), client_addr, NULL);
+	ret = ms_ipc_receive_message(sockfd, &recv_msg, sizeof(recv_msg), client_addr, NULL, &client_sock);
 	if (ret != MS_MEDIA_ERR_NONE) {
 		MS_DBG_ERR("ms_ipc_receive_message failed");
 		MS_SAFE_FREE(client_addr);
@@ -163,7 +169,11 @@ gboolean ms_read_socket(GIOChannel *src, GIOCondition condition, gpointer data)
 		return TRUE;
 	}
 
-	MS_DBG("receive msg from [%d] %d, %s, uid %d", recv_msg.pid, recv_msg.msg_type, recv_msg.msg, recv_msg.uid);
+	if (getsockopt(client_sock, SOL_SOCKET, SO_PEERCRED, &cr, (socklen_t *) &cl) < 0) {
+               MS_DBG_ERR("Credentail information error");
+	}
+
+	MS_DBG("receive msg from [%d] %d, %s, uid %d", recv_msg.pid, recv_msg.msg_type, recv_msg.msg, cr.uid);
 
 	if (recv_msg.msg_size > 0 && recv_msg.msg_size < MS_FILE_PATH_LEN_MAX) {
 		msg_size = recv_msg.msg_size;
@@ -207,6 +217,7 @@ gboolean ms_read_socket(GIOChannel *src, GIOCondition condition, gpointer data)
 		MS_MALLOC(owner_data, sizeof(ms_req_owner_data));
 		owner_data->pid = recv_msg.pid;
 		owner_data->client_addr = client_addr;
+		owner_data->client_socket = client_sock;
 
 		_ms_add_owner(owner_data);
 
@@ -214,7 +225,7 @@ gboolean ms_read_socket(GIOChannel *src, GIOCondition condition, gpointer data)
 		scan_msg.msg_type = req_num;
 		scan_msg.pid = pid;
 		scan_msg.msg_size = msg_size;
-		scan_msg.uid = recv_msg.uid;
+		scan_msg.uid = cr.uid;
 		ms_strcopy(scan_msg.msg, path_size, "%s", recv_msg.msg);
 
 		g_mutex_unlock(scanner_mutex);
@@ -248,6 +259,8 @@ gboolean ms_receive_message_from_scanner(GIOChannel *src, GIOCondition condition
 	int sockfd = MS_SOCK_NOT_ALLOCATE;
 	int msg_type;
 	int ret;
+	int client_sock = -1;
+	struct sockaddr_un client_addr;
 
 	sockfd = g_io_channel_unix_get_fd(src);
 	if (sockfd < 0) {
@@ -256,7 +269,7 @@ gboolean ms_receive_message_from_scanner(GIOChannel *src, GIOCondition condition
 	}
 
 	/* Socket is readable */
-	ret = ms_ipc_receive_message(sockfd, &recv_msg, sizeof(recv_msg), NULL, NULL);
+	ret = ms_ipc_receive_message(sockfd, &recv_msg, sizeof(recv_msg), &client_addr, NULL, NULL);
 	if (ret != MS_MEDIA_ERR_NONE) {
 		MS_DBG_ERR("ms_ipc_receive_message failed [%s]", strerror(errno));
 		return TRUE;
@@ -283,8 +296,7 @@ gboolean ms_receive_message_from_scanner(GIOChannel *src, GIOCondition condition
 
 				/* owner data exists */
 				/* send result to the owner of request */
-				ms_ipc_send_msg_to_client(sockfd, &recv_msg, owner_data->client_addr);
-
+				ms_ipc_send_msg_to_client(owner_data->client_socket, &recv_msg, owner_data->client_addr);
 				/* free owner data*/
 				_ms_delete_owner(owner_data);
 			}
@@ -307,7 +319,7 @@ int ms_send_scan_request(ms_comm_msg_s *send_msg)
 
 	/*Create Socket*/
 #ifdef _USE_UDS_SOCKET_
-	ret = ms_ipc_create_client_socket(MS_PROTOCOL_UDP, 0, &sockfd, MS_SCAN_DAEMON_PORT);
+	ret = ms_ipc_create_client_socket(MS_PROTOCOL_TCP, 0, &sockfd, MS_SCAN_DAEMON_PORT);
 #else
 	ret = ms_ipc_create_client_socket(MS_PROTOCOL_UDP, 0, &sockfd);
 #endif
@@ -333,8 +345,6 @@ int ms_send_storage_scan_request(ms_storage_type_t storage_type, ms_dir_scan_typ
 		.msg_size = 0,
 		.msg = {0},
 	};
-
-	scan_msg.uid = tzplatform_getuid(TZ_USER_NAME);
 	
 	/* msg_type */
 	switch (scan_type) {
@@ -403,10 +413,14 @@ gboolean ms_read_db_socket(GIOChannel *src, GIOCondition condition, gpointer dat
 	ms_comm_msg_s recv_msg;
 	int send_msg = MS_MEDIA_ERR_NONE;
 	int sockfd = MS_SOCK_NOT_ALLOCATE;
+	int client_sock = -1;
 	int ret = MS_MEDIA_ERR_NONE;
 	MediaDBHandle *db_handle = NULL;
 	ms_comm_msg_s msg;
 	char * sql_query = NULL;
+	uid_t uid;
+    struct ucred cr;
+    int cl = sizeof(struct ucred);
 
 	memset(&recv_msg, 0, sizeof(recv_msg));
 
@@ -416,7 +430,7 @@ gboolean ms_read_db_socket(GIOChannel *src, GIOCondition condition, gpointer dat
 		return TRUE;
 	}
 
-	ret = ms_ipc_receive_message(sockfd, &recv_msg, sizeof(recv_msg), &client_addr, NULL);
+	ret = ms_ipc_receive_message(sockfd, &recv_msg, sizeof(recv_msg), &client_addr, NULL, &client_sock);
 	if (ret != MS_MEDIA_ERR_NONE) {
 		MS_DBG_ERR("ms_ipc_receive_message failed");
 		return TRUE;
@@ -424,12 +438,22 @@ gboolean ms_read_db_socket(GIOChannel *src, GIOCondition condition, gpointer dat
 
 //	MS_DBG("msg_type[%d], msg_size[%d] msg[%s]", recv_msg.msg_type, recv_msg.msg_size, recv_msg.msg);
 
+	if (getsockopt(client_sock, SOL_SOCKET, SO_PEERCRED, &cr, (socklen_t *) &cl) < 0) {
+		MS_DBG_ERR("credential information error");
+	}
+
+	if ( getuid() == cr.uid ){
+		uid = recv_msg.uid;
+	} else {
+		uid = cr.uid;
+	}
+
 	if((recv_msg.msg_size <= 0) ||(recv_msg.msg_size > MS_FILE_PATH_LEN_MAX)  || (!MS_STRING_VALID(recv_msg.msg))) {
 		MS_DBG_ERR("invalid query. size[%d]", recv_msg.msg_size);
 		return TRUE;
 	}
 
-	media_db_connect(&db_handle, recv_msg.uid);
+	media_db_connect(&db_handle, uid);
 
 	sql_query = strndup(recv_msg.msg, recv_msg.msg_size);
 	if (sql_query != NULL) {
@@ -446,7 +470,7 @@ gboolean ms_read_db_socket(GIOChannel *src, GIOCondition condition, gpointer dat
 	memset(&msg, 0x0, sizeof(ms_comm_msg_s));
 	msg.result = send_msg;
 
-	ms_ipc_send_msg_to_client(sockfd, &msg, &client_addr);
+	ms_ipc_send_msg_to_client(client_sock, &msg, &client_addr);
 
 	media_db_disconnect(db_handle);
 
@@ -475,7 +499,10 @@ gboolean ms_read_db_tcp_socket(GIOChannel *src, GIOCondition condition, gpointer
 	int ret = MS_MEDIA_ERR_NONE;
 	char * sql_query = NULL;
 	MediaDBHandle *db_handle = NULL;
-
+	uid_t uid;
+	struct ucred cr;
+	int cl = sizeof(struct ucred);
+       
 	sock = g_io_channel_unix_get_fd(src);
 	if (sock < 0) {
 		MS_DBG_ERR("sock fd is invalid!");
@@ -513,9 +540,19 @@ gboolean ms_read_db_tcp_socket(GIOChannel *src, GIOCondition condition, gpointer
 			return TRUE;
 		}
 
+		if (getsockopt(client_sock, SOL_SOCKET, SO_PEERCRED, &cr, (socklen_t *) &cl) < 0) {
+               MS_DBG_ERR("credential information error");
+		}
+
+		if ( getuid() == cr.uid ){
+			uid = recv_msg.uid;
+		} else {
+			uid = cr.uid;
+		}
+
 		sql_query = strndup(recv_msg.msg, recv_msg.msg_size);
 		if (sql_query != NULL) {
-			media_db_connect(&db_handle, recv_msg.uid);
+			media_db_connect(&db_handle, uid);
 			if (recv_msg.msg_type == MS_MSG_DB_UPDATE_BATCH_START) {
 				ret = media_db_update_db_batch_start(sql_query);
 			} else if(recv_msg.msg_type == MS_MSG_DB_UPDATE_BATCH_END) {

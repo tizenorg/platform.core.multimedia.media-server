@@ -115,7 +115,6 @@ int ms_ipc_create_client_socket(ms_protocol_e protocol, int timeout_sec, int *so
 	int cx,len;
 
 #ifdef _USE_UDS_SOCKET_
-	mode_t orig_mode;
 
 	if (tzplatform_getuid(TZ_USER_NAME) == 0 ){
 		cx = snprintf ( NULL, 0, MEDIA_IPC_PATH_CLIENT_ROOT[port],getpid());
@@ -131,7 +130,6 @@ int ms_ipc_create_client_socket(ms_protocol_e protocol, int timeout_sec, int *so
 		buffer = (char*)malloc((cx + 1 )*sizeof(char));
 		snprintf ( buffer, cx + 1,  MEDIA_IPC_PATH_CLIENT[port],tzplatform_getuid(TZ_USER_NAME),getpid());
 	}
-	orig_mode = umask(0111);
 #endif
 		
 	if(protocol == MS_PROTOCOL_UDP)
@@ -163,7 +161,6 @@ int ms_ipc_create_client_socket(ms_protocol_e protocol, int timeout_sec, int *so
 			close(sock);
 #ifdef _USE_UDS_SOCKET_
 			free(buffer);
-			umask(orig_mode);
 #endif
 			return MS_MEDIA_ERR_SOCKET_CONN;
 		}
@@ -180,7 +177,6 @@ int ms_ipc_create_client_socket(ms_protocol_e protocol, int timeout_sec, int *so
 			MSAPI_DBG_ERR("socket failed: %s", strerror(errno));
 #ifdef _USE_UDS_SOCKET_
 			free(buffer);
-			umask(orig_mode);
 #endif
 			return MS_MEDIA_ERR_SOCKET_CONN;
 		}
@@ -192,7 +188,6 @@ int ms_ipc_create_client_socket(ms_protocol_e protocol, int timeout_sec, int *so
 			close(sock);
 #ifdef _USE_UDS_SOCKET_
 			free(buffer);
-			umask(orig_mode);
 #endif
 			return MS_MEDIA_ERR_SOCKET_CONN;
 		}
@@ -201,7 +196,6 @@ int ms_ipc_create_client_socket(ms_protocol_e protocol, int timeout_sec, int *so
 	*sock_fd = sock;
 #ifdef _USE_UDS_SOCKET_
 	free(buffer);
-	umask(orig_mode);
 #endif
 
 	return MS_MEDIA_ERR_NONE;
@@ -241,7 +235,6 @@ int ms_ipc_create_server_tcp_socket(ms_protocol_e protocol, int port, int *sock_
 
 	struct sockaddr_un serv_addr;
 	mode_t orig_mode;
-	orig_mode = umask(0111);
 
 	/* Create a TCP socket */
 	if ((sock = socket(PF_FILE, SOCK_STREAM, 0)) < 0) {
@@ -256,6 +249,8 @@ int ms_ipc_create_server_tcp_socket(ms_protocol_e protocol, int port, int *sock_
 	unlink(MEDIA_IPC_PATH[port]);
 	strcpy(serv_addr.sun_path, MEDIA_IPC_PATH[port]);
 
+	orig_mode = umask(0);
+
 	/* Bind to the local address */
 	for (i = 0; i < 20; i ++) {
 		if (bind(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) == 0) {
@@ -265,6 +260,8 @@ int ms_ipc_create_server_tcp_socket(ms_protocol_e protocol, int port, int *sock_
 		MSAPI_DBG("%d",i);
 		usleep(250000);
 	}
+
+	umask(orig_mode);
 
 	if (bind_success == false) {
 		MSAPI_DBG_ERR("bind failed : %s %d_", strerror(errno), errno);
@@ -285,7 +282,6 @@ int ms_ipc_create_server_tcp_socket(ms_protocol_e protocol, int port, int *sock_
 
 	*sock_fd = sock;
 
-	umask(orig_mode);
 	return MS_MEDIA_ERR_NONE;
 }
 
@@ -300,7 +296,6 @@ int ms_ipc_create_server_socket(ms_protocol_e protocol, int port, int *sock_fd)
 #ifdef _USE_UDS_SOCKET_
 	struct sockaddr_un serv_addr;
 	mode_t orig_mode;
-	orig_mode = umask(0111);
 #else
 	struct sockaddr_in serv_addr;
 #endif
@@ -317,9 +312,6 @@ int ms_ipc_create_server_socket(ms_protocol_e protocol, int port, int *sock_fd)
 		if ((sock = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0) {
 #endif
 			MSAPI_DBG_ERR("socket failed: %s", strerror(errno));
-#ifdef _USE_UDS_SOCKET_
-			umask(orig_mode);
-#endif
 			return MS_MEDIA_ERR_SOCKET_CONN;
 		}
 	}
@@ -332,9 +324,6 @@ int ms_ipc_create_server_socket(ms_protocol_e protocol, int port, int *sock_fd)
 		if ((sock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0) {
 #endif
 			MSAPI_DBG_ERR("socket failed: %s", strerror(errno));
-#ifdef _USE_UDS_SOCKET_
-			umask(orig_mode);
-#endif
 			return MS_MEDIA_ERR_SOCKET_CONN;
 		}
 	}
@@ -358,6 +347,9 @@ int ms_ipc_create_server_socket(ms_protocol_e protocol, int port, int *sock_fd)
 //	serv_addr.sin_addr.s_addr = inet_addr(SERVER_IP);
 	serv_addr.sin_port = htons(serv_port);
 #endif
+
+	orig_mode = umask(0);
+
 	/* Bind to the local address */
 	for (i = 0; i < 20; i ++) {
 		if (bind(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) == 0) {
@@ -368,12 +360,11 @@ int ms_ipc_create_server_socket(ms_protocol_e protocol, int port, int *sock_fd)
 		usleep(250000);
 	}
 
+	umask(orig_mode);
+
 	if (bind_success == false) {
 		MSAPI_DBG_ERR("bind failed : %s %d_", strerror(errno), errno);
 		close(sock);
-#ifdef _USE_UDS_SOCKET_
-			umask(orig_mode);
-#endif
 		return MS_MEDIA_ERR_SOCKET_CONN;
 	}
 
@@ -384,9 +375,6 @@ int ms_ipc_create_server_socket(ms_protocol_e protocol, int port, int *sock_fd)
 		if (listen(sock, SOMAXCONN) < 0) {
 			MSAPI_DBG_ERR("listen failed : %s", strerror(errno));
 			close(sock);
-#ifdef _USE_UDS_SOCKET_
-			umask(orig_mode);
-#endif
 			return MS_MEDIA_ERR_SOCKET_CONN;
 		}
 
@@ -394,9 +382,6 @@ int ms_ipc_create_server_socket(ms_protocol_e protocol, int port, int *sock_fd)
 	}
 
 	*sock_fd = sock;
-#ifdef _USE_UDS_SOCKET_
-	umask(orig_mode);
-#endif
 
 	return MS_MEDIA_ERR_NONE;
 }
@@ -426,8 +411,13 @@ int ms_ipc_send_msg_to_server(int sockfd, int port, ms_comm_msg_s *send_msg, str
 	addr.sin_port = htons(port);
 #endif
 
-	if (sendto(sockfd, send_msg, sizeof(*(send_msg)), 0, (struct sockaddr *)&addr, sizeof(addr)) != sizeof(*(send_msg))) {
-		MSAPI_DBG_ERR("sendto failed [%s]", strerror(errno));
+    if (connect(sockfd, &addr, sizeof(addr)) < 0) {
+        MSAPI_DBG_ERR("connect failed [%s]",strerror(errno));
+        return MS_MEDIA_ERR_SOCKET_SEND;
+    }
+
+	if (send(sockfd, send_msg, sizeof(*(send_msg)), 0) != sizeof(*(send_msg))) {
+		MSAPI_DBG_ERR("send failed [%s]", strerror(errno));
 		res = MS_MEDIA_ERR_SOCKET_SEND;
 	} else {
 		MSAPI_DBG("sent %d", send_msg->result);
@@ -446,30 +436,29 @@ int ms_ipc_send_msg_to_client(int sockfd, ms_comm_msg_s *send_msg, struct sockad
 #endif
 {
 	int res = MS_MEDIA_ERR_NONE;
-
-#ifdef _USE_UDS_SOCKET_
-	MSAPI_DBG("the path of client address : %s", client_addr->sun_path);
-#endif
-	if (sendto(sockfd, send_msg, sizeof(*(send_msg)), 0, (struct sockaddr *)client_addr, sizeof(*(client_addr))) != sizeof(*(send_msg))) {
-		MSAPI_DBG_ERR("sendto failed [%s]", strerror(errno));
+	
+	if (send(sockfd, send_msg, sizeof(*(send_msg)), 0) != sizeof(*(send_msg))) {
+		MSAPI_DBG_ERR("send failed [%s]", strerror(errno));
 		res = MS_MEDIA_ERR_SOCKET_SEND;
 	} else {
 		MSAPI_DBG("sent %d", send_msg->result);
 		MSAPI_DBG("sent %s", send_msg->msg);
 	}
 
-	return MS_MEDIA_ERR_NONE;
+	return res;
 }
 
 #ifdef _USE_UDS_SOCKET_
-int ms_ipc_receive_message(int sockfd, void *recv_msg, unsigned int msg_size, struct sockaddr_un *recv_addr, unsigned int *addr_size)
+int ms_ipc_receive_message(int sockfd, void *recv_msg, unsigned int msg_size, struct sockaddr_un *recv_addr, unsigned int *addr_size, int *recv_socket)
 #else
 int ms_ipc_receive_message(int sockfd, void *recv_msg, unsigned int msg_size, struct sockaddr_in *recv_addr, unsigned int *addr_size)
 #endif
 {
 	int recv_msg_size;
+	int client_socket = -1;
 #ifdef _USE_UDS_SOCKET_
-	struct sockaddr_un addr;
+	struct sockaddr_un addr, client_addr;
+	unsigned int client_addr_len;
 #else
 	struct sockaddr_in addr;
 #endif
@@ -484,13 +473,19 @@ int ms_ipc_receive_message(int sockfd, void *recv_msg, unsigned int msg_size, st
 	addr_len = sizeof(struct sockaddr_in);
 #endif
 
-	if ((recv_msg_size = recvfrom(sockfd, recv_msg, msg_size, 0, (struct sockaddr *)&addr, &addr_len)) < 0) {
-		MSAPI_DBG_ERR("recvfrom failed [%s]", strerror(errno));
+    if ((client_socket = accept(sockfd,(struct sockaddr *) &client_addr,(socklen_t *) &client_addr_len)) < 0) {
+        MSAPI_DBG_ERR("accept failed [%s]",strerror(errno));
+        return MS_MEDIA_ERR_SOCKET_RECEIVE;
+    }
+
+	if ((recv_msg_size = recv(client_socket, recv_msg, msg_size, 0)) < 0) {
+		MSAPI_DBG_ERR("recv failed [%s]", strerror(errno));
 		return MS_MEDIA_ERR_SOCKET_RECEIVE;
 	}
 
 #ifdef _USE_UDS_SOCKET_
-	MSAPI_DBG("the path of received client address : %s", addr.sun_path);
+	if (recv_socket != NULL)
+		*recv_socket = client_socket;
 #endif
 
 	if (recv_addr != NULL)
@@ -502,7 +497,7 @@ int ms_ipc_receive_message(int sockfd, void *recv_msg, unsigned int msg_size, st
 }
 
 #ifdef _USE_UDS_SOCKET_
-int ms_ipc_wait_message(int sockfd, void *recv_msg, unsigned int msg_size, struct sockaddr_un *recv_addr, unsigned int *addr_size)
+int ms_ipc_wait_message(int sockfd, void *recv_msg, unsigned int msg_size, struct sockaddr_un *recv_addr, unsigned int *addr_size, int connected)
 #else
 int ms_ipc_wait_message(int sockfd, void *recv_msg, unsigned int msg_size, struct sockaddr_in *recv_addr, unsigned int *addr_size)
 #endif
@@ -510,6 +505,10 @@ int ms_ipc_wait_message(int sockfd, void *recv_msg, unsigned int msg_size, struc
 	int recv_msg_size;
 	socklen_t addr_len;
 
+	struct sockaddr_un client_addr;
+	unsigned int client_addr_len;
+	int client_socket = -1;
+	
 	if (!recv_msg ||!recv_addr)
 		return MS_MEDIA_ERR_INVALID_PARAMETER;
 
@@ -519,13 +518,19 @@ int ms_ipc_wait_message(int sockfd, void *recv_msg, unsigned int msg_size, struc
 	addr_len = sizeof(struct sockaddr_in);
 #endif
 
-	if ((recv_msg_size = recvfrom(sockfd, recv_msg, msg_size, 0, (struct sockaddr *)recv_addr, &addr_len)) < 0) {
-		MSAPI_DBG_ERR("recvfrom failed [%s]", strerror(errno));
-		if (errno == EWOULDBLOCK) {
-			MSAPI_DBG_ERR("recvfrom Timeout.");
-			return MS_MEDIA_ERR_SOCKET_RECEIVE_TIMEOUT;
-		} else {
-			MSAPI_DBG_ERR("recvfrom error [%s]", strerror(errno));
+	if (connected != TRUE){
+
+		if ((client_socket = accept(sockfd,(struct sockaddr *) &client_addr,(socklen_t *) &client_addr_len)) < 0) {
+			MSAPI_DBG_ERR("accept failed [%s]",strerror(errno));
+			return MS_MEDIA_ERR_SOCKET_RECEIVE;
+		}
+		if ((recv_msg_size = recv(client_socket, recv_msg, msg_size, 0)) < 0) {
+			MSAPI_DBG_ERR("recv failed [%s]", strerror(errno));
+			return MS_MEDIA_ERR_SOCKET_RECEIVE;
+		}
+	} else {
+			if ((recv_msg_size = recv(sockfd, recv_msg, msg_size, 0)) < 0) {
+			MSAPI_DBG_ERR("recv failed [%s]", strerror(errno));
 			return MS_MEDIA_ERR_SOCKET_RECEIVE;
 		}
 	}

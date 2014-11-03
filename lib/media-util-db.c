@@ -392,7 +392,7 @@ static int __media_db_request_update(ms_msg_type_e msg_type, const char *request
 
 	/*Create Socket*/
 #ifdef _USE_UDS_SOCKET_
-	ret = ms_ipc_create_client_socket(MS_PROTOCOL_UDP, MS_TIMEOUT_SEC_10, &sockfd, port);
+	ret = ms_ipc_create_client_socket(MS_PROTOCOL_TCP, MS_TIMEOUT_SEC_10, &sockfd, port);
 #else
 	ret = ms_ipc_create_client_socket(MS_PROTOCOL_UDP, MS_TIMEOUT_SEC_10, &sockfd);
 #endif
@@ -411,7 +411,8 @@ static int __media_db_request_update(ms_msg_type_e msg_type, const char *request
 	serv_addr_len = sizeof(serv_addr);
 	memset(&recv_msg, 0x0, sizeof(ms_comm_msg_s));
 
-	err = ms_ipc_wait_message(sockfd, &recv_msg, sizeof(recv_msg), &serv_addr, NULL);
+	/* connected socket*/
+	err = ms_ipc_wait_message(sockfd, &recv_msg, sizeof(recv_msg), &serv_addr, NULL,TRUE);
 	if (err != MS_MEDIA_ERR_NONE) {
 		ret = err;
 	} else {

@@ -171,7 +171,9 @@ gboolean _read_socket(GIOChannel *src, GIOCondition condition, gpointer data)
 	memset(&recv_msg, 0x0, sizeof(ms_comm_msg_s));
 
 	/* Socket is readable */
-	ret = ms_ipc_receive_message(sockfd, &recv_msg, sizeof(recv_msg), NULL, NULL);
+	struct sockaddr_in recv_add;
+	
+	ret = ms_ipc_wait_message(sockfd, &recv_msg, sizeof(recv_msg), &recv_add, NULL, TRUE);
 	if (ret != MS_MEDIA_ERR_NONE) {
 		MSAPI_DBG("ms_ipc_receive_message failed");
 		return TRUE;
@@ -274,7 +276,7 @@ static int __media_db_request_update_async(ms_msg_type_e msg_type, const char *r
 
 	/*Create Socket*/
 #ifdef _USE_UDS_SOCKET_
-	ret = ms_ipc_create_client_socket(MS_PROTOCOL_UDP, 0, &sockfd, port);
+	ret = ms_ipc_create_client_socket(MS_PROTOCOL_TCP, 0, &sockfd, port);
 #else
 	ret = ms_ipc_create_client_socket(MS_PROTOCOL_UDP, 0, &sockfd);
 #endif

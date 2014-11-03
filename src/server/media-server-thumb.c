@@ -19,6 +19,8 @@
  *
  */
 
+#define _GNU_SOURCE
+
 #include <dirent.h>
 #include <errno.h>
 
@@ -354,8 +356,8 @@ _ms_thumb_recv_udp_msg(int sock, int header_size, thumbMsg *msg, struct sockaddr
 	unsigned char *buf = NULL;
 
 	buf = (unsigned char*)malloc(sizeof(thumbMsg));
-
-	recv_msg_len = ms_ipc_wait_message(sock, buf, sizeof(thumbMsg), from_addr, &from_addr_size);
+	
+	recv_msg_len = ms_ipc_wait_message(sock, buf, sizeof(thumbMsg), from_addr, &from_addr_size, TRUE);
 	if (recv_msg_len != MS_MEDIA_ERR_NONE) {
 		MS_DBG_ERR("ms_ipc_wait_message failed : %s", strerror(errno));
 		MS_SAFE_FREE(buf);
@@ -441,7 +443,7 @@ gboolean _ms_thumb_agent_recv_msg_from_server()
 	ms_thumb_server_msg recv_msg;
 	int recv_msg_size = 0;
 
-	recv_msg_size = ms_ipc_receive_message(g_communicate_sock, & recv_msg, sizeof(ms_thumb_server_msg),  NULL, NULL);
+	recv_msg_size = ms_ipc_receive_message(g_communicate_sock, & recv_msg, sizeof(ms_thumb_server_msg),  NULL, NULL, NULL);
 	if (recv_msg_size != MS_MEDIA_ERR_NONE) {
 		MS_DBG_ERR("ms_ipc_receive_message failed : %s\n", strerror(errno));
 		return FALSE;
@@ -468,7 +470,7 @@ gboolean _ms_thumb_agent_recv_thumb_done_from_server(GIOChannel *src, GIOConditi
 	ms_thumb_server_msg recv_msg;
 	int recv_msg_size = 0;
 
-	recv_msg_size = ms_ipc_receive_message(sockfd, &recv_msg, sizeof(ms_thumb_server_msg), NULL, NULL);
+	recv_msg_size = ms_ipc_receive_message(sockfd, &recv_msg, sizeof(ms_thumb_server_msg), NULL, NULL, NULL);
 	if (recv_msg_size != MS_MEDIA_ERR_NONE) {
 		MS_DBG_ERR("ms_ipc_receive_message failed : %s\n", strerror(errno));
 		return FALSE;
@@ -961,7 +963,9 @@ gboolean _ms_thumb_agent_read_socket(GIOChannel *src,
 	int header_size = 0;
 	int sock = -1;
 	int client_sock = -1;
-
+	struct ucred cr;
+	int cl = sizeof(struct ucred);
+       
 	sock = g_io_channel_unix_get_fd(src);
 	if (sock < 0) {
 		MS_DBG_ERR("sock fd is invalid!");
@@ -992,7 +996,13 @@ gboolean _ms_thumb_agent_read_socket(GIOChannel *src,
 		return TRUE;
 	}
 
-	MS_DBG("Received [%d] %s(%d) from PID(%d) \n", recv_msg->msg_type, recv_msg->org_path, strlen(recv_msg->org_path), recv_msg->pid);
+	if (getsockopt(client_sock, SOL_SOCKET, SO_PEERCRED, &cr, (socklen_t *) &cl) < 0) {
+		MS_DBG_ERR("credential information error");
+	}
+
+	if ( getuid() != cr.uid ){
+		recv_msg->uid = cr.uid;
+	}
 
 	thumbRequest *thumb_req = NULL;
 	thumb_req = calloc(1, sizeof(thumbRequest));
@@ -1135,7 +1145,7 @@ gboolean _ms_thumb_agent_prepare_udp_socket()
 
 	serv_port = MS_THUMB_COMM_PORT;
 
-	if (ms_ipc_create_server_socket(MS_PROTOCOL_UDP, serv_port, &sock) < 0) {
+	if (ms_ipc_create_server_socket(MS_PROTOCOL_TCP, serv_port, &sock) < 0) {
 		MS_DBG_ERR("ms_ipc_create_server_socket failed");
 		return FALSE;
 	}
