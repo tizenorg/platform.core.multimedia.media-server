@@ -64,7 +64,7 @@ gboolean ms_db_thread(void *data)
 
 
 	/* Create Socket*/
-	ret = ms_ipc_create_server_socket(MS_PROTOCOL_UDP, MS_DB_UPDATE_PORT, &sockfd);
+	ret = ms_ipc_create_server_socket(MS_PROTOCOL_TCP, MS_DB_UPDATE_PORT, &sockfd);
 	if(ret != MS_MEDIA_ERR_NONE) {
 
 		MS_DBG_ERR("Failed to create socket\n");
