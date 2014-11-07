@@ -4,6 +4,17 @@ Code-Review+1: Lukasz Stelmach <l.stelmach@samsung.com>
 Code-Review+1: Lukasz Skalski <l.skalski@samsung.com>
 Code-Review+2: Philippe Coval <philippe.coval@open.eurogiciel.org>
 Submitted-by: Philippe Coval <philippe.coval@open.eurogiciel.org>
+Submitted-at: Wed, 29 Oct 2014 04:33:03 -0800
+Reviewed-on: https://review.tizen.org/gerrit/28706
+Project: platform/core/multimedia/media-server
+Branch: refs/heads/tizen
+
+Verified+1: Maciej Wereski <m.wereski@partner.samsung.com>
+Code-Review+1: Karol Lewandowski <k.lewandowsk@samsung.com>
+Code-Review+1: Lukasz Stelmach <l.stelmach@samsung.com>
+Code-Review+1: Lukasz Skalski <l.skalski@samsung.com>
+Code-Review+2: Philippe Coval <philippe.coval@open.eurogiciel.org>
+Submitted-by: Philippe Coval <philippe.coval@open.eurogiciel.org>
 Submitted-at: Wed, 29 Oct 2014 05:33:03 -0700
 Reviewed-on: https://review.tizen.org/gerrit/28706
 Project: platform/core/multimedia/media-server
