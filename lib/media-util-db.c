@@ -298,6 +298,7 @@ static int __media_db_connect_db_with_handle(sqlite3 **db_handle,uid_t uid)
 			}
 		} else {
 			MSAPI_DBG_ERR("Failed to create table %s\n",__media_get_media_DB(uid));
+			return MS_MEDIA_ERR_DB_CONNECT_FAIL;
 		}
 	}
 
