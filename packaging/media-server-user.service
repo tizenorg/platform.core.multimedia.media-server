@@ -5,6 +5,7 @@ Description=Media server user
 Type=idle
 CPUAccounting=true
 CPUQuota=10
+ExecStartPre=/usr/bin/sleep 5
 ExecStart=/usr/bin/mediadb-update -r %h
 
 [Install]
