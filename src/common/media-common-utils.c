@@ -100,9 +100,10 @@ static char* __media_get_path(uid_t uid)
 		grpinfo = getgrnam("users");
 		if(grpinfo == NULL) {
 			MS_DBG_ERR("getgrnam(users) returns NULL !");
+			free(result_psswd);
 			return NULL;
 		}
-    }
+	}
 	else
 	{
 		struct passwd *userinfo = getpwuid(uid);
@@ -126,12 +127,12 @@ static char* __media_get_path(uid_t uid)
 	return result_psswd;
 }
 
-ms_storage_type_t
+	ms_storage_type_t
 ms_get_storage_type_by_full(const char *path, uid_t uid)
 {
 	int lenght_path;
 	char * user_path = NULL;
-	
+
 	if (path == NULL)
 		return false;
 
@@ -143,9 +144,10 @@ ms_get_storage_type_by_full(const char *path, uid_t uid)
 	} else if (strncmp(path, MEDIA_ROOT_PATH_SDCARD, strlen(MEDIA_ROOT_PATH_SDCARD)) == 0) {
 		return MS_STORAGE_EXTERNAL;
 	} else
-       { free(user_path);
+	{ 
+		free(user_path);
 		return MS_MEDIA_ERR_INVALID_PATH;
-    }
+	}
 }
 int
 ms_get_mime(const char *path, char *mimetype)

@@ -826,8 +826,6 @@ void _ms_thumb_cancle_request(thumbRequest *thumb_req)
 
 	if (ret == 0) {
 		recv_msg->status = 0;  // THUMB_SUCCESS
-	} else {
-		recv_msg->status = 0;  // THUMB_SUCCESS
 	}
 
 	if (recv_msg->origin_path_size <= 0  || recv_msg->origin_path_size > MS_FILE_PATH_LEN_MAX) {
