@@ -824,11 +824,7 @@ void _ms_thumb_cancle_request(thumbRequest *thumb_req)
 	else if (recv_msg->msg_type == 4)
 		ret = _ms_thumb_cancel_all(recv_msg->pid);
 
-	if (ret == 0) {
-		recv_msg->status = 0;  // THUMB_SUCCESS
-	} else {
-		recv_msg->status = 0;  // THUMB_SUCCESS
-	}
+	recv_msg->status = ret;
 
 	if (recv_msg->origin_path_size <= 0  || recv_msg->origin_path_size > MS_FILE_PATH_LEN_MAX) {
 		MS_DBG_ERR("recv_msg->origin_path_size is invalid %d", recv_msg->origin_path_size );
