@@ -53,9 +53,8 @@ GMutex *receive_mutex;
 gboolean msc_receive_request(GIOChannel *src, GIOCondition condition, gpointer data)
 {
 	ms_comm_msg_s *recv_msg = NULL;
-	int sockfd = MS_SOCK_NOT_ALLOCATE;
+	int sockfd;
 	int req_num = MS_MSG_MAX;
-	int pid = -1;
 	int ret = MS_MEDIA_ERR_NONE;
 
 	sockfd = g_io_channel_unix_get_fd(src);
@@ -81,7 +80,6 @@ gboolean msc_receive_request(GIOChannel *src, GIOCondition condition, gpointer d
 
 	/* copy from recived data */
 	req_num = recv_msg->msg_type;
-	pid = recv_msg->pid;
 
 	/* request bulk insert*/
 	if (req_num == MS_MSG_BULK_INSERT ||req_num == MS_MSG_BURSTSHOT_INSERT) {
@@ -142,7 +140,7 @@ int msc_send_scan_result(int result, ms_comm_msg_s *scan_data)
 
 int msc_send_register_result(int result, ms_comm_msg_s *reg_data)
 {
-	int ret = MS_MEDIA_ERR_NONE;
+	int ret;
 	int sockfd = -1;
 	ms_comm_msg_s send_msg;
 
