@@ -6,7 +6,7 @@ AC_INIT([media-server], [1.0])
 AC_CONFIG_AUX_DIR([build-aux])
 AC_CONFIG_HEADERS([config.h:config.in])
 
-AM_INIT_AUTOMAKE([-Wall -Werror foreign])
+AM_INIT_AUTOMAKE([subdir-objects -Wall -Werror foreign])
 
 # for platform setting
 AC_CONFIG_MACRO_DIR([m4])
