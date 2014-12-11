@@ -91,7 +91,7 @@ chgrp -R %TZ_SYS_USER_GROUP %{TZ_SYS_DATA}/data-media
 chgrp -R %TZ_SYS_USER_GROUP %{TZ_SYS_DATA}/file-manager-service
 
 # setup dbupdate in user session
-mkdir -p %{_unitdir_user}/default.target.requires/
+mkdir -p %{_unitdir_user}/default.target.wants/
 ln -sf ../media-server-user.service  %{_unitdir_user}/default.target.wants/
 
 %post -n libmedia-utils -p /sbin/ldconfig
