@@ -4,7 +4,7 @@ Description=Media server user
 [Service]
 Type=idle
 CPUAccounting=true
-CPUQuota=10
+CPUQuota=10%
 ExecStart=/usr/bin/mediadb-update -r %h
 
 [Install]
