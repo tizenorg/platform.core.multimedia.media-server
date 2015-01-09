@@ -108,6 +108,7 @@ int _ms_delete_owner(ms_req_owner_data *owner_data)
 {
 	if (owner_data->index != -1) {
 		g_array_remove_index(owner_list, owner_data->index);
+		close(owner_data->client_socket);
 		MS_SAFE_FREE(owner_data->client_addr);
 		MS_SAFE_FREE(owner_data);
 		MS_DBG("DELETE OWNER");
@@ -473,6 +474,8 @@ gboolean ms_read_db_socket(GIOChannel *src, GIOCondition condition, gpointer dat
 	ms_ipc_send_msg_to_client(client_sock, &msg, &client_addr);
 
 	media_db_disconnect(db_handle);
+
+	close(client_sock);
 
 	/*Active flush */
 	malloc_trim(0);
