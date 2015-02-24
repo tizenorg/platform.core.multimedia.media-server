@@ -101,9 +101,9 @@ static int _mkdir(const char *dir, mode_t mode) {
 }
 
 #ifdef _USE_UDS_SOCKET_
-int ms_ipc_create_client_socket(ms_protocol_e protocol, int timeout_sec, int *sock_fd, int port)
-#else
 int ms_ipc_create_client_socket(ms_protocol_e protocol, int timeout_sec, int *sock_fd)
+#else
+int ms_ipc_create_client_socket(ms_protocol_e protocol, int timeout_sec, int *sock_fd, int port)
 #endif
 {
 	int sock = -1;
@@ -115,7 +115,7 @@ int ms_ipc_create_client_socket(ms_protocol_e protocol, int timeout_sec, int *so
 	int cx,len;
 
 #ifdef _USE_UDS_SOCKET_
-
+#else
 	if (tzplatform_getuid(TZ_USER_NAME) == 0 ){
 		cx = snprintf ( NULL, 0, MEDIA_IPC_PATH_CLIENT_ROOT[port],getpid());
 		buffer = (char*)malloc((cx + 1 )*sizeof(char));
