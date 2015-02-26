@@ -210,7 +210,7 @@ static int _msc_dir_scan(void **handle, const char*start_path, ms_storage_type_t
 		/* get the current path from directory array */
 		current_path = g_array_index(dir_array , char*, 0);
 		g_array_remove_index (dir_array, 0);
-		MSC_DBG_INFO("%d", dir_array->len);
+		//MSC_DBG_INFO("%d", dir_array->len);
 
 		if (_msc_check_scan_ignore(current_path)) {
 			MSC_DBG_ERR("%s is ignore", current_path);

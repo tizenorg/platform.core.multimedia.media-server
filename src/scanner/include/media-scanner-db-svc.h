@@ -42,7 +42,7 @@ typedef int (*INSERT_ITEM)(void*, const char*, int, uid_t, char **);
 typedef int (*SET_ALL_STORAGE_ITEMS_VALIDITY)(void*, int, int, uid_t, char **);
 typedef int (*SET_ITEM_VALIDITY_BEGIN)(void*, int, char **);
 typedef int (*SET_ITEM_VALIDITY_END)(void*, uid_t, char **);
-typedef int (*SET_ITEM_VALIDITY)(void*, const char*, int, int, char **);
+typedef int (*SET_ITEM_VALIDITY)(void*, const char*, int, int, uid_t, char **);
 typedef int (*DELETE_ALL_ITEMS_IN_STORAGE)(void*, int, uid_t, char **);
 typedef int (*DELETE_ALL_INVALID_ITMES_IN_STORAGE)(void*, int, uid_t, char **);
 typedef int (*UPDATE_BEGIN)(void);
