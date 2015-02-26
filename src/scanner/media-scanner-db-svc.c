@@ -350,7 +350,7 @@ msc_validate_item(void **handle, const char *path, uid_t uid)
 				}
 			} else {
 				/*if meta data of file exist, change valid field to "1" */
-				ret = ((SET_ITEM_VALIDITY)func_array[lib_index][eSET_VALIDITY])(handle[lib_index], path, true, true, &err_msg); /*dlopen*/
+				ret = ((SET_ITEM_VALIDITY)func_array[lib_index][eSET_VALIDITY])(handle[lib_index], path, true, true, uid, &err_msg); /*dlopen*/
 				if (ret != 0) {
 					MSC_DBG_ERR("error : %s [%s] %s", g_array_index(so_array, char*, lib_index), err_msg, path);
 					MSC_DBG_ERR("[%s]", path);;
