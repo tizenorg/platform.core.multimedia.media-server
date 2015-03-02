@@ -84,7 +84,7 @@ ms_make_default_path_mmc(void)
 			if (ret != 0) {
 				MS_DBG_ERR("chmod failed [%s]", strerror(errno));
 			}
-			ret = chown(default_path[i], tzplatform_getuid(TZ_USER_NAME), tzplatform_getgid(TZ_SYS_USER_GROUP));
+			ret = chown(default_path[i], tzplatform_getuid(TZ_USER_NAME), tzplatform_getgid(TZ_USER_NAME));
 			if (ret != 0) {
 				MS_DBG_ERR("chown failed [%s]", strerror(errno));
 			}
