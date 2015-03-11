@@ -316,7 +316,7 @@ int main(int argc, char **argv)
 	_mkdir("/var/run/media-server",S_IRWXU | S_IRWXG | S_IRWXO);
 	
 	/* Create and bind new UDP socket */
-	if (ms_ipc_create_server_socket(MS_PROTOCOL_TCP, MS_SCANNER_PORT, &sockfd)
+	if (ms_ipc_create_server_socket(MS_PROTOCOL_UDP, MS_SCANNER_PORT, &sockfd)
 		!= MS_MEDIA_ERR_NONE) {
 		MS_DBG_ERR("Failed to create socket");
 	} else {
