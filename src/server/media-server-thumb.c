@@ -1141,7 +1141,7 @@ gboolean _ms_thumb_agent_prepare_udp_socket()
 
 	serv_port = MS_THUMB_COMM_PORT;
 
-	if (ms_ipc_create_server_socket(MS_PROTOCOL_TCP, serv_port, &sock) < 0) {
+	if (ms_ipc_create_server_socket(MS_PROTOCOL_UDP, serv_port, &sock) < 0) {
 		MS_DBG_ERR("ms_ipc_create_server_socket failed");
 		return FALSE;
 	}
