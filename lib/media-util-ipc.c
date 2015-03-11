@@ -411,13 +411,8 @@ int ms_ipc_send_msg_to_server(int sockfd, int port, ms_comm_msg_s *send_msg, str
 	addr.sin_port = htons(port);
 #endif
 
-    if (connect(sockfd, &addr, sizeof(addr)) < 0) {
-        MSAPI_DBG_ERR("connect failed [%s]",strerror(errno));
-        return MS_MEDIA_ERR_SOCKET_SEND;
-    }
-
-	if (send(sockfd, send_msg, sizeof(*(send_msg)), 0) != sizeof(*(send_msg))) {
-		MSAPI_DBG_ERR("send failed [%s]", strerror(errno));
+	if (sendto(sockfd, send_msg, sizeof(*(send_msg)), 0, (struct sockaddr *)&addr, sizeof(addr)) != sizeof(*(send_msg))) {
+		MSAPI_DBG_ERR("sendto failed [%s]", strerror(errno));
 		res = MS_MEDIA_ERR_SOCKET_SEND;
 	} else {
 		MSAPI_DBG("sent %d", send_msg->result);
@@ -436,9 +431,9 @@ int ms_ipc_send_msg_to_client(int sockfd, ms_comm_msg_s *send_msg, struct sockad
 #endif
 {
 	int res = MS_MEDIA_ERR_NONE;
-	
-	if (send(sockfd, send_msg, sizeof(*(send_msg)), 0) != sizeof(*(send_msg))) {
-		MSAPI_DBG_ERR("send failed [%s]", strerror(errno));
+
+	if (sendto(sockfd, send_msg, sizeof(*(send_msg)), 0, (struct sockaddr *)client_addr, sizeof(*(client_addr))) != sizeof(*(send_msg))) {
+		MSAPI_DBG_ERR("sendto failed [%s]", strerror(errno));
 		res = MS_MEDIA_ERR_SOCKET_SEND;
 	} else {
 		MSAPI_DBG("sent %d", send_msg->result);
@@ -457,8 +452,7 @@ int ms_ipc_receive_message(int sockfd, void *recv_msg, unsigned int msg_size, st
 	int recv_msg_size;
 	int client_socket = -1;
 #ifdef _USE_UDS_SOCKET_
-	struct sockaddr_un addr, client_addr;
-	unsigned int client_addr_len;
+	struct sockaddr_un addr;
 #else
 	struct sockaddr_in addr;
 #endif
@@ -473,13 +467,8 @@ int ms_ipc_receive_message(int sockfd, void *recv_msg, unsigned int msg_size, st
 	addr_len = sizeof(struct sockaddr_in);
 #endif
 
-    if ((client_socket = accept(sockfd,(struct sockaddr *) &client_addr,(socklen_t *) &client_addr_len)) < 0) {
-        MSAPI_DBG_ERR("accept failed [%s]",strerror(errno));
-        return MS_MEDIA_ERR_SOCKET_RECEIVE;
-    }
-
-	if ((recv_msg_size = recv(client_socket, recv_msg, msg_size, 0)) < 0) {
-		MSAPI_DBG_ERR("recv failed [%s]", strerror(errno));
+	if ((recv_msg_size = recvfrom(sockfd, recv_msg, msg_size, 0, (struct sockaddr *)&addr, &addr_len)) < 0) {
+		MSAPI_DBG_ERR("recvfrom failed [%s]", strerror(errno));
 		return MS_MEDIA_ERR_SOCKET_RECEIVE;
 	}
 
@@ -518,19 +507,13 @@ int ms_ipc_wait_message(int sockfd, void *recv_msg, unsigned int msg_size, struc
 	addr_len = sizeof(struct sockaddr_in);
 #endif
 
-	if (connected != TRUE){
-
-		if ((client_socket = accept(sockfd,(struct sockaddr *) &client_addr,(socklen_t *) &client_addr_len)) < 0) {
-			MSAPI_DBG_ERR("accept failed [%s]",strerror(errno));
-			return MS_MEDIA_ERR_SOCKET_RECEIVE;
-		}
-		if ((recv_msg_size = recv(client_socket, recv_msg, msg_size, 0)) < 0) {
-			MSAPI_DBG_ERR("recv failed [%s]", strerror(errno));
-			return MS_MEDIA_ERR_SOCKET_RECEIVE;
-		}
-	} else {
-			if ((recv_msg_size = recv(sockfd, recv_msg, msg_size, 0)) < 0) {
-			MSAPI_DBG_ERR("recv failed [%s]", strerror(errno));
+	if ((recv_msg_size = recvfrom(sockfd, recv_msg, msg_size, 0, (struct sockaddr *)recv_addr, &addr_len)) < 0) {
+		MSAPI_DBG_ERR("recvfrom failed [%s]", strerror(errno));
+		if (errno == EWOULDBLOCK) {
+			MSAPI_DBG_ERR("recvfrom Timeout.");
+			return MS_MEDIA_ERR_SOCKET_RECEIVE_TIMEOUT;
+		} else {
+			MSAPI_DBG_ERR("recvfrom error [%s]", strerror(errno));
 			return MS_MEDIA_ERR_SOCKET_RECEIVE;
 		}
 	}

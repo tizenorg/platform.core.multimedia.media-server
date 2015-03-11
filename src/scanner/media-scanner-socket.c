@@ -115,7 +115,7 @@ int msc_send_scan_result(int result, ms_comm_msg_s *scan_data)
 
 	/*Create Socket*/
 #ifdef _USE_UDS_SOCKET_
-	ret = ms_ipc_create_client_socket(MS_PROTOCOL_TCP, 0, &sockfd, MS_SCAN_COMM_PORT);
+	ret = ms_ipc_create_client_socket(MS_PROTOCOL_UDP, 0, &sockfd, MS_SCAN_COMM_PORT);
 #else
 	ret = ms_ipc_create_client_socket(MS_PROTOCOL_UDP, 0, &sockfd);
 #endif
@@ -148,7 +148,7 @@ int msc_send_register_result(int result, ms_comm_msg_s *reg_data)
 
 	/*Create Socket*/
 #ifdef _USE_UDS_SOCKET_
-	ret = ms_ipc_create_client_socket(MS_PROTOCOL_TCP, 0, &sockfd, MS_SCAN_COMM_PORT);
+	ret = ms_ipc_create_client_socket(MS_PROTOCOL_UDP, 0, &sockfd, MS_SCAN_COMM_PORT);
 #else
 	ret = ms_ipc_create_client_socket(MS_PROTOCOL_UDP, 0, &sockfd);
 #endif
@@ -179,7 +179,7 @@ int msc_send_ready(void)
 
 	/*Create Socket*/
 #ifdef _USE_UDS_SOCKET_
-	ret = ms_ipc_create_client_socket(MS_PROTOCOL_TCP, 0, &sockfd, MS_SCAN_COMM_PORT);
+	ret = ms_ipc_create_client_socket(MS_PROTOCOL_UDP, 0, &sockfd, MS_SCAN_COMM_PORT);
 #else
 	ret = ms_ipc_create_client_socket(MS_PROTOCOL_UDP, 0, &sockfd);
 #endif
