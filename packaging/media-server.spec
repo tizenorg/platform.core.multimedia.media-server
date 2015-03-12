@@ -1,6 +1,6 @@
 Name:       media-server
 Summary:    File manager service server
-Version:    0.2.49
+Version:    0.2.50
 Release:    0
 Group:      Multimedia/Service
 License:    Apache-2.0
