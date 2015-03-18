@@ -276,7 +276,7 @@ static int __media_db_request_update_async(ms_msg_type_e msg_type, const char *r
 
 	/*Create Socket*/
 #ifdef _USE_UDS_SOCKET_
-	ret = ms_ipc_create_client_socket(MS_PROTOCOL_TCP, 0, &sockfd, port);
+	ret = ms_ipc_create_client_socket(MS_PROTOCOL_UDP, 0, &sockfd, port);
 #else
 	ret = ms_ipc_create_client_socket(MS_PROTOCOL_UDP, 0, &sockfd);
 #endif
