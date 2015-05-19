@@ -1,7 +1,7 @@
 /*
  *  Media Utility
  *
- * Copyright (c) 2000 - 2011 Samsung Electronics Co., Ltd. All rights reserved.
+ * Copyright (c) 2000 - 2015 Samsung Electronics Co., Ltd. All rights reserved.
  *
  * Contact: Yong Yeon Kim <yy9875.kim@samsung.com>
  *
@@ -78,6 +78,8 @@
 #define MS_MEDIA_ERR_MIME_GET_FAIL			-53  /**< not media file*/
 #define MS_MEDIA_ERR_SCANNER_NOT_READY		-54  /**< not media file*/
 #define MS_MEDIA_ERR_DYNAMIC_LINK			-55
+
+#define MS_MEDIA_ERR_ACCESS_DENIED			-56
 
 #define MS_MEDIA_ERR_MAX						-999 /**< not media file*/
 

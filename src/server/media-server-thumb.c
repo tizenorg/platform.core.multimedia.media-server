@@ -1,7 +1,7 @@
 /*
  * media-thumbnail-server
  *
- * Copyright (c) 2000 - 2011 Samsung Electronics Co., Ltd. All rights reserved.
+ * Copyright (c) 2000 - 2015 Samsung Electronics Co., Ltd. All rights reserved.
  *
  * Contact: Hyunjun Ko <zzoon.ko@samsung.com>
  *
@@ -23,6 +23,7 @@
 
 #include <dirent.h>
 #include <errno.h>
+#include <sys/stat.h>
 
 #include "media-util.h"
 #include "media-common-utils.h"
@@ -1121,9 +1122,9 @@ gboolean _ms_thumb_agent_prepare_tcp_socket(int *sock_fd)
 #endif
 
 #ifdef _USE_UDS_SOCKET_TCP_
-	if (ms_ipc_create_server_tcp_socket(MS_PROTOCOL_TCP, serv_port, &sock) < 0) {
+	if (ms_ipc_create_server_tcp_socket(MS_PROTOCOL_TCP, serv_port, S_IROTH | S_IWOTH | S_IXOTH, &sock) < 0) {
 #else
-	if (ms_ipc_create_server_socket(MS_PROTOCOL_TCP, serv_port, &sock) < 0) {
+	if (ms_ipc_create_server_socket(MS_PROTOCOL_TCP, serv_port, S_IROTH | S_IWOTH | S_IXOTH, &sock) < 0) {
 #endif
 		MS_DBG_ERR("_ms_thumb_create_socket failed");
 		return FALSE;
@@ -1141,7 +1142,7 @@ gboolean _ms_thumb_agent_prepare_udp_socket()
 
 	serv_port = MS_THUMB_COMM_PORT;
 
-	if (ms_ipc_create_server_socket(MS_PROTOCOL_UDP, serv_port, &sock) < 0) {
+	if (ms_ipc_create_server_socket(MS_PROTOCOL_UDP, serv_port, S_IROTH | S_IWOTH | S_IXOTH, &sock) < 0) {
 		MS_DBG_ERR("ms_ipc_create_server_socket failed");
 		return FALSE;
 	}

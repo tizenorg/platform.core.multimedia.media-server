@@ -1,7 +1,7 @@
 /*
  *  Media Utility
  *
- * Copyright (c) 2000 - 2011 Samsung Electronics Co., Ltd. All rights reserved.
+ * Copyright (c) 2000 - 2015 Samsung Electronics Co., Ltd. All rights reserved.
  *
  * Contact: Yong Yeon Kim <yy9875.kim@samsung.com>
  *
@@ -28,6 +28,7 @@
  * @brief
  */
 
+#define _GNU_SOURCE
 #include <string.h>
 #include <unistd.h>
 #include <errno.h>
@@ -227,7 +228,7 @@ int ms_ipc_create_client_tcp_socket(ms_protocol_e protocol, int timeout_sec, int
 	return MS_MEDIA_ERR_NONE;
 }
 
-int ms_ipc_create_server_tcp_socket(ms_protocol_e protocol, int port, int *sock_fd)
+int ms_ipc_create_server_tcp_socket(ms_protocol_e protocol, int port, mode_t mask, int *sock_fd)
 {
 	int i;
 	bool bind_success = false;
@@ -249,7 +250,7 @@ int ms_ipc_create_server_tcp_socket(ms_protocol_e protocol, int port, int *sock_
 	unlink(MEDIA_IPC_PATH[port]);
 	strcpy(serv_addr.sun_path, MEDIA_IPC_PATH[port]);
 
-	orig_mode = umask(0);
+	orig_mode = umask(mask);
 
 	/* Bind to the local address */
 	for (i = 0; i < 20; i ++) {
@@ -287,7 +288,7 @@ int ms_ipc_create_server_tcp_socket(ms_protocol_e protocol, int port, int *sock_
 
 #endif
 
-int ms_ipc_create_server_socket(ms_protocol_e protocol, int port, int *sock_fd)
+int ms_ipc_create_server_socket(ms_protocol_e protocol, int port, mode_t mask, int *sock_fd)
 {
 	int i;
 	bool bind_success = false;
@@ -348,7 +349,7 @@ int ms_ipc_create_server_socket(ms_protocol_e protocol, int port, int *sock_fd)
 	serv_addr.sin_port = htons(serv_port);
 #endif
 
-	orig_mode = umask(0);
+	orig_mode = umask(mask);
 
 	/* Bind to the local address */
 	for (i = 0; i < 20; i ++) {

@@ -1,7 +1,7 @@
 /*
  *  Media Utility
  *
- * Copyright (c) 2000 - 2011 Samsung Electronics Co., Ltd. All rights reserved.
+ * Copyright (c) 2000 - 2015 Samsung Electronics Co., Ltd. All rights reserved.
  *
  * Contact: Yong Yeon Kim <yy9875.kim@samsung.com>
  *
@@ -64,10 +64,10 @@ int ms_ipc_create_client_socket(ms_protocol_e protocol, int timeout_sec, int *so
 
 #ifdef _USE_UDS_SOCKET_TCP_
 int ms_ipc_create_client_tcp_socket(ms_protocol_e protocol, int timeout_sec, int *sock_fd, int port);
-int ms_ipc_create_server_tcp_socket(ms_protocol_e protocol, int port, int *sock_fd);
+int ms_ipc_create_server_tcp_socket(ms_protocol_e protocol, int port, mode_t mask, int *sock_fd);
 #endif
 
-int ms_ipc_create_server_socket(ms_protocol_e protocol, int port, int *sock_fd);
+int ms_ipc_create_server_socket(ms_protocol_e protocol, int port, mode_t mask, int *sock_fd);
 #ifdef _USE_UDS_SOCKET_
 int ms_ipc_send_msg_to_server(int sockfd, int port, ms_comm_msg_s *send_msg, struct sockaddr_un *serv_addr);
 int ms_ipc_send_msg_to_client(int sockfd, ms_comm_msg_s *send_msg, struct sockaddr_un *client_addr);

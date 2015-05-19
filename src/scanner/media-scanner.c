@@ -1,7 +1,7 @@
 /*
  *  Media Server
  *
- * Copyright (c) 2000 - 2011 Samsung Electronics Co., Ltd. All rights reserved.
+ * Copyright (c) 2000 - 2015 Samsung Electronics Co., Ltd. All rights reserved.
  *
  * Contact: Yong Yeon Kim <yy9875.kim@samsung.com>
  *
@@ -31,6 +31,7 @@
 #include <dirent.h>
 #include <vconf.h>
 #include <heynoti.h>
+#include <sys/stat.h>
 
 #include "media-common-utils.h"
 #include "media-common-drm.h"
@@ -254,7 +255,7 @@ int main(int argc, char **argv)
 
 	/*prepare socket*/
 	/* Create and bind new UDP socket */
-	if (ms_ipc_create_server_socket(MS_PROTOCOL_UDP, MS_SCAN_DAEMON_PORT, &sockfd)
+	if (ms_ipc_create_server_socket(MS_PROTOCOL_UDP, MS_SCAN_DAEMON_PORT, S_IROTH | S_IWOTH | S_IXOTH, &sockfd)
 		!= MS_MEDIA_ERR_NONE) {
 		MSC_DBG_ERR("Failed to create socket\n");
 		exit(0);

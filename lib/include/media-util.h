@@ -1,7 +1,7 @@
 /*
  *  Media Utility
  *
- * Copyright (c) 2000 - 2011 Samsung Electronics Co., Ltd. All rights reserved.
+ * Copyright (c) 2000 - 2015 Samsung Electronics Co., Ltd. All rights reserved.
  *
  * Contact: Yong Yeon Kim <yy9875.kim@samsung.com>
  *
@@ -27,6 +27,7 @@
 #include <media-util-db.h>
 #include <media-util-noti.h>
 #include <media-util-ipc.h>
+#include <media-util-cynara.h>
 
 #include <tzplatform_config.h>
 
