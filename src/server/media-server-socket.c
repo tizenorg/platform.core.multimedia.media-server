@@ -50,6 +50,7 @@
 #include "media-server-scanner.h"
 #include "media-server-socket.h"
 #include "media-server-db.h"
+#include "../../lib/include/media-util-cynara.h"
 
 extern GAsyncQueue *scan_queue;
 GAsyncQueue* ret_queue;
@@ -127,6 +128,7 @@ gboolean ms_read_socket(GIOChannel *src, GIOCondition condition, gpointer data)
 	socklen_t client_addr_len;
 	ms_comm_msg_s recv_msg;
 	ms_comm_msg_s scan_msg;
+	ms_peer_credentials creds;
 	int msg_size;
 	int sockfd = MS_SOCK_NOT_ALLOCATE;
 	int ret;
@@ -160,9 +162,10 @@ gboolean ms_read_socket(GIOChannel *src, GIOCondition condition, gpointer data)
 #else
 	client_addr_len = sizeof(struct sockaddr_in);
 #endif
-	ret = ms_ipc_receive_message(sockfd, &recv_msg, sizeof(recv_msg), client_addr, NULL, &client_sock);
+
+	ret = ms_cynara_receive_untrusted_message(sockfd, &recv_msg, sizeof(recv_msg), client_addr, NULL, &creds);
 	if (ret != MS_MEDIA_ERR_NONE) {
-		MS_DBG_ERR("ms_ipc_receive_message failed");
+		MS_DBG_ERR("ms_cynara_receive_untrusted_message failed");
 		MS_SAFE_FREE(client_addr);
 		g_mutex_unlock(scanner_mutex);
 		return TRUE;
@@ -183,6 +186,16 @@ gboolean ms_read_socket(GIOChannel *src, GIOCondition condition, gpointer data)
 	/* copy received data */
 	req_num = recv_msg.msg_type;
 	pid = recv_msg.pid;
+
+	if (ms_cynara_check(&creds, MEDIA_STORAGE_PRIVILEGE) != MS_MEDIA_ERR_NONE) {
+		recv_msg.msg_type = MS_MSG_SCANNER_RESULT;
+		recv_msg.result = MS_MEDIA_ERR_ACCESS_DENIED;
+		ms_ipc_send_msg_to_client(sockfd, &recv_msg, client_addr);
+
+		MS_SAFE_FREE(client_addr);
+		g_mutex_unlock(scanner_mutex);
+		return TRUE;
+	}
 
 	/* register file request
          * media server inserts the meta data of one file into media db */
@@ -409,10 +422,10 @@ gboolean ms_read_db_socket(GIOChannel *src, GIOCondition condition, gpointer dat
 	ms_comm_msg_s recv_msg;
 	int send_msg = MS_MEDIA_ERR_NONE;
 	int sockfd = MS_SOCK_NOT_ALLOCATE;
-	int client_sock = -1;
 	int ret = MS_MEDIA_ERR_NONE;
 	MediaDBHandle *db_handle = NULL;
 	ms_comm_msg_s msg;
+	ms_peer_credentials credentials;
 	char * sql_query = NULL;
 
 	memset(&recv_msg, 0, sizeof(recv_msg));
@@ -423,7 +436,7 @@ gboolean ms_read_db_socket(GIOChannel *src, GIOCondition condition, gpointer dat
 		return TRUE;
 	}
 
-	ret = ms_ipc_receive_message(sockfd, &recv_msg, sizeof(recv_msg), &client_addr, NULL, &client_sock);
+	ret = ms_cynara_receive_untrusted_message(sockfd, &recv_msg, sizeof(recv_msg), &client_addr, NULL, &credentials);
 	if (ret != MS_MEDIA_ERR_NONE) {
 		MS_DBG_ERR("ms_ipc_receive_message failed");
 		return TRUE;
@@ -433,6 +446,14 @@ gboolean ms_read_db_socket(GIOChannel *src, GIOCondition condition, gpointer dat
 
 	if((recv_msg.msg_size <= 0) ||(recv_msg.msg_size > MS_FILE_PATH_LEN_MAX)  || (!MS_STRING_VALID(recv_msg.msg))) {
 		MS_DBG_ERR("invalid query. size[%d]", recv_msg.msg_size);
+		return TRUE;
+	}
+
+	if (ms_cynara_check(&credentials, CONTENT_WRITE_PRIVILEGE) != MS_MEDIA_ERR_NONE) {
+		MS_DBG_ERR("invalid query. size[%d]", recv_msg.msg_size);
+		memset(&msg, 0x0, sizeof(ms_comm_msg_s));
+		msg.result = MS_MEDIA_ERR_ACCESS_DENIED;
+		ms_ipc_send_msg_to_client(sockfd, &msg, &client_addr);
 		return TRUE;
 	}
 
@@ -456,8 +477,6 @@ gboolean ms_read_db_socket(GIOChannel *src, GIOCondition condition, gpointer dat
 	ms_ipc_send_msg_to_client(sockfd, &msg, &client_addr);
 
 	media_db_disconnect(db_handle);
-
-	close(client_sock);
 
 	/*Active flush */
 	malloc_trim(0);
@@ -484,6 +503,7 @@ gboolean ms_read_db_tcp_socket(GIOChannel *src, GIOCondition condition, gpointer
 	int ret = MS_MEDIA_ERR_NONE;
 	char * sql_query = NULL;
 	MediaDBHandle *db_handle = NULL;
+	ms_peer_credentials creds;
 
 	sock = g_io_channel_unix_get_fd(src);
 	if (sock < 0) {
@@ -498,6 +518,19 @@ gboolean ms_read_db_tcp_socket(GIOChannel *src, GIOCondition condition, gpointer
 	}
 
 	MS_DBG("Client[%d] is accepted", client_sock);
+
+	if (ms_cynara_get_credentials_from_connected_socket(client_sock, &creds) != MS_MEDIA_ERR_NONE ||
+		ms_cynara_check(&creds, CONTENT_WRITE_PRIVILEGE) != MS_MEDIA_ERR_NONE) {
+
+		send_msg = MS_MEDIA_ERR_ACCESS_DENIED;
+		if (send(client_sock, &send_msg, sizeof(send_msg), 0) != sizeof(send_msg)) {
+			MS_DBG_ERR("send failed : %s", strerror(errno));
+		} else {
+			MS_DBG("Sent successfully");
+		}
+		close(client_sock);
+		return TRUE;
+	}
 
 	while(1) {
 		if ((recv_msg_size = recv(client_sock, &recv_msg, sizeof(ms_comm_msg_s), 0)) < 0) {

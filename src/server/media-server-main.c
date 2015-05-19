@@ -37,6 +37,7 @@
 #include <heynoti.h>
 #include <sys/stat.h>
 
+#include "../../lib/include/media-util-cynara.h"
 #include "media-util.h"
 #include "media-common-utils.h"
 #include "media-common-drm.h"
@@ -311,15 +312,22 @@ int main(int argc, char **argv)
 
 	_ms_new_global_variable();
 
+	if (ms_cynara_initialize() != MS_MEDIA_ERR_NONE)
+		MS_DBG("Failed to initialize cynara");
+
 	/*prepare socket*/
 	/* create dir socket */
 	_mkdir("/var/run/media-server",S_IRWXU | S_IRWXG | S_IRWXO);
 	
 	/* Create and bind new UDP socket */
-	if (ms_ipc_create_server_socket(MS_PROTOCOL_UDP, MS_SCANNER_PORT, &sockfd)
+	if (ms_ipc_create_server_socket(MS_PROTOCOL_UDP, MS_SCANNER_PORT, 0, &sockfd)
 		!= MS_MEDIA_ERR_NONE) {
 		MS_DBG_ERR("Failed to create socket");
 	} else {
+
+		if (ms_cynara_enable_credentials_passing(sockfd) != MS_MEDIA_ERR_NONE)
+			MS_DBG("Failed to setup credential passing");
+
 		context = g_main_loop_get_context(mainloop);
 
 		/* Create new channel to watch udp socket */
@@ -383,6 +391,8 @@ int main(int argc, char **argv)
 	g_main_loop_run(mainloop);
 	g_thread_join(db_thread);
 	g_thread_join(thumb_thread);
+
+	ms_cynara_finish();
 
 	/*close an IO channel*/
 	g_io_channel_shutdown(channel,  FALSE, NULL);

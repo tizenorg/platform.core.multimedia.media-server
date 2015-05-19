@@ -168,7 +168,7 @@ ms_scanner_start(void)
 
 		/*Create Socket*/
 #ifdef _USE_UDS_SOCKET_
-		ret = ms_ipc_create_server_socket(MS_PROTOCOL_UDP, MS_SCAN_COMM_PORT, &sockfd);
+		ret = ms_ipc_create_server_socket(MS_PROTOCOL_UDP, MS_SCAN_COMM_PORT, 007, &sockfd);
 		if (ret != MS_MEDIA_ERR_NONE) {
 			MS_DBG_ERR("ms_ipc_create_server_socket failed [%d]",ret);
 			g_mutex_unlock(scanner_mutex);

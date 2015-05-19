@@ -25,6 +25,9 @@ BuildRequires:  pkgconfig(db-util)
 BuildRequires:  pkgconfig(notification)
 BuildRequires:  pkgconfig(libsmack)
 BuildRequires:  pkgconfig(libtzplatform-config)
+BuildRequires:  pkgconfig(cynara-client)
+BuildRequires:  pkgconfig(cynara-creds-socket)
+BuildRequires:  pkgconfig(cynara-session)
 
 %description
 Description: File manager service server
@@ -79,6 +82,8 @@ install -m 0775 ./data-media/dbspace/file-manager-service/.thumb/phone/PHONE_THU
 install -m 0775 ./data-media/dbspace/file-manager-service/.thumb/phone/.jpg* %{buildroot}%{TZ_SYS_DATA}/file-manager-service/.thumb/phone/
 install -D -m 0775 ./data-media/dbspace/file-manager-service/* %{buildroot}%{TZ_SYS_DATA}/file-manager-service/
 install -m 0775 %{SOURCE1004} %{buildroot}%{_bindir}/media-data-sdk_create_db.sh
+mkdir -p %{buildroot}%{_sysconfdir}/dbus-1/system.d
+install -m 0644 dbus/media-server.conf %{buildroot}%{_sysconfdir}/dbus-1/system.d/
 
 %post
 vconftool set -t int db/filemanager/dbupdate "1" -f
@@ -104,6 +109,7 @@ ln -sf ../media-server-user.service  %{_unitdir_user}/default.target.wants/
 %{_bindir}/media-server
 %{_bindir}/media-scanner
 %{_bindir}/mediadb-update
+%config %{_sysconfdir}/dbus-1/system.d/media-server.conf
 %exclude %attr(755,-,-) %{_sysconfdir}/rc.d/init.d/mediasvr
 %exclude /etc/rc.d/rc3.d/S46mediasvr
 %exclude /etc/rc.d/rc5.d/S46mediasvr

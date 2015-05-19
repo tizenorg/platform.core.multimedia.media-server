@@ -1123,7 +1123,7 @@ gboolean _ms_thumb_agent_prepare_tcp_socket(int *sock_fd)
 #ifdef _USE_UDS_SOCKET_TCP_
 	if (ms_ipc_create_server_tcp_socket(MS_PROTOCOL_TCP, serv_port, &sock) < 0) {
 #else
-	if (ms_ipc_create_server_socket(MS_PROTOCOL_TCP, serv_port, &sock) < 0) {
+	if (ms_ipc_create_server_socket(MS_PROTOCOL_TCP, serv_port, 007, &sock) < 0) {
 #endif
 		MS_DBG_ERR("_ms_thumb_create_socket failed");
 		return FALSE;
@@ -1141,7 +1141,7 @@ gboolean _ms_thumb_agent_prepare_udp_socket()
 
 	serv_port = MS_THUMB_COMM_PORT;
 
-	if (ms_ipc_create_server_socket(MS_PROTOCOL_UDP, serv_port, &sock) < 0) {
+	if (ms_ipc_create_server_socket(MS_PROTOCOL_UDP, serv_port, 007, &sock) < 0) {
 		MS_DBG_ERR("ms_ipc_create_server_socket failed");
 		return FALSE;
 	}

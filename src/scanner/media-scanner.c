@@ -254,7 +254,7 @@ int main(int argc, char **argv)
 
 	/*prepare socket*/
 	/* Create and bind new UDP socket */
-	if (ms_ipc_create_server_socket(MS_PROTOCOL_UDP, MS_SCAN_DAEMON_PORT, &sockfd)
+	if (ms_ipc_create_server_socket(MS_PROTOCOL_UDP, MS_SCAN_DAEMON_PORT, 007, &sockfd)
 		!= MS_MEDIA_ERR_NONE) {
 		MSC_DBG_ERR("Failed to create socket\n");
 		exit(0);

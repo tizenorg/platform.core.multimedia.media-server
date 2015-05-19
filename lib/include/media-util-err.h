@@ -79,6 +79,8 @@
 #define MS_MEDIA_ERR_SCANNER_NOT_READY		-54  /**< not media file*/
 #define MS_MEDIA_ERR_DYNAMIC_LINK			-55
 
+#define MS_MEDIA_ERR_ACCESS_DENIED			-56
+
 #define MS_MEDIA_ERR_MAX						-999 /**< not media file*/
 
 #endif /*_MEDIA_UTIL_ERR_H_*/
