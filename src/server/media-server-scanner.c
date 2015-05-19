@@ -1,7 +1,7 @@
 /*
  *  Media Server
  *
- * Copyright (c) 2000 - 2011 Samsung Electronics Co., Ltd. All rights reserved.
+ * Copyright (c) 2000 - 2015 Samsung Electronics Co., Ltd. All rights reserved.
  *
  * Contact: Yong Yeon Kim <yy9875.kim@samsung.com>
  *
@@ -23,6 +23,7 @@
 #include <unistd.h>
 #include <glib.h>
 #include <vconf.h>
+#include <sys/stat.h>
 
 #include "media-util.h"
 #include "media-server-ipc.h"
@@ -168,7 +169,7 @@ ms_scanner_start(void)
 
 		/*Create Socket*/
 #ifdef _USE_UDS_SOCKET_
-		ret = ms_ipc_create_server_socket(MS_PROTOCOL_UDP, MS_SCAN_COMM_PORT, &sockfd);
+		ret = ms_ipc_create_server_socket(MS_PROTOCOL_UDP, MS_SCAN_COMM_PORT, S_IROTH | S_IWOTH | S_IXOTH, &sockfd);
 		if (ret != MS_MEDIA_ERR_NONE) {
 			MS_DBG_ERR("ms_ipc_create_server_socket failed [%d]",ret);
 			g_mutex_unlock(scanner_mutex);

@@ -1,7 +1,7 @@
 /*
  *  Media Server
  *
- * Copyright (c) 2000 - 2011 Samsung Electronics Co., Ltd. All rights reserved.
+ * Copyright (c) 2000 - 2015 Samsung Electronics Co., Ltd. All rights reserved.
  *
  * Contact: Yong Yeon Kim <yy9875.kim@samsung.com>
  *
@@ -64,18 +64,23 @@ gboolean ms_db_thread(void *data)
 
 
 	/* Create Socket*/
-	ret = ms_ipc_create_server_socket(MS_PROTOCOL_UDP, MS_DB_UPDATE_PORT, &sockfd);
+	ret = ms_ipc_create_server_socket(MS_PROTOCOL_UDP, MS_DB_UPDATE_PORT, 0, &sockfd);
 	if(ret != MS_MEDIA_ERR_NONE) {
 
 		MS_DBG_ERR("Failed to create socket\n");
 		return FALSE;
 	}
 
+	if (ms_cynara_enable_credentials_passing(sockfd) != MS_MEDIA_ERR_NONE) {
+		MS_DBG_ERR("Failed to set up credentials passing\n");
+		return FALSE;
+	}
+
 	/* Create TCP Socket for batch query*/
 #ifdef _USE_UDS_SOCKET_TCP_
-	ret = ms_ipc_create_server_tcp_socket(MS_PROTOCOL_TCP, MS_DB_BATCH_UPDATE_TCP_PORT, &tcp_sockfd);
+	ret = ms_ipc_create_server_tcp_socket(MS_PROTOCOL_TCP, MS_DB_BATCH_UPDATE_TCP_PORT, 0, &tcp_sockfd);
 #else
-	ret = ms_ipc_create_server_socket(MS_PROTOCOL_TCP, MS_DB_BATCH_UPDATE_PORT, &tcp_sockfd);
+	ret = ms_ipc_create_server_socket(MS_PROTOCOL_TCP, MS_DB_BATCH_UPDATE_PORT, 0, &tcp_sockfd);
 #endif
 	if(ret != MS_MEDIA_ERR_NONE) {
 		close(sockfd);
