@@ -140,7 +140,7 @@ int media_db_update_subscribe(db_update_cb user_cb, void *user_data)
 	if (noti_mutex == NULL) {
 		noti_mutex = g_mutex_new();
 		if (noti_mutex == NULL) {
-			return MS_MEDIA_ERR_ALLOCATE_MEMORY_FAIL;
+			return MS_MEDIA_ERR_OUT_OF_MEMORY;
 		}
 	}
 
@@ -155,7 +155,7 @@ int media_db_update_subscribe(db_update_cb user_cb, void *user_data)
 		if (!g_bus) {
 			MSAPI_DBG ("Failed to connect to the D-BUS daemon: %s", error.message);
 			dbus_error_free (&error);
-			ret = MS_MEDIA_ERR_DBUS_GET;
+			ret = MS_MEDIA_ERR_INTERNAL;
 			goto ERROR;
 		}
 
@@ -164,7 +164,7 @@ int media_db_update_subscribe(db_update_cb user_cb, void *user_data)
 		MS_MALLOC(callback_data, sizeof(noti_callback_data));
 		if (callback_data == NULL) {
 			MSAPI_DBG_ERR("MS_MALLOC failed");
-			ret = MS_MEDIA_ERR_ALLOCATE_MEMORY_FAIL;
+			ret = MS_MEDIA_ERR_OUT_OF_MEMORY;
 			goto ERROR;
 		}
 		callback_data->user_callback = user_cb;
@@ -174,7 +174,7 @@ int media_db_update_subscribe(db_update_cb user_cb, void *user_data)
 		dbus_bus_add_match (g_bus, MS_MEDIA_DBUS_MATCH_RULE, &error);
 		if( !dbus_connection_add_filter (g_bus, __message_filter, callback_data, __free_data_fuction)) {
 			dbus_bus_remove_match (g_bus, MS_MEDIA_DBUS_MATCH_RULE, NULL);
-			ret =  MS_MEDIA_ERR_DBUS_ADD_FILTER;
+			ret =  MS_MEDIA_ERR_INTERNAL;
 			goto ERROR;
 		}
 		g_data_store = (void *)callback_data;
@@ -250,7 +250,7 @@ int media_db_update_send(int pid, /* mandatory */
 	if (!bus) {
 		MSAPI_DBG ("Failed to connect to the D-BUS daemon: %s", error.message);
 		dbus_error_free (&error);
-		return MS_MEDIA_ERR_DBUS_GET;
+		return MS_MEDIA_ERR_INTERNAL;
 	}
 
 	message = dbus_message_new_signal (MS_MEDIA_DBUS_PATH, MS_MEDIA_DBUS_INTERFACE, MS_MEDIA_DBUS_NAME);
