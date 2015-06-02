@@ -190,7 +190,7 @@ static int _msc_dir_scan(void **handle, const char*start_path, ms_storage_type_t
 	dir_array = g_array_new (FALSE, FALSE, sizeof (char*));
 	if (dir_array == NULL){
 		MSC_DBG_ERR("g_array_new failed");
-		return MS_MEDIA_ERR_ALLOCATE_MEMORY_FAIL;
+		return MS_MEDIA_ERR_OUT_OF_MEMORY;
 	}
 	/* add first direcotiry to directory array */
 	g_array_append_val (dir_array, start_path);
