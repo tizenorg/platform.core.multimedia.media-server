@@ -34,9 +34,6 @@ bool
 ms_is_drm_file(const char *path);
 
 int
-ms_get_mime_in_drm_info(const char *path, char *mime);
-
-int
 ms_drm_register(const char* path);
 
 void
