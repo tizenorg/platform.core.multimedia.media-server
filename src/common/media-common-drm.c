@@ -51,49 +51,6 @@ ms_is_drm_file(const char *path)
 }
 
 int
-ms_get_mime_in_drm_info(const char *path, char *mime)
-{
-#ifdef __SUPPORT_DRM
-	int ret;
-	drm_content_info_s contentInfo;
-	drm_file_type_e file_type = DRM_TYPE_UNDEFINED;
-
-	if (path == NULL || mime == NULL)
-		return MS_MEDIA_ERR_INVALID_PARAMETER;
-
-	/* check drm type */
-	ret = drm_get_file_type(path, &file_type);
-	if (ret != DRM_RETURN_SUCCESS) {
-		MS_DBG_ERR("drm_get_file_type() failed");
-		MS_DBG_ERR("%s [%d]", path, ret);
-		return MS_MEDIA_ERR_DRM_GET_INFO_FAIL;
-	} else {
-		/* if a drm file is OMA drm, use DRM API for getting mime information */
-		if (file_type == DRM_TYPE_OMA_V1
-		|| file_type == DRM_TYPE_OMA_V2
-		|| file_type == DRM_TYPE_OMA_PD) {
-			MS_DBG_ERR("THIS IS OMA DRM");
-			memset(&contentInfo,0x0,sizeof(drm_content_info_s));
-			ret = drm_get_content_info(path, &contentInfo);
-			if (ret != DRM_RETURN_SUCCESS) {
-				MS_DBG_ERR("drm_svc_get_content_info() failed");
-				MS_DBG_ERR("%s [%d]", path, ret);
-				return MS_MEDIA_ERR_DRM_GET_INFO_FAIL;
-			}
-			strncpy(mime, contentInfo.mime_type, 100);
-		} else {
-			MS_DBG_ERR("THIS IS DRM BUT YOU SHOULD USE API OF AUL LIBRARY");
-			return MS_MEDIA_ERR_DRM_GET_INFO_FAIL;
-		}
-	}
-
-	return MS_MEDIA_ERR_NONE;
-#else
-	return MS_MEDIA_ERR_DRM_GET_INFO_FAIL;
-#endif
-}
-
-int
 ms_drm_register(const char* path)
 {
 
