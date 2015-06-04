@@ -29,11 +29,8 @@
  */
 #include <arpa/inet.h>
 #include <sys/types.h>
-#ifdef _USE_UDS_SOCKET_
+#include <errno.h>
 #include <sys/un.h>
-#else
-#include <sys/socket.h>
-#endif
 #include <malloc.h>
 #include <vconf.h>
 
@@ -114,11 +111,7 @@ int msc_send_scan_result(int result, ms_comm_msg_s *scan_data)
 	ms_comm_msg_s send_msg;
 
 	/*Create Socket*/
-#ifdef _USE_UDS_SOCKET_
 	ret = ms_ipc_create_client_socket(MS_PROTOCOL_UDP, 0, &sockfd, MS_SCAN_COMM_PORT);
-#else
-	ret = ms_ipc_create_client_socket(MS_PROTOCOL_UDP, 0, &sockfd);
-#endif
 	if (ret != MS_MEDIA_ERR_NONE)
 		return MS_MEDIA_ERR_SOCKET_CONN;
 
@@ -147,15 +140,11 @@ int msc_send_register_result(int result, ms_comm_msg_s *reg_data)
 	ms_comm_msg_s send_msg;
 
 	/*Create Socket*/
-#ifdef _USE_UDS_SOCKET_
 	ret = ms_ipc_create_client_socket(MS_PROTOCOL_UDP, 0, &sockfd, MS_SCAN_COMM_PORT);
-#else
-	ret = ms_ipc_create_client_socket(MS_PROTOCOL_UDP, 0, &sockfd);
-#endif
 	if (ret != MS_MEDIA_ERR_NONE)
 		return MS_MEDIA_ERR_SOCKET_CONN;
 
-	/* send ready message */
+	/* send result message */
 	memset(&send_msg, 0x0, sizeof(ms_comm_msg_s));
 	send_msg.msg_type = MS_MSG_SCANNER_BULK_RESULT;
 	send_msg.pid = reg_data->pid;
@@ -178,11 +167,7 @@ int msc_send_ready(void)
 	ms_comm_msg_s send_msg;
 
 	/*Create Socket*/
-#ifdef _USE_UDS_SOCKET_
 	ret = ms_ipc_create_client_socket(MS_PROTOCOL_UDP, 0, &sockfd, MS_SCAN_COMM_PORT);
-#else
-	ret = ms_ipc_create_client_socket(MS_PROTOCOL_UDP, 0, &sockfd);
-#endif
 	if (ret != MS_MEDIA_ERR_NONE)
 		return MS_MEDIA_ERR_SOCKET_CONN;
 
