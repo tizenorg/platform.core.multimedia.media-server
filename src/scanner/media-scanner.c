@@ -289,9 +289,9 @@ int main(int argc, char **argv)
 
 	msc_send_ready();
 
-	MSC_DBG_INFO("*****************************************");
-	MSC_DBG_INFO("*** Scanner is running ***");
-	MSC_DBG_INFO("*****************************************");
+	MSC_DBG_ERR("*****************************************");
+	MSC_DBG_ERR("*** Scanner is running ***");
+	MSC_DBG_ERR("*****************************************");
 
 	g_main_loop_run(scanner_mainloop);
 

@@ -102,7 +102,7 @@ static gboolean _ms_stop_scanner (gpointer user_data)
 	/* stop media scanner */
 	if (child_pid >0 ) {
 		if (kill(child_pid, SIGKILL) < 0) {
-			MS_DBG_ERR("kill failed : %s", strerror(errno));
+			MS_DBG_STRERROR("kill failed");
 			g_mutex_unlock(scanner_mutex);
 			return TRUE;
 		}
@@ -131,8 +131,7 @@ static void _ms_add_timeout(guint interval, GSourceFunc func, gpointer data)
 	g_source_unref(src);
 }
 
-int
-ms_scanner_start(void)
+int ms_scanner_start(void)
 {
 	int pid;
 
@@ -153,11 +152,7 @@ ms_scanner_start(void)
 		int sockfd = -1;
 		int err = -1;
 		int n_reuse = 1;
-#ifdef _USE_UDS_SOCKET_
 		struct sockaddr_un serv_addr;
-#else
-		struct sockaddr_in serv_addr;
-#endif
 		unsigned int serv_addr_len = -1;
 		int port = MS_SCAN_COMM_PORT;
 		ms_comm_msg_s recv_msg;
@@ -167,40 +162,12 @@ ms_scanner_start(void)
 		GMainContext *res_context = NULL;
 
 		/*Create Socket*/
-#ifdef _USE_UDS_SOCKET_
 		ret = ms_ipc_create_server_socket(MS_PROTOCOL_UDP, MS_SCAN_COMM_PORT, &sockfd);
 		if (ret != MS_MEDIA_ERR_NONE) {
 			MS_DBG_ERR("ms_ipc_create_server_socket failed [%d]",ret);
 			g_mutex_unlock(scanner_mutex);
 			return MS_MEDIA_ERR_SOCKET_CONN;
 		}
-#else
-		ret = ms_ipc_create_client_socket(MS_PROTOCOL_UDP, MS_TIMEOUT_SEC_10, &sockfd);
-		if (ret != MS_MEDIA_ERR_NONE) {
-			MS_DBG_ERR("ms_ipc_create_client_socket failed [%d]",ret);
-			g_mutex_unlock(scanner_mutex);
-			return MS_MEDIA_ERR_SOCKET_CONN;
-		}
-		/* set socket re-use */
-		if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &n_reuse, sizeof(n_reuse)) == -1) {
-			MS_DBG_ERR("setsockopt failed: %s", strerror(errno));
-			close(sockfd);
-			g_mutex_unlock(scanner_mutex);
-			return MS_MEDIA_ERR_SOCKET_INTERNAL;
-		}
-		/*Set server Address*/
-		memset(&serv_addr, 0, sizeof(serv_addr));
-		serv_addr.sin_family = AF_INET;
-		serv_addr.sin_addr.s_addr = inet_addr(SERVER_IP);
-		serv_addr.sin_port = htons(port);
-		/* Bind to the local address */
-		if (bind(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
-			MS_DBG_ERR("bind failed [%s]", strerror(errno));
-			close(sockfd);
-			g_mutex_unlock(scanner_mutex);
-			return MS_MEDIA_ERR_SOCKET_BIND;
-		}
-#endif
 
 		/*Receive Response*/
 		serv_addr_len = sizeof(serv_addr);
