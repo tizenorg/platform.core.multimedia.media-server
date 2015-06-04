@@ -20,11 +20,7 @@
  */
 
 #include <glib.h>
-#ifdef _USE_UDS_SOCKET_
 #include <sys/un.h>
-#else
-#include <sys/socket.h>
-#endif
 #include <arpa/inet.h>
 #include "media-common-types.h"
 #include "media-server-ipc.h"
