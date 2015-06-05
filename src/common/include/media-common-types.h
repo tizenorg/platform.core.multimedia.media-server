@@ -57,7 +57,7 @@
 
 #define MS_SAFE_FREE(src)      { if(src) {free(src); src = NULL;} }
 #define MS_MALLOC(src, size)	{ if (size > SIZE_MAX || size <= 0) {src = NULL;} \
-							else { src = malloc(size); memset(src, 0x0, size);} }
+							else { src = malloc(size); if(src) memset(src, 0x0, size);} }
 
 /*System default folder definition*/
 #define FAT_FILENAME_LEN_MAX          255	/* not inc null */
