@@ -33,16 +33,30 @@
 
 #include <sys/syscall.h>
 #include <dlog.h>
+#include <errno.h>
 
 #ifdef LOG_TAG
 #undef LOG_TAG
 #endif
 #define LOG_TAG "MEDIA_SERVER"
+#define BUF_LENGTH 256
 
-#define MS_DBG(fmt, args...)        LOGD(fmt "\n", ##args);
+#define MS_DBG_STRERROR(fmt) do { \
+			char buf[BUF_LENGTH] = {0,}; \
+			strerror_r(errno, buf, BUF_LENGTH); \
+			LOGE(fmt" : STANDARD ERROR [%s]", buf);	 \
+		} while (0)
+
+#define MS_DBG_SLOG(fmt, args...) do{ if (true) { \
+		SECURE_LOGD(fmt "\n" , ##args); \
+		}} while(false)
+
+#define MS_DBG(fmt, args...) do{ if (true) { \
+		LOGD(fmt "\n" , ##args); \
+		}} while(false)
 
 #define MS_DBG_INFO(fmt, args...) do{ if (true) { \
-		LOGE(fmt "\n" , ##args); \
+		LOGI(fmt "\n" , ##args); \
 		}} while(false)
 
 #define MS_DBG_WARN(fmt, args...) do{ if (true) { \

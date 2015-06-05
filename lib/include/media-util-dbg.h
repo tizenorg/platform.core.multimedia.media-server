@@ -33,12 +33,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <dlog.h>
+#include <error.h>
 
 #ifdef LOG_TAG
 #undef LOG_TAG
 #endif
 
 #define LOG_TAG "MEDIA_UTIL"
+#define BUF_LENGTH 256
 
 #define FONT_COLOR_RESET    "\033[0m"
 #define FONT_COLOR_RED      "\033[31m"
@@ -49,12 +51,22 @@
 #define FONT_COLOR_CYAN     "\033[36m"
 #define FONT_COLOR_GRAY     "\033[37m"
 
+#define MSAPI_DBG_STRERROR(fmt) do { \
+			char buf[BUF_LENGTH] = {0,}; \
+			strerror_r(errno, buf, BUF_LENGTH);	\
+			LOGE(fmt" : STANDARD ERROR [%s]", buf);	\
+		} while (0)
+
+#define MSAPI_DBG_SLOG(fmt, args...) do { \
+			SECURE_LOGD(fmt "\n", ##args);     \
+		} while (0)
+
 #define MSAPI_DBG(fmt, arg...) do { \
 			LOGD(FONT_COLOR_RESET fmt, ##arg);     \
 		} while (0)
 
 #define MSAPI_DBG_INFO(fmt, arg...) do { \
-			LOGD(FONT_COLOR_GREEN fmt, ##arg);     \
+			LOGI(FONT_COLOR_GREEN fmt, ##arg);     \
 		} while (0)
 
 #define MSAPI_DBG_ERR(fmt, arg...) do { \
@@ -64,7 +76,6 @@
 #define MSAPI_DBG_FUNC() do { \
 			LOGD(FONT_COLOR_RESET);     \
 		} while (0)
-
 
 #define MSAPI_RETV_IF(expr, val) do { \
 			if(expr) { \
