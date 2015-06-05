@@ -57,14 +57,6 @@ typedef enum{
 #define MS_SCAN_COMM_PORT		       1008		/**< Port of communication between scanner and server */
 #endif
 
-#ifdef _USE_UDS_SOCKET_TCP_
-typedef enum{
-	MS_DB_BATCH_UPDATE_TCP_PORT = 0,	/**< Media DB batch update */
-	MS_THUMB_CREATOR_TCP_PORT,	/**< Create thumbnail */
-	MS_PORT_MAX,
-}ms_msg_port_type_e;
-#endif
-
 #define MAX_MSG_SIZE				4096
 
 typedef enum{

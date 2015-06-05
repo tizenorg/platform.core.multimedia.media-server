@@ -299,7 +299,7 @@ static int __media_db_request_update_async(ms_msg_type_e msg_type, const char *r
 
 int media_directory_scanning_async(const char *directory_path, bool recursive_on, scan_complete_cb user_callback, void *user_data, uid_t uid)
 {
-	int ret;
+	int ret = MS_MEDIA_ERR_NONE;
 
 	ret = _check_dir_path(directory_path,uid);
 	if(ret != MS_MEDIA_ERR_NONE)
@@ -315,7 +315,7 @@ int media_directory_scanning_async(const char *directory_path, bool recursive_on
 
 int media_files_register(const char *list_path, insert_complete_cb user_callback, void *user_data, uid_t uid)
 {
-	int ret;
+	int ret = MS_MEDIA_ERR_NONE;
 
 	ret = __media_db_request_update_async(MS_MSG_BULK_INSERT, list_path, user_callback, user_data, uid);
 
@@ -326,13 +326,12 @@ int media_files_register(const char *list_path, insert_complete_cb user_callback
 
 int media_burstshot_register(const char *list_path, insert_complete_cb user_callback, void *user_data, uid_t uid)
 {
-	int ret;
+	int ret = MS_MEDIA_ERR_NONE;
 
 	ret = __media_db_request_update_async(MS_MSG_BURSTSHOT_INSERT, list_path, user_callback, user_data, uid);
 
 	MSAPI_DBG("client receive: %d", ret);
 
 	return ret;
-
 }
 

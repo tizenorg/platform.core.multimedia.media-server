@@ -102,7 +102,7 @@ static gboolean _ms_stop_scanner (gpointer user_data)
 	/* stop media scanner */
 	if (child_pid >0 ) {
 		if (kill(child_pid, SIGKILL) < 0) {
-			MS_DBG_ERR("kill failed : %s", strerror(errno));
+			MS_DBG_STRERROR("kill failed");
 			g_mutex_unlock(scanner_mutex);
 			return TRUE;
 		}
@@ -131,8 +131,7 @@ static void _ms_add_timeout(guint interval, GSourceFunc func, gpointer data)
 	g_source_unref(src);
 }
 
-int
-ms_scanner_start(void)
+int ms_scanner_start(void)
 {
 	int pid;
 
