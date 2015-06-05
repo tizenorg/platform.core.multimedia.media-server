@@ -190,7 +190,7 @@ static int _msc_dir_scan(void **handle, const char*start_path, ms_storage_type_t
 	dir_array = g_array_new (FALSE, FALSE, sizeof (char*));
 	if (dir_array == NULL){
 		MSC_DBG_ERR("g_array_new failed");
-		return MS_MEDIA_ERR_OUT_OF_MEMORY;
+		return MS_MEDIA_ERR_ALLOCATE_MEMORY_FAIL;
 	}
 	/* add first direcotiry to directory array */
 	g_array_append_val (dir_array, start_path);
@@ -401,7 +401,7 @@ gboolean msc_directory_scan_thread(void *data)
 			goto _POWEROFF;
 		}
 
-		/*disconnect from media db*/
+		/*disconnect form media db*/
 		if (handle) msc_disconnect_db(&handle);
 NEXT:
 		/*Active flush */
@@ -524,7 +524,7 @@ gboolean msc_storage_scan_thread(void *data)
 			goto _POWEROFF;
 		}
 
-		/*disconnect from media db*/
+		/*disconnect form media db*/
 		if (handle)	msc_disconnect_db(&handle);
 
 NEXT:
@@ -743,7 +743,7 @@ gboolean msc_register_thread(void *data)
 		/*call for bundle commit*/
 		msc_register_end(handle, register_data->uid);
 
-		/*disconnect from media db*/
+		/*disconnect form media db*/
 		if (handle) msc_disconnect_db(&handle);
 
 		/*Active flush */

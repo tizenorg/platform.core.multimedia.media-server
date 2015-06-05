@@ -113,8 +113,8 @@ ms_load_functions(void)
 {
 	int lib_index = 0, func_index;
 	char func_list[eFUNC_MAX][40] = {
-		"connect_db",
-		"disconnect_db",
+		"connect",
+		"disconnect",
 		"set_all_storage_items_validity",
 		};
 	/*init array for adding name of so*/
@@ -135,7 +135,7 @@ ms_load_functions(void)
 	MS_MALLOC(func_handle, sizeof(void*) * lib_num);
 	if (func_handle == NULL) {
 		MS_DBG_ERR("malloc failed");
-		return MS_MEDIA_ERR_OUT_OF_MEMORY;
+		return MS_MEDIA_ERR_ALLOCATE_MEMORY_FAIL;
 	}
 
 	while(lib_index < lib_num) {
@@ -157,7 +157,7 @@ ms_load_functions(void)
 	if (func_array == NULL) {
 		MS_DBG_ERR("malloc failed");
 		MS_SAFE_FREE(func_handle);
-		return MS_MEDIA_ERR_OUT_OF_MEMORY;
+		return MS_MEDIA_ERR_ALLOCATE_MEMORY_FAIL;
 	}
 
 	for(lib_index = 0 ; lib_index < lib_num; lib_index ++) {
@@ -172,7 +172,7 @@ ms_load_functions(void)
 			MS_SAFE_FREE(func_handle);
 
 			MS_DBG_ERR("malloc failed");
-			return MS_MEDIA_ERR_OUT_OF_MEMORY;
+			return MS_MEDIA_ERR_ALLOCATE_MEMORY_FAIL;
 		}
 	}
 

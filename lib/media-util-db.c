@@ -691,9 +691,9 @@ int media_db_update_db_batch_start(const char *query_str)
 		ret = MS_MEDIA_ERR_DB_SERVER_BUSY_FAIL;
 	} else {
 		sql_list = (char**)malloc(sizeof(char*));
-		MSAPI_RETVM_IF(sql_list == NULL, MS_MEDIA_ERR_OUT_OF_MEMORY, "Out of memory");
+		MSAPI_RETVM_IF(sql_list == NULL, MS_MEDIA_ERR_ALLOCATE_MEMORY_FAIL, "Out of memory");
 		sql_list[g_list_idx++] = strdup(query_str);
-		MSAPI_RETVM_IF(sql_list[g_list_idx - 1] == NULL, MS_MEDIA_ERR_OUT_OF_MEMORY, "Out of memory");
+		MSAPI_RETVM_IF(sql_list[g_list_idx - 1] == NULL, MS_MEDIA_ERR_ALLOCATE_MEMORY_FAIL, "Out of memory");
 	}
 
 	return ret;
@@ -706,10 +706,10 @@ int media_db_update_db_batch(const char *query_str)
 	MSAPI_RETVM_IF(!MS_STRING_VALID(query_str), MS_MEDIA_ERR_INVALID_PARAMETER, "Invalid Query");
 
 	sql_list = (char**)realloc(sql_list, (g_list_idx + 1) * sizeof(char*));
-	MSAPI_RETVM_IF(sql_list == NULL, MS_MEDIA_ERR_OUT_OF_MEMORY, "Out of memory");
+	MSAPI_RETVM_IF(sql_list == NULL, MS_MEDIA_ERR_ALLOCATE_MEMORY_FAIL, "Out of memory");
 
 	sql_list[g_list_idx++] = strdup(query_str);
-	MSAPI_RETVM_IF(sql_list[g_list_idx - 1] == NULL, MS_MEDIA_ERR_OUT_OF_MEMORY, "Out of memory");
+	MSAPI_RETVM_IF(sql_list[g_list_idx - 1] == NULL, MS_MEDIA_ERR_ALLOCATE_MEMORY_FAIL, "Out of memory");
 
 	return ret;
 }
@@ -729,14 +729,14 @@ int media_db_update_db_batch_end(MediaDBHandle *handle, const char *query_str)
 	if (sql_list == NULL) {
 		__media_db_destroy_sql_list();
 		MSAPI_DBG_ERR("Out of memory");
-		return MS_MEDIA_ERR_OUT_OF_MEMORY;
+		return MS_MEDIA_ERR_ALLOCATE_MEMORY_FAIL;
 	}
 
 	sql_list[g_list_idx++] = strdup(query_str);
 	if (sql_list[g_list_idx - 1] == NULL) {
 		__media_db_destroy_sql_list();
 		MSAPI_DBG_ERR("Out of memory");
-		return MS_MEDIA_ERR_OUT_OF_MEMORY;
+		return MS_MEDIA_ERR_ALLOCATE_MEMORY_FAIL;
 	}
 
 	int i = 0;

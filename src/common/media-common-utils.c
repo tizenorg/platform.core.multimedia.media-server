@@ -147,6 +147,37 @@ ms_get_storage_type_by_full(const char *path, uid_t uid)
 		return MS_MEDIA_ERR_INVALID_PATH;
     }
 }
+int
+ms_get_mime(const char *path, char *mimetype)
+{
+	int ret = MS_MEDIA_ERR_NONE;
+
+	if (path == NULL)
+		return MS_MEDIA_ERR_INVALID_PARAMETER;
+
+	/*get content type and mime type from file. */
+	/*in case of drm file. */
+	if (ms_is_drm_file(path)) {
+		if (ms_get_mime_in_drm_info(path, mimetype) != MS_MEDIA_ERR_NONE) {
+			MS_DBG_ERR("Fail to get mime from drm API");
+			if (aul_get_mime_from_file(path, mimetype, 255) < 0) {
+				MS_DBG_ERR("aul_get_mime_from_file fail");
+				ret = MS_MEDIA_ERR_MIME_GET_FAIL;
+			} else {
+				MS_DBG_ERR("aul_get_mime_from_file success");
+				ret = MS_MEDIA_ERR_NONE;
+			}
+		}
+	} else {
+		/*in case of normal files */
+		if (aul_get_mime_from_file(path, mimetype, 255) < 0) {
+			MS_DBG_ERR("aul_get_mime_from_file fail");
+			ret = MS_MEDIA_ERR_MIME_GET_FAIL;
+		}
+	}
+
+	return ret;
+}
 
 int
 ms_strappend(char *res, const int size, const char *pattern,
