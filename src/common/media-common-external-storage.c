@@ -24,6 +24,7 @@
 #include <dirent.h>
 #include <malloc.h>
 #include <vconf.h>
+#include <errno.h>
 #include <notification.h>
 
 #include "media-util.h"
@@ -50,7 +51,6 @@ char default_path[][MS_FILE_NAME_LEN_MAX + 1] = {
 		{"/opt/storage/sdcard/Downloads"},
 		{"/opt/storage/sdcard/Camera"}
 };
-
 
 #define DIR_NUM       ((int)(sizeof(default_path)/sizeof(default_path[0])))
 
@@ -82,11 +82,11 @@ ms_make_default_path_mmc(void)
 			/*at the first time, the directroies are made permission 755*/
 			ret = chmod(default_path[i], 0777);
 			if (ret != 0) {
-				MS_DBG_ERR("chmod failed [%s]", strerror(errno));
+				MS_DBG_STRERROR("chmod failed");
 			}
 			ret = chown(default_path[i], tzplatform_getuid(TZ_USER_NAME), tzplatform_getgid(TZ_USER_NAME));
 			if (ret != 0) {
-				MS_DBG_ERR("chown failed [%s]", strerror(errno));
+				MS_DBG_STRERROR("chown failed");
 			}
 		} else {
 			closedir(dp);
@@ -283,7 +283,7 @@ void update_lang(void)
 		r = setlocale(LC_ALL, "");
 		if (r == NULL) {
 			r = setlocale(LC_ALL, vconf_get_str(VCONFKEY_LANGSET));
-			MS_DBG_ERR("*****appcore setlocale=%s\n", r);
+			MS_DBG_ERR("*****appcore setlocale=%s", r);
 		}
 		free(lang);
 	}
@@ -299,11 +299,10 @@ ms_present_mmc_status(ms_sdcard_status_type_t status)
 	if (status == MS_SDCARD_INSERTED)
 		ret = notification_status_message_post(_GETSYSTEMSTR("IDS_COM_BODY_PREPARING_SD_CARD"));
 	else if (status == MS_SDCARD_REMOVED)
-		ret = notification_status_message_post(_GETSYSTEMSTR("IDS_COM_BODY_SD_CARD_REMOVED"));
+		ret = notification_status_message_post(_GETSYSTEMSTR("IDS_COM_BODY_SD_CARD_UNEXPECTEDLY_REMOVED"));
 
 	if(ret != NOTIFICATION_ERROR_NONE)
 		return MS_MEDIA_ERR_INTERNAL;
-
 	return MS_MEDIA_ERR_NONE;
 }
 

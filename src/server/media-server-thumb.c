@@ -78,8 +78,7 @@ void _ms_thumb_agent_finish_jobs()
 	return;
 }
 
-GMainLoop *
-ms_get_thumb_thread_mainloop(void)
+GMainLoop* ms_get_thumb_thread_mainloop(void)
 {
 	return g_thumb_agent_loop;
 }
@@ -159,7 +158,7 @@ bool _ms_thumb_check_process()
 
 	pdir = opendir("/proc");
 	if (pdir == NULL) {
-		MS_DBG_ERR("err: NO_DIR\n");
+		MS_DBG_ERR("err: NO_DIR");
 		return 0;
 	}
 
@@ -195,8 +194,8 @@ bool _ms_thumb_check_process()
 
 	return ret;
 }
-int
-_ms_thumb_create_socket(int sock_type, int *sock)
+
+int _ms_thumb_create_socket(int sock_type, int *sock)
 {
 	int sock_fd = 0;
 
@@ -207,7 +206,7 @@ _ms_thumb_create_socket(int sock_type, int *sock)
 #else
 	if ((sock_fd = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0) {
 #endif
-		MS_DBG_ERR("socket failed: %s", strerror(errno));
+		MS_DBG_STRERROR("socket failed");
 		return MS_MEDIA_ERR_SOCKET_CONN;
 	}
 
@@ -216,7 +215,7 @@ _ms_thumb_create_socket(int sock_type, int *sock)
 		struct timeval tv_timeout = { MS_TIMEOUT_SEC_10, 0 };
 
 		if (setsockopt(sock_fd, SOL_SOCKET, SO_RCVTIMEO, &tv_timeout, sizeof(tv_timeout)) == -1) {
-			MS_DBG_ERR("setsockopt failed: %s", strerror(errno));
+			MS_DBG_STRERROR("setsockopt failed");
 			close(sock_fd);
 			return MS_MEDIA_ERR_SOCKET_INTERNAL;
 		}
@@ -225,7 +224,7 @@ _ms_thumb_create_socket(int sock_type, int *sock)
 		int n_reuse = 1;
 
 		if (setsockopt(sock_fd, SOL_SOCKET, SO_REUSEADDR, &n_reuse, sizeof(n_reuse)) == -1) {
-			MS_DBG_ERR("setsockopt failed: %s", strerror(errno));
+			MS_DBG_STRERROR("setsockopt failed: %s");
 			close(sock_fd);
 			return MS_MEDIA_ERR_SOCKET_INTERNAL;
 		}
@@ -237,8 +236,7 @@ _ms_thumb_create_socket(int sock_type, int *sock)
 }
 
 
-int
-_ms_thumb_create_udp_socket(int *sock)
+int _ms_thumb_create_udp_socket(int *sock)
 {
 	int sock_fd = 0;
 
@@ -247,14 +245,14 @@ _ms_thumb_create_udp_socket(int *sock)
 #else
 	if ((sock_fd = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0) {
 #endif
-		MS_DBG_ERR("socket failed: %s", strerror(errno));
+		MS_DBG_STRERROR("socket failed");
 		return MS_MEDIA_ERR_SOCKET_CONN;
 	}
 
 	struct timeval tv_timeout = { MS_TIMEOUT_SEC_10, 0 };
 
 	if (setsockopt(sock_fd, SOL_SOCKET, SO_RCVTIMEO, &tv_timeout, sizeof(tv_timeout)) == -1) {
-		MS_DBG_ERR("setsockopt failed: %s", strerror(errno));
+		MS_DBG_STRERROR("setsockopt failed");
 		close(sock_fd);
 		return MS_MEDIA_ERR_SOCKET_INTERNAL;
 	}
@@ -275,13 +273,12 @@ int _media_thumb_get_error()
 
 		return MS_MEDIA_ERR_SOCKET_RECEIVE_TIMEOUT;
 	} else {
-		MS_DBG_ERR("recvfrom failed : %s", strerror(errno));
+		MS_DBG_STRERROR("recvfrom failed");
 		return MS_MEDIA_ERR_SOCKET_RECEIVE;
 	}
 }
 
-int
-_ms_thumb_recv_msg(int sock, int header_size, thumbMsg *msg)
+int _ms_thumb_recv_msg(int sock, int header_size, thumbMsg *msg)
 {
 	int recv_msg_len = 0;
 	unsigned char *buf = NULL;
@@ -289,12 +286,12 @@ _ms_thumb_recv_msg(int sock, int header_size, thumbMsg *msg)
 	buf = (unsigned char*)malloc(header_size);
 
 	if ((recv_msg_len = recv(sock, buf, header_size, 0)) < 0) {
-		MS_DBG_ERR("recv failed : %s", strerror(errno));
+		MS_DBG_STRERROR("recv failed");
 		MS_SAFE_FREE(buf);
 		return _media_thumb_get_error();
 	}
-
 	memcpy(msg, buf, header_size);
+
 	//MS_DBG("origin_path_size : %d, dest_path_size : %d", msg->origin_path_size, msg->dest_path_size);
 
 	MS_SAFE_FREE(buf);
@@ -308,13 +305,11 @@ _ms_thumb_recv_msg(int sock, int header_size, thumbMsg *msg)
 	buf = (unsigned char*)malloc(msg->origin_path_size);
 
 	if ((recv_msg_len = recv(sock, buf, msg->origin_path_size, 0)) < 0) {
-		MS_DBG_ERR("recv failed : %s", strerror(errno));
+		MS_DBG_STRERROR("recv failed");
 		MS_SAFE_FREE(buf);
 		return _media_thumb_get_error();
 	}
-
 	strncpy(msg->org_path, (char*)buf, msg->origin_path_size);
-	//MS_DBG("original path : %s", msg->org_path);
 
 	MS_SAFE_FREE(buf);
 
@@ -336,6 +331,7 @@ _ms_thumb_recv_msg(int sock, int header_size, thumbMsg *msg)
 	//MS_DBG("destination path : %s", msg->dst_path);
 
 	MS_SAFE_FREE(buf);
+
 	return MS_MEDIA_ERR_NONE;
 }
 
@@ -356,10 +352,10 @@ _ms_thumb_recv_udp_msg(int sock, int header_size, thumbMsg *msg, struct sockaddr
 	unsigned char *buf = NULL;
 
 	buf = (unsigned char*)malloc(sizeof(thumbMsg));
-	
+
 	recv_msg_len = ms_ipc_wait_message(sock, buf, sizeof(thumbMsg), from_addr, &from_addr_size, TRUE);
 	if (recv_msg_len != MS_MEDIA_ERR_NONE) {
-		MS_DBG_ERR("ms_ipc_wait_message failed : %s", strerror(errno));
+		MS_DBG_STRERROR("ms_ipc_wait_message failed");
 		MS_SAFE_FREE(buf);
 		return _media_thumb_get_error();
 	}
@@ -373,8 +369,7 @@ _ms_thumb_recv_udp_msg(int sock, int header_size, thumbMsg *msg, struct sockaddr
 		return MS_MEDIA_ERR_DATA_TAINTED;
 	}
 
-	strncpy(msg->org_path, (char*)buf + header_size, msg->origin_path_size);
-	//MS_DBG("original path : %s", msg->org_path);
+	strncpy(msg->org_path, (char *)buf + header_size, msg->origin_path_size);
 
 	if (msg->dest_path_size <= 0  || msg->dest_path_size > MS_FILE_PATH_LEN_MAX) {
 		MS_SAFE_FREE(buf);
@@ -383,7 +378,6 @@ _ms_thumb_recv_udp_msg(int sock, int header_size, thumbMsg *msg, struct sockaddr
 	}
 
 	strncpy(msg->dst_path, (char*)buf + header_size + msg->origin_path_size, msg->dest_path_size);
-	//MS_DBG("destination path : %s", msg->dst_path);
 
 	MS_SAFE_FREE(buf);
 	*from_size = from_addr_size;
@@ -391,8 +385,7 @@ _ms_thumb_recv_udp_msg(int sock, int header_size, thumbMsg *msg, struct sockaddr
 	return MS_MEDIA_ERR_NONE;
 }
 
-int
-_ms_thumb_set_buffer(thumbMsg *req_msg, unsigned char **buf, int *buf_size)
+int _ms_thumb_set_buffer(thumbMsg *req_msg, unsigned char **buf, int *buf_size)
 {
 	if (req_msg == NULL || buf == NULL) {
 		return -1;
@@ -445,7 +438,7 @@ gboolean _ms_thumb_agent_recv_msg_from_server()
 
 	recv_msg_size = ms_ipc_receive_message(g_communicate_sock, & recv_msg, sizeof(ms_thumb_server_msg),  NULL, NULL, NULL);
 	if (recv_msg_size != MS_MEDIA_ERR_NONE) {
-		MS_DBG_ERR("ms_ipc_receive_message failed : %s\n", strerror(errno));
+		MS_DBG_STRERROR("ms_ipc_receive_message failed");
 		return FALSE;
 	}
 
@@ -472,7 +465,7 @@ gboolean _ms_thumb_agent_recv_thumb_done_from_server(GIOChannel *src, GIOConditi
 
 	recv_msg_size = ms_ipc_receive_message(sockfd, &recv_msg, sizeof(ms_thumb_server_msg), NULL, NULL, NULL);
 	if (recv_msg_size != MS_MEDIA_ERR_NONE) {
-		MS_DBG_ERR("ms_ipc_receive_message failed : %s\n", strerror(errno));
+		MS_DBG_STRERROR("ms_ipc_receive_message failed");
 		return FALSE;
 	}
 
@@ -500,12 +493,7 @@ gboolean _ms_thumb_agent_execute_server()
 		MS_DBG("Child process is %d", pid);
 		g_folk_thumb_server = TRUE;
 	}
-#if 0
-	GSource *child_watch_src =  g_child_watch_source_new(pid);
-	g_source_set_callback(child_watch_src, _ms_thumb_agent_child_handler, GINT_TO_POINTER(pid), NULL);
-	g_source_attach(child_watch_src, g_main_context_get_thread_default());
-#endif
-	//g_child_watch_add(pid, _ms_thumb_agent_child_handler, NULL);
+
 	g_server_pid = pid;
 
 	if (!_ms_thumb_agent_recv_msg_from_server()) {
@@ -567,14 +555,14 @@ gboolean _ms_thumb_agent_send_msg_to_thumb_server(thumbMsg *recv_msg, thumbMsg *
 
 	//MS_DBG("buffer size : %d", buf_size);
 	if (sendto(sock, buf, buf_size, 0, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) != buf_size) {
-		MS_DBG_ERR("sendto failed: %s\n", strerror(errno));
+		MS_DBG_STRERROR("sendto failed");
 		MS_SAFE_FREE(buf);
 		close(sock);
 		return FALSE;
 	}
 
 	MS_SAFE_FREE(buf);
-	MS_DBG("Sending msg to thumbnail server is successful");
+	MS_DBG_SLOG("Sending msg to thumbnail server is successful");
 
 #ifdef _USE_UDS_SOCKET_
 	struct sockaddr_un client_addr;
@@ -1041,7 +1029,7 @@ gboolean _ms_thumb_agent_read_socket(GIOChannel *src,
 		if (send(client_sock, buf, buf_size, 0) != buf_size) {
 			MS_DBG_ERR("sendto failed : %s", strerror(errno));
 		} else {
-			MS_DBG("Sent Refuse msg from %s \n", recv_msg->org_path);
+			MS_DBG("Sent Refuse msg from %s", recv_msg->org_path);
 		}
 
 		close(client_sock);
@@ -1052,7 +1040,7 @@ gboolean _ms_thumb_agent_read_socket(GIOChannel *src,
 		return TRUE;
 	}
 
-	MS_DBG("%s is queued", recv_msg->org_path);
+	MS_DBG_SLOG("%s is queued", recv_msg->org_path);
 	g_queue_push_tail(g_request_queue, (gpointer)thumb_req);
 
 	if (!g_queue_work) {
@@ -1067,7 +1055,6 @@ gboolean _ms_thumb_agent_read_socket(GIOChannel *src,
 	return TRUE;
 }
 #endif
-
 
 gboolean _ms_thumb_agent_prepare_tcp_socket(int *sock_fd)
 {
@@ -1186,13 +1173,13 @@ gpointer ms_thumb_agent_start_thread(gpointer data)
 	MS_DBG("");
 	int sockfd = -1;
 
-    GSource *source = NULL;
+	GSource *source = NULL;
 	GIOChannel *channel = NULL;
 	GMainContext *context = NULL;
 
 	/* Create and bind new TCP socket */
 	if (!_ms_thumb_agent_prepare_tcp_socket(&sockfd)) {
-		MS_DBG_ERR("Failed to create socket\n");
+		MS_DBG_ERR("Failed to create socket");
 		return NULL;
 	}
 
@@ -1214,7 +1201,6 @@ gpointer ms_thumb_agent_start_thread(gpointer data)
 	/* Set callback to be called when socket is readable */
 	g_source_set_callback(source, (GSourceFunc)_ms_thumb_agent_read_socket, NULL, NULL);
 	g_source_attach(source, context);
-
 
 	MS_DBG("************************************");
 	MS_DBG("*** Thumbnail Agent thread is running ***");
