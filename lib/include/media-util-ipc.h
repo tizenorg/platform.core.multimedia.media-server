@@ -34,16 +34,7 @@
 extern "C" {
 #endif
 
-#ifdef _USE_UDS_SOCKET_
 #include <sys/un.h>
-#else
-#include <sys/socket.h>
-#endif
-
-#ifdef _USE_UDS_SOCKET_TCP_
-#include <sys/un.h>
-#endif
-
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
@@ -56,29 +47,12 @@ typedef enum {
 	MS_PROTOCOL_TCP
 } ms_protocol_e;
 
-#ifdef _USE_UDS_SOCKET_
 int ms_ipc_create_client_socket(ms_protocol_e protocol, int timeout_sec, int *sock_fd, int port);
-#else
-int ms_ipc_create_client_socket(ms_protocol_e protocol, int timeout_sec, int *sock_fd);
-#endif
-
-#ifdef _USE_UDS_SOCKET_TCP_
-int ms_ipc_create_client_tcp_socket(ms_protocol_e protocol, int timeout_sec, int *sock_fd, int port);
-int ms_ipc_create_server_tcp_socket(ms_protocol_e protocol, int port, int *sock_fd);
-#endif
-
 int ms_ipc_create_server_socket(ms_protocol_e protocol, int port, int *sock_fd);
-#ifdef _USE_UDS_SOCKET_
 int ms_ipc_send_msg_to_server(int sockfd, int port, ms_comm_msg_s *send_msg, struct sockaddr_un *serv_addr);
 int ms_ipc_send_msg_to_client(int sockfd, ms_comm_msg_s *send_msg, struct sockaddr_un *client_addr);
 int ms_ipc_receive_message(int sockfd, void *recv_msg, unsigned int msg_size, struct sockaddr_un *client_addr, unsigned int *size, int *recv_socket);
 int ms_ipc_wait_message(int sockfd, void  *recv_msg, unsigned int msg_size, struct sockaddr_un *recv_addr, unsigned int *size, int connected);
-#else
-int ms_ipc_send_msg_to_server(int sockfd, int port, ms_comm_msg_s *send_msg, struct sockaddr_in *serv_addr);
-int ms_ipc_send_msg_to_client(int sockfd, ms_comm_msg_s *send_msg, struct sockaddr_in *client_addr);
-int ms_ipc_receive_message(int sockfd, void *recv_msg, unsigned int msg_size, struct sockaddr_in *client_addr, unsigned int *size);
-int ms_ipc_wait_message(int sockfd, void  *recv_msg, unsigned int msg_size, struct sockaddr_in *recv_addr, unsigned int *size);
-#endif
 
 #ifdef __cplusplus
 }

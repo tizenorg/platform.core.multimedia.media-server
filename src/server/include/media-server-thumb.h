@@ -20,11 +20,7 @@
  */
 
 #include <glib.h>
-#ifdef _USE_UDS_SOCKET_
 #include <sys/un.h>
-#else
-#include <sys/socket.h>
-#endif
 #include <arpa/inet.h>
 #include "media-common-types.h"
 #include "media-server-ipc.h"
@@ -58,13 +54,8 @@ _ms_thumb_agent_prepare_udp_socket();
 int
 _ms_thumb_recv_msg(int sock, int header_size, thumbMsg *msg);
 
-#ifdef _USE_UDS_SOCKET_
 int
 _ms_thumb_recv_udp_msg(int sock, int header_size, thumbMsg *msg, struct sockaddr_un *from_addr, unsigned int *from_size);
-#else
-int
-_ms_thumb_recv_udp_msg(int sock, int header_size, thumbMsg *msg, struct sockaddr_in *from_addr, unsigned int *from_size);
-#endif
 
 int
 _ms_thumb_set_buffer(thumbMsg *req_msg, unsigned char **buf, int *buf_size);
