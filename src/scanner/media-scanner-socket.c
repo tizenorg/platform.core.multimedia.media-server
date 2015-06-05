@@ -155,7 +155,7 @@ int msc_send_register_result(int result, ms_comm_msg_s *reg_data)
 	if (ret != MS_MEDIA_ERR_NONE)
 		return MS_MEDIA_ERR_SOCKET_CONN;
 
-	/* send ready message */
+	/* send result message */
 	memset(&send_msg, 0x0, sizeof(ms_comm_msg_s));
 	send_msg.msg_type = MS_MSG_SCANNER_BULK_RESULT;
 	send_msg.pid = reg_data->pid;

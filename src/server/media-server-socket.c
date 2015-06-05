@@ -341,7 +341,7 @@ int ms_send_storage_scan_request(ms_storage_type_t storage_type, ms_dir_scan_typ
 		.msg_size = 0,
 		.msg = {0},
 	};
-	
+
 	/* msg_type */
 	switch (scan_type) {
 		case MS_SCAN_PART:
@@ -425,7 +425,6 @@ gboolean ms_read_db_socket(GIOChannel *src, GIOCondition condition, gpointer dat
 
 	ret = ms_ipc_receive_message(sockfd, &recv_msg, sizeof(recv_msg), &client_addr, NULL, &client_sock);
 	if (ret != MS_MEDIA_ERR_NONE) {
-		MS_DBG_ERR("ms_ipc_receive_message failed");
 		return TRUE;
 	}
 
