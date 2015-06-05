@@ -30,68 +30,55 @@
 #ifndef _MEDIA_UTIL_ERR_H_
 #define _MEDIA_UTIL_ERR_H_
 
-#define MS_MEDIA_ERR_NONE 						0
+#define MS_MEDIA_ERR_NONE 0
 
-/* Internal operation error*/
-#define MS_MEDIA_ERR_INTERNAL 		 			-1
-#define MS_MEDIA_ERR_INVALID_PARAMETER 			-2  /* Invalid parameter(s) */
-#define MS_MEDIA_ERR_INVALID_PATH 				-3  /* Invalid path */
-#define MS_MEDIA_ERR_OUT_OF_MEMORY				-4  /* Out of memory */
+/*internal operation error*/
+#define MS_MEDIA_ERR_INTERNAL 				-1
+#define MS_MEDIA_ERR_INVALID_CONTENT 		-2   /**< Invalid content */
+#define MS_MEDIA_ERR_INVALID_PARAMETER 		-3   /**< invalid parameter(s) */
+#define MS_MEDIA_ERR_INVALID_PATH 			-4   /**< Invalid path */
+#define MS_MEDIA_ERR_ALLOCATE_MEMORY_FAIL 	-5   /**< exception of memory allocation */
+#define MS_MEDIA_ERR_DIR_OPEN_FAIL 			-6   /**< exception of dir open*/
+#define MS_MEDIA_ERR_FILE_OPEN_FAIL 			-7   /**< exception of file doesn't exist*/
 
-/* DB operation error*/
-#define MS_MEDIA_ERR_DB_CONNECT_FAIL	 			-101  /* connecting database fails */
-#define MS_MEDIA_ERR_DB_DISCONNECT_FAIL 			-102  /* disconnecting database fails */
-#define MS_MEDIA_ERR_DB_INSERT_FAIL 				-103  /* inserting record fails */
-#define MS_MEDIA_ERR_DB_DELETE_FAIL 				-104  /* deleting record fails */
-#define MS_MEDIA_ERR_DB_UPDATE_FAIL 				-105  /* updating record fails */
-#define MS_MEDIA_ERR_DB_BUSY_FAIL 					-106  /* DB Busy */
-#define MS_MEDIA_ERR_DB_SERVER_BUSY_FAIL			-107  /* DB Server Busy */
-#define MS_MEDIA_ERR_DB_CONSTRAINT_FAIL 			-108  /* DB CONSTRAINT fails - In case of insert, the record already exists */
-#define MS_MEDIA_ERR_DB_BATCH_UPDATE_BUSY		-109  /* Batch update thread is full */
-#define MS_MEDIA_ERR_DB_NO_RECORD				-110  /* Item not found in DB */
-#define MS_MEDIA_ERR_DB_CORRUPT					-112  /* DB corrut error */
-#define MS_MEDIA_ERR_DB_PERMISSION  				-113  /* DB permission error */
-#define MS_MEDIA_ERR_DB_FULL_FAIL					-114  /* DB storage full error */
-#define MS_MEDIA_ERR_DB_INTERNAL					-150  /* DB internal error */
+/*DB operation error*/
+#define MS_MEDIA_ERR_DB_CONNECT_FAIL 		-11  /**< connecting database fails */
+#define MS_MEDIA_ERR_DB_DISCONNECT_FAIL 		-12  /**< disconnecting database fails */
+#define MS_MEDIA_ERR_DB_INSERT_FAIL 			-13  /**< inserting record fails */
+#define MS_MEDIA_ERR_DB_DELETE_FAIL 			-14  /**< deleting record fails */
+#define MS_MEDIA_ERR_DB_UPDATE_FAIL 			-15  /**< updating record fails */
+#define MS_MEDIA_ERR_DB_EXIST_ITEM_FAIL 		-16  /**< item does not exist */
+#define MS_MEDIA_ERR_DB_BUSY_FAIL 			-17  /**< DB Busy */
 
-/* IPC operation error*/
-#define MS_MEDIA_ERR_SOCKET_CONN					-201  /* socket connect error */
-#define MS_MEDIA_ERR_SOCKET_BIND					-202  /* socket binding fails */
-#define MS_MEDIA_ERR_SOCKET_SEND					-203  /* socket sending fails */
-#define MS_MEDIA_ERR_SOCKET_RECEIVE				-204  /* socket receiving fails */
-#define MS_MEDIA_ERR_SOCKET_RECEIVE_TIMEOUT		-205  /* socket receive timeout error */
-#define MS_MEDIA_ERR_SOCKET_ACCEPT				-206  /* socket accept fails */
-#define MS_MEDIA_ERR_SOCKET_INTERNAL				-250  /* receive error from socket API */
+/*DRM operation error*/
+#define MS_MEDIA_ERR_DRM_REGISTER_FAIL 		-21  /**< interting into drm db fails */
+#define MS_MEDIA_ERR_DRM_GET_INFO_FAIL 		-22  /**< getting inforamtion fails from DRM content */
 
-/* DIRECTORY error*/
-#define MS_MEDIA_ERR_DIR_OPEN_FAIL 				-501  /* direcotry opennig fails */
-#define MS_MEDIA_ERR_DIR_CLOSE_FAIL				-502  /* directory closing fails */
-#define MS_MEDIA_ERR_DIR_READ_FAIL 				-503  /* directory reading fails */
+/*IPC operation error*/
+#define MS_MEDIA_ERR_SOCKET_INTERNAL			-31  /**< receive error from socket API */
+#define MS_MEDIA_ERR_SOCKET_CONN				-32  /**< socket connect error */
+#define MS_MEDIA_ERR_SOCKET_BIND				-33  /**< socket binding fails */
+#define MS_MEDIA_ERR_SOCKET_SEND				-34  /**< socket sending fails */
+#define MS_MEDIA_ERR_SOCKET_RECEIVE			-35  /**< socket receiving fails */
+#define MS_MEDIA_ERR_SOCKET_RECEIVE_TIMEOUT	-36  /**< socket receive timeout error */
+#define MS_MEDIA_ERR_DBUS_ADD_FILTER			-37  /**< DBUS add filter fails*/
+#define MS_MEDIA_ERR_DBUS_GET					-38  /**< DBUS get fails */
+#define MS_MEDIA_ERR_DATA_TAINTED				-39  /**< received data is tainted */
+#define MS_MEDIA_ERR_SEND_NOTI_FAIL			-40  /**< sending notification is failed */
 
-/* FILE error*/
-#define MS_MEDIA_ERR_FILE_OPEN_FAIL 				-601  /* file opennig fails */
-#define MS_MEDIA_ERR_FILE_CLOSE_FAIL 				-602  /* file closing fails */
-#define MS_MEDIA_ERR_FILE_READ_FAIL 				-603  /* file reading fails */
-#define MS_MEDIA_ERR_FILE_WRITE_FAIL 				-604  /* file writing fails */
-#define MS_MEDIA_ERR_FILE_NOT_EXIST 				-605  /* file does not exist */
-
-/* MEDIA SERVER error*/
-#define MS_MEDIA_ERR_SCANNER_FORCE_STOP			-701  /* scanning is stopped forcely */
-#define MS_MEDIA_ERR_PERMISSION_DENIED			-702  /* Do have permission of request */
-
-/* Thumbnail error*/
-#define MS_MEDIA_ERR_THUMB_TOO_BIG				-801  /* Original is too big to make thumb */
-#define MS_MEDIA_ERR_THUMB_DUPLICATED_REQUEST	-802  /* Duplicated request of same path */
+/* SERVER error*/
+#define MS_MEDIA_ERR_NOW_REGISTER_FILE		-41  /**< already inserting into DB */
+#define MS_MEDIA_ERR_SCANNING_BUSY			-42  /**< already directory scanning is running */
+#define MS_MEDIA_ERR_DB_SERVER_BUSY_FAIL	-43  /**< DB server busy */
+#define MS_MEDIA_ERR_SCANNER_FORCE_STOP		-44  /**< scanning is stopped forcely */
 
 /*ETC*/
-#define MS_MEDIA_ERR_VCONF_SET_FAIL				-901  /* vconf setting fails*/
-#define MS_MEDIA_ERR_VCONF_GET_FAIL				-902  /* vconf getting fails*/
-#define MS_MEDIA_ERR_SCANNER_NOT_READY			-903  /* scanner is not ready */
-#define MS_MEDIA_ERR_DYNAMIC_LINK				-904  /* fail to dynamic link */
-#define MS_MEDIA_ERR_INVALID_IPC_MESSAGE			-905  /* received message is not valid */
-#define MS_MEDIA_ERR_DATA_TAINTED				-906  /* received data is tainted */
-#define MS_MEDIA_ERR_SEND_NOTI_FAIL				-907  /* sending notification is failed */
+#define MS_MEDIA_ERR_VCONF_SET_FAIL			-51  /**< vconf set fail*/
+#define MS_MEDIA_ERR_VCONF_GET_FAIL			-52  /**< vconf get fail*/
+#define MS_MEDIA_ERR_MIME_GET_FAIL			-53  /**< not media file*/
+#define MS_MEDIA_ERR_SCANNER_NOT_READY		-54  /**< not media file*/
+#define MS_MEDIA_ERR_DYNAMIC_LINK			-55
 
-#define MS_MEDIA_ERR_MAX							-999
+#define MS_MEDIA_ERR_MAX						-999 /**< not media file*/
 
 #endif /*_MEDIA_UTIL_ERR_H_*/
