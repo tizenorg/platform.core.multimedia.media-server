@@ -67,7 +67,7 @@ bool check_process()
 
 	pdir = opendir("/proc");
 	if (pdir == NULL) {
-		MS_DBG_ERR("err: NO_DIR");
+		MS_DBG_ERR("err: NO_DIR\n");
 		return 0;
 	}
 
@@ -116,7 +116,9 @@ void init_process()
 
 static void _power_off_cb(void* data)
 {
-	MS_DBG_ERR("POWER OFF");
+	MS_DBG("++++++++++++++++++++++++++++++++++++++");
+	MS_DBG("POWER OFF");
+	MS_DBG("++++++++++++++++++++++++++++++++++++++");
 
 	/*Quit Thumbnail Thread*/
 	GMainLoop *thumb_mainloop = ms_get_thumb_thread_mainloop();
@@ -350,7 +352,9 @@ int main(int argc, char **argv)
 	sigset.sa_handler = _ms_signal_handler;
 
 	if (sigaction(SIGCHLD, &sigset, NULL) < 0) {
-		MS_DBG_STRERROR("sigaction failed");
+		MS_DBG_ERR("sigaction failed [%s]", strerror(errno));
+	} else {
+		MS_DBG("handler ok");
 	}
 
 	/*clear previous data of sdcard on media database and check db status for updating*/

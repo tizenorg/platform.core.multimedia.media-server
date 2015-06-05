@@ -34,6 +34,7 @@
 #define MS_TIMEOUT_SEC_10					10		/**< Response from Server time out */
 #define MS_TIMEOUT_SEC_20			20		/**< Response from Media server time out */
 
+#ifdef _USE_UDS_SOCKET_
 typedef enum{
 	MS_DB_BATCH_UPDATE_PORT = 0,	/**< Media DB batch update */
 	MS_SCAN_DAEMON_PORT,		/**< Port of communication between scanner and server */
@@ -45,9 +46,26 @@ typedef enum{
 	MS_THUMB_DAEMON_PORT, 	/**< Port of Thumbnail server */
 	MS_PORT_MAX,
 }ms_msg_port_type_e;
+#else
+#define MS_SCANNER_PORT			1001		/**< Directory Scanner */
+#define MS_DB_UPDATE_PORT			1002		/**< Media DB Update */
+#define MS_THUMB_CREATOR_PORT	1003		/**< Create thumbnail */
+#define MS_THUMB_DAEMON_PORT 	1004		/**< Port of Thumbnail server */
+#define MS_THUMB_COMM_PORT 		1005		/**< Port of communication between creator and server */
+#define MS_DB_BATCH_UPDATE_PORT		1006	/**< Media DB batch update */
+#define MS_SCAN_DAEMON_PORT 	       1007		/**< Port of communication between scanner and server */
+#define MS_SCAN_COMM_PORT		       1008		/**< Port of communication between scanner and server */
+#endif
 
-#define MAX_MSG_SIZE				4096*2
-#define MAX_FILEPATH_LEN			4096
+#ifdef _USE_UDS_SOCKET_TCP_
+typedef enum{
+	MS_DB_BATCH_UPDATE_TCP_PORT = 0,	/**< Media DB batch update */
+	MS_THUMB_CREATOR_TCP_PORT,	/**< Create thumbnail */
+	MS_PORT_MAX,
+}ms_msg_port_type_e;
+#endif
+
+#define MAX_MSG_SIZE				4096
 
 typedef enum{
 	MS_MSG_DB_UPDATE = 0,		/**< Media DB Update */
@@ -68,12 +86,6 @@ typedef enum{
 	MS_MSG_SCANNER_BULK_RESULT,			/**< Request bulk insert */
 	MS_MSG_MAX							/**< Invalid msg type */
 }ms_msg_type_e;
-
-typedef struct
-{
-	int sock_fd;
-	char *sock_path;
-}ms_sock_info_s;
 
 typedef struct
 {
@@ -101,7 +113,7 @@ typedef struct {
 
 typedef struct _thumbMsg{
 	int msg_type;
-	int request_id;
+	int thumb_type;
 	int status;
 	int pid;
 	uid_t uid;
@@ -112,14 +124,9 @@ typedef struct _thumbMsg{
 	int origin_height;
 	int origin_path_size;
 	int dest_path_size;
-	unsigned char *thumb_data;
-	char org_path[MAX_FILEPATH_LEN];
-	char dst_path[MAX_FILEPATH_LEN];
+	char org_path[MAX_MSG_SIZE];
+	char dst_path[MAX_MSG_SIZE];
 } thumbMsg;
 
-typedef struct _thumbRawAddMsg{
-	int thumb_size;
-	unsigned char *thumb_data;
-} thumbRawAddMsg;
 
 #endif /*_MEDIA_SERVER_IPC_H_*/

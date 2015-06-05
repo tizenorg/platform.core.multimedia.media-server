@@ -252,7 +252,6 @@ ms_config_get_str(const char *key, char *value)
 	res = vconf_get_str(key);
 	if (res) {
 		strncpy(value, res, strlen(res) + 1);
-		free(res);
 		return true;
 	}
 

@@ -105,6 +105,7 @@ _msc_token_data(char *buf, char **name)
 	} else {
 		len = pos - buf + EXT_LEN;
 		*name = strndup(buf, len);
+		MSC_DBG_INFO("%s", *name);
 	}
 
 	return 0;
@@ -173,14 +174,14 @@ msc_load_functions(void)
 	_msc_load_config();
 
 	if(so_array->len == 0) {
-		MSC_DBG_ERR("There is no information for functions");
+		MSC_DBG_INFO("There is no information for functions");
 		return MS_MEDIA_ERR_DYNAMIC_LINK;
 	}
 
 	/*the number of functions*/
 	lib_num = so_array->len;
 
-	MSC_DBG_SLOG("The number of information of so : %d", lib_num);
+	MSC_DBG_INFO("The number of information of so : %d", lib_num);
 	MS_MALLOC(scan_func_handle, sizeof(void*) * lib_num);
 	if (scan_func_handle == NULL) {
 		MSC_DBG_ERR("malloc failed");
@@ -189,7 +190,7 @@ msc_load_functions(void)
 
 	while(lib_index < lib_num) {
 		/*get handle*/
-		MSC_DBG_SLOG("[name of so : %s]", g_array_index(so_array, char*, lib_index));
+		MSC_DBG_INFO("[name of so : %s]", g_array_index(so_array, char*, lib_index));
 		scan_func_handle[lib_index] = dlopen(g_array_index(so_array, char*, lib_index), RTLD_LAZY);
 		if (!scan_func_handle[lib_index]) {
 			MSC_DBG_ERR("%s", dlerror());
@@ -202,7 +203,7 @@ msc_load_functions(void)
 	dlerror();    /* Clear any existing error */
 
 	/*allocate for array of functions*/
-	MS_MALLOC(func_array, sizeof(void**) * lib_num);
+	MS_MALLOC(func_array, sizeof(void*) * lib_num);
 	if (func_array == NULL) {
 		MSC_DBG_ERR("malloc failed");
 		MS_SAFE_FREE(scan_func_handle);
@@ -238,7 +239,7 @@ msc_load_functions(void)
 				MS_SAFE_FREE(func_array);
 				MS_SAFE_FREE(scan_func_handle);
 
-				MSC_DBG_ERR("dlsym failed [%s]", func_list[func_index]);
+				MSC_DBG_ERR("dlsym failed");
 				return MS_MEDIA_ERR_DYNAMIC_LINK;
 			}
 		}

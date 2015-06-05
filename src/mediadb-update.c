@@ -114,7 +114,7 @@ check_result check_path(char *path)
 			return NOT_OK;
 		}
 	} else {
-		printf("stat error");
+		printf("stat error : %s", strerror(errno));
 	}
 
 	return NOT_OK;

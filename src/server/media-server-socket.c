@@ -32,7 +32,11 @@
  
 #include <arpa/inet.h>
 #include <sys/types.h>
+#ifdef _USE_UDS_SOCKET_
 #include <sys/un.h>
+#else
+#include <sys/socket.h>
+#endif
 #include <errno.h>
 #include <malloc.h>
 #include <vconf.h>
@@ -56,12 +60,19 @@ typedef struct ms_req_owner_data
 {
 	int pid;
 	int index;
+#ifdef _USE_UDS_SOCKET_
 	struct sockaddr_un *client_addr;
 	int client_socket;
+#else
+	struct sockaddr_in *client_addr;
+#endif
 }ms_req_owner_data;
 
 int _ms_add_owner(ms_req_owner_data *owner_data)
 {
+//	MS_DBG("the length of array : %d", owner_list->len);
+//	MS_DBG("pid : %d", owner_data->pid);
+//	MS_DBG("client_addr : %p", owner_data->client_addr);
 
 	owner_data->index = -1;
 	g_array_append_val(owner_list, owner_data);
@@ -108,7 +119,11 @@ int _ms_delete_owner(ms_req_owner_data *owner_data)
 
 gboolean ms_read_socket(GIOChannel *src, GIOCondition condition, gpointer data)
 {
+#ifdef _USE_UDS_SOCKET_
 	struct sockaddr_un *client_addr = NULL;
+#else
+	struct sockaddr_in *client_addr = NULL;
+#endif
 	socklen_t client_addr_len;
 	ms_comm_msg_s recv_msg;
 	ms_comm_msg_s scan_msg;
@@ -130,13 +145,21 @@ gboolean ms_read_socket(GIOChannel *src, GIOCondition condition, gpointer data)
 	}
 
 	/* Socket is readable */
+#ifdef _USE_UDS_SOCKET_
 	MS_MALLOC(client_addr, sizeof(struct sockaddr_un));
+#else
+	MS_MALLOC(client_addr, sizeof(struct sockaddr_in));
+#endif
 	if (client_addr == NULL) {
 		MS_DBG_ERR("malloc failed");
 		g_mutex_unlock(scanner_mutex);
 		return TRUE;
 	}
+#ifdef _USE_UDS_SOCKET_
 	client_addr_len = sizeof(struct sockaddr_un);
+#else
+	client_addr_len = sizeof(struct sockaddr_in);
+#endif
 	ret = ms_ipc_receive_message(sockfd, &recv_msg, sizeof(recv_msg), client_addr, NULL, &client_sock);
 	if (ret != MS_MEDIA_ERR_NONE) {
 		MS_DBG_ERR("ms_ipc_receive_message failed");
@@ -291,8 +314,11 @@ int ms_send_scan_request(ms_comm_msg_s *send_msg)
 	int sockfd = -1;
 
 	/*Create Socket*/
+#ifdef _USE_UDS_SOCKET_
 	ret = ms_ipc_create_client_socket(MS_PROTOCOL_UDP, 0, &sockfd, MS_SCAN_DAEMON_PORT);
-
+#else
+	ret = ms_ipc_create_client_socket(MS_PROTOCOL_UDP, 0, &sockfd);
+#endif
 	if (ret != MS_MEDIA_ERR_NONE)
 		return MS_MEDIA_ERR_SOCKET_CONN;
 
@@ -315,7 +341,7 @@ int ms_send_storage_scan_request(ms_storage_type_t storage_type, ms_dir_scan_typ
 		.msg_size = 0,
 		.msg = {0},
 	};
-
+	
 	/* msg_type */
 	switch (scan_type) {
 		case MS_SCAN_PART:
@@ -374,7 +400,12 @@ ERROR:
 
 gboolean ms_read_db_socket(GIOChannel *src, GIOCondition condition, gpointer data)
 {
+#ifdef _USE_UDS_SOCKET_
 	struct sockaddr_un client_addr;
+#else
+	struct sockaddr_in client_addr;
+#endif
+
 	ms_comm_msg_s recv_msg;
 	int send_msg = MS_MEDIA_ERR_NONE;
 	int sockfd = MS_SOCK_NOT_ALLOCATE;
@@ -394,6 +425,7 @@ gboolean ms_read_db_socket(GIOChannel *src, GIOCondition condition, gpointer dat
 
 	ret = ms_ipc_receive_message(sockfd, &recv_msg, sizeof(recv_msg), &client_addr, NULL, &client_sock);
 	if (ret != MS_MEDIA_ERR_NONE) {
+		MS_DBG_ERR("ms_ipc_receive_message failed");
 		return TRUE;
 	}
 
@@ -435,7 +467,13 @@ gboolean ms_read_db_socket(GIOChannel *src, GIOCondition condition, gpointer dat
 
 gboolean ms_read_db_tcp_socket(GIOChannel *src, GIOCondition condition, gpointer data)
 {
+#ifdef _USE_UDS_SOCKET_
 	struct sockaddr_un client_addr;
+#elif defined(_USE_UDS_SOCKET_TCP_)
+	struct sockaddr_un client_addr;
+#else
+	struct sockaddr_in client_addr;
+#endif
 	unsigned int client_addr_len;
 
 	ms_comm_msg_s recv_msg;

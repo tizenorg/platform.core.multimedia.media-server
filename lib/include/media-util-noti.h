@@ -34,8 +34,6 @@
 extern "C" {
 #endif
 
-#include "media-util-noti-common.h"
-
 /**
 * @fn 		int media_db_update_subscribe(void);
 * @brief 		This function announce media database is updated to other applications.<br>
@@ -69,6 +67,35 @@ main (int argc, char **argv)
 }
 
 */
+
+typedef enum {
+	MS_MEDIA_ITEM_FILE			= 0,
+	MS_MEDIA_ITEM_DIRECTORY	= 1,
+}media_item_type_e;
+
+typedef enum {
+	MS_MEDIA_ITEM_INSERT		= 0,
+	MS_MEDIA_ITEM_DELETE 		= 1,
+	MS_MEDIA_ITEM_UPDATE		= 2,
+}media_item_update_type_e;
+
+typedef enum {
+	MS_MEDIA_UNKNOWN	= -1,	 /**< Unknown Conntent*/
+	MS_MEDIA_IMAGE	= 0,		/**< Image Content*/
+	MS_MEDIA_VIDEO	= 1,		/**< Video Content*/
+	MS_MEDIA_SOUND	= 2,		/**< Sound Content like Ringtone*/
+	MS_MEDIA_MUSIC	= 3,		/**< Music Content like mp3*/
+	MS_MEDIA_OTHER	= 4,		/**< Invalid Content*/
+}media_type_e;
+
+typedef void (*db_update_cb)(int pid, /* mandatory */
+							media_item_type_e item, /* mandatory */
+							media_item_update_type_e update_type, /* mandatory */
+							char* path, /* mandatory */
+							char* uuid, /* optional */
+							media_type_e media_type, /* optional */
+							char *mime_type, /* optional */
+							void *user_data);
 
 int media_db_update_subscribe(db_update_cb user_cb, void *user_data);
 
