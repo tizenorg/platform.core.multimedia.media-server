@@ -52,9 +52,6 @@ ms_storage_type_t
 ms_get_storage_type_by_full(const char *path, uid_t uid);
 
 int
-ms_get_mime(const char *path, char *mimetype);
-
-int
 ms_strappend(char *res, const int size, const char *pattern,
 		 const char *str1, const char *str2);
 
