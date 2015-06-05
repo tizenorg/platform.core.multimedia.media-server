@@ -447,7 +447,7 @@ gboolean ms_read_db_socket(GIOChannel *src, GIOCondition condition, gpointer dat
 		send_msg = ret;
 		MS_SAFE_FREE(sql_query);
 	} else {
-		send_msg = MS_MEDIA_ERR_ALLOCATE_MEMORY_FAIL;
+		send_msg = MS_MEDIA_ERR_OUT_OF_MEMORY;
 	}
 
 	memset(&msg, 0x0, sizeof(ms_comm_msg_s));
