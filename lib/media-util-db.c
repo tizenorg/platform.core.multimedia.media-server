@@ -403,7 +403,7 @@ static int __media_db_request_update(ms_msg_type_e msg_type, const char *request
 	if (ret != MS_MEDIA_ERR_NONE) {
 		MSAPI_DBG_ERR("ms_ipc_send_msg_to_server failed : %d", ret);
 		close(sockfd);
-		return ret;
+		return MS_MEDIA_ERR_SOCKET_CONN;
 	}
 
 
@@ -481,7 +481,7 @@ static int __media_db_prepare_tcp_client_socket()
 
 	/* Connecting to the media db server */
 	if (connect(sockfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0) {
-		MSAPI_DBG_ERR("connect error : %s", strerror(errno));
+		MSAPI_DBG_STRERROR("connect error");
 		close(sockfd);
 		return MS_MEDIA_ERR_SOCKET_CONN;
 	}
@@ -520,7 +520,7 @@ static int __media_db_request_batch_update(ms_msg_type_e msg_type, const char *r
 		return MS_MEDIA_ERR_INVALID_PARAMETER;
 	}
 
-	MSAPI_DBG("querysize[%d] query[%s]", request_msg_size, request_msg);
+	MSAPI_DBG_SLOG("querysize[%d] query[%s]", request_msg_size, request_msg);
 	ms_comm_msg_s send_msg;
 	memset((void *)&send_msg, 0, sizeof(ms_comm_msg_s));
 
@@ -536,31 +536,32 @@ static int __media_db_request_batch_update(ms_msg_type_e msg_type, const char *r
 
 	/* Send request */
 	if (send(sockfd, &send_msg, sizeof(send_msg), 0) != sizeof(send_msg)) {
-		MSAPI_DBG_ERR("send failed : %s", strerror(errno));
+		MSAPI_DBG_STRERROR("send failed");
 		__media_db_close_tcp_client_socket(sockfd);
 		return MS_MEDIA_ERR_SOCKET_SEND;
-	} else {
-		MSAPI_DBG("Sent successfully");
 	}
 
 	/*Receive Response*/
 	int recv_msg_size = -1;
 	int recv_msg = -1;
 	if ((recv_msg_size = recv(sockfd, &recv_msg, sizeof(recv_msg), 0)) < 0) {
-		MSAPI_DBG_ERR("recv failed : %s", strerror(errno));
-
+		MSAPI_DBG_ERR("recv failed : [%d]", sockfd);
 		__media_db_close_tcp_client_socket(sockfd);
 		if (errno == EWOULDBLOCK) {
 			MSAPI_DBG_ERR("Timeout. Can't try any more");
 			return MS_MEDIA_ERR_SOCKET_RECEIVE_TIMEOUT;
 		} else {
-			MSAPI_DBG_ERR("recv failed : %s", strerror(errno));
+			MSAPI_DBG_STRERROR("recv failed");
 			return MS_MEDIA_ERR_SOCKET_RECEIVE;
 		}
 	}
 
 	MSAPI_DBG("RECEIVE OK [%d]", recv_msg);
 	ret = recv_msg;
+
+	if (ret != MS_MEDIA_ERR_NONE) {
+		MSAPI_DBG_ERR("batch updated[%d] failed, error [%d]", msg_type, ret);
+	}
 
 	return ret;
 }
@@ -612,8 +613,7 @@ int media_db_request_update_db_batch_start(const char *query_str, uid_t uid)
 	MSAPI_RETVM_IF(!MS_STRING_VALID(query_str), MS_MEDIA_ERR_INVALID_PARAMETER, "Invalid Query");
 
 	ret = __media_db_prepare_tcp_client_socket();
-
-	if (ret < MS_MEDIA_ERR_NONE) {
+	if (ret != MS_MEDIA_ERR_NONE) {
 		MSAPI_DBG_ERR("__media_db_prepare_tcp_client_socket failed : %d", ret);
 		__media_db_close_tcp_client_socket();
 		return ret;
