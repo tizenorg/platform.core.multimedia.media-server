@@ -132,7 +132,7 @@ int ms_ipc_create_client_socket(ms_protocol_e protocol, int timeout_sec, int *so
 		MSAPI_DBG("%s", buffer);
 		unlink(buffer);
 		strcpy(serv_addr.sun_path, buffer);
-		
+
 		/* Bind to the local address */
 		if (bind(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
 			MSAPI_DBG_STRERROR("bind failed");
@@ -167,91 +167,6 @@ int ms_ipc_create_client_socket(ms_protocol_e protocol, int timeout_sec, int *so
 	return MS_MEDIA_ERR_NONE;
 }
 
-#ifdef _USE_UDS_SOCKET_TCP_
-int ms_ipc_create_client_tcp_socket(ms_protocol_e protocol, int timeout_sec, int *sock_fd, int port)
-{
-	int sock = -1;
-
-	struct timeval tv_timeout = { timeout_sec, 0 };
-
-	/*Create TCP Socket*/
-	if ((sock = socket(PF_FILE, SOCK_STREAM, 0)) < 0) {
-			MSAPI_DBG_ERR("socket failed: %s", strerror(errno));
-			return MS_MEDIA_ERR_SOCKET_CONN;
-	}
-
-	if (timeout_sec > 0) {
-		if (setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv_timeout, sizeof(tv_timeout)) == -1) {
-			MSAPI_DBG_ERR("setsockopt failed: %s", strerror(errno));
-			close(sock);
-			return MS_MEDIA_ERR_SOCKET_CONN;
-		}
-	}
-
-	*sock_fd = sock;
-
-	return MS_MEDIA_ERR_NONE;
-}
-
-int ms_ipc_create_server_tcp_socket(ms_protocol_e protocol, int port, int *sock_fd)
-{
-	int i;
-	bool bind_success = false;
-	int sock = -1;
-
-	struct sockaddr_un serv_addr;
-	mode_t orig_mode;
-
-	/* Create a TCP socket */
-	if ((sock = socket(PF_FILE, SOCK_STREAM, 0)) < 0) {
-		MSAPI_DBG_ERR("socket failed: %s", strerror(errno));
-		return MS_MEDIA_ERR_SOCKET_CONN;
-	}
-
-	memset(&serv_addr, 0, sizeof(serv_addr));
-
-	serv_addr.sun_family = AF_UNIX;
-	MSAPI_DBG("%s", MEDIA_IPC_PATH[port]);
-	unlink(MEDIA_IPC_PATH[port]);
-	strcpy(serv_addr.sun_path, MEDIA_IPC_PATH[port]);
-
-	orig_mode = umask(0);
-
-	/* Bind to the local address */
-	for (i = 0; i < 20; i ++) {
-		if (bind(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) == 0) {
-			bind_success = true;
-			break;
-		}
-		MSAPI_DBG("%d",i);
-		usleep(250000);
-	}
-
-	umask(orig_mode);
-
-	if (bind_success == false) {
-		MSAPI_DBG_ERR("bind failed : %s %d_", strerror(errno), errno);
-		close(sock);
-		return MS_MEDIA_ERR_SOCKET_CONN;
-	}
-
-	MSAPI_DBG("bind success");
-
-	/* Listening */
-	if (listen(sock, SOMAXCONN) < 0) {
-		MSAPI_DBG_ERR("listen failed : %s", strerror(errno));
-		close(sock);
-		return MS_MEDIA_ERR_SOCKET_CONN;
-	}
-
-	MSAPI_DBG("Listening...");
-
-	*sock_fd = sock;
-
-	return MS_MEDIA_ERR_NONE;
-}
-
-#endif
 
 int ms_ipc_create_server_socket(ms_protocol_e protocol, int port, int *sock_fd)
 {

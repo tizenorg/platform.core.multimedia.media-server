@@ -66,20 +66,15 @@ gboolean ms_db_thread(void *data)
 	/* Create Socket*/
 	ret = ms_ipc_create_server_socket(MS_PROTOCOL_UDP, MS_DB_UPDATE_PORT, &sockfd);
 	if(ret != MS_MEDIA_ERR_NONE) {
-
-		MS_DBG_ERR("Failed to create socket\n");
+		MS_DBG_ERR("Failed to create socket");
 		return FALSE;
 	}
 
 	/* Create TCP Socket for batch query*/
-#ifdef _USE_UDS_SOCKET_TCP_
-	ret = ms_ipc_create_server_tcp_socket(MS_PROTOCOL_TCP, MS_DB_BATCH_UPDATE_TCP_PORT, &tcp_sockfd);
-#else
 	ret = ms_ipc_create_server_socket(MS_PROTOCOL_TCP, MS_DB_BATCH_UPDATE_PORT, &tcp_sockfd);
-#endif
 	if(ret != MS_MEDIA_ERR_NONE) {
 		close(sockfd);
-		MS_DBG_ERR("Failed to create socket\n");
+		MS_DBG_ERR("Failed to create socket");
 		return FALSE;
 	}
 
@@ -88,7 +83,7 @@ gboolean ms_db_thread(void *data)
 	g_db_mainloop = g_main_loop_new(context, FALSE);
 	//context = g_main_loop_get_context(g_db_mainloop);
 
-	/* Create new channel to watch udp socket */
+	/* Create new channel to watch UDP socket */
 	channel = g_io_channel_unix_new(sockfd);
 	source = g_io_create_watch(channel, G_IO_IN);
 

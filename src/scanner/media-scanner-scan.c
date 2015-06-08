@@ -150,13 +150,13 @@ static int _ms_check_stop_status(ms_storage_type_t storage_type)
 
 	/*check poweroff status*/
 	if (power_off) {
-		MSC_DBG_INFO("Power off");
+		MSC_DBG_ERR("Power off");
 		ret = MS_MEDIA_ERR_SCANNER_FORCE_STOP;
 	}
 
 	/*check SD card in out */
 	if ((mmc_state != VCONFKEY_SYSMAN_MMC_MOUNTED) && (storage_type == MS_STORAGE_EXTERNAL)) {
-	    	MSC_DBG_INFO("Directory scanning is stopped");
+	    	MSC_DBG_ERR("Directory scanning is stopped");
 		ret = MS_MEDIA_ERR_SCANNER_FORCE_STOP;
 	}
 
@@ -210,7 +210,7 @@ static int _msc_dir_scan(void **handle, const char*start_path, ms_storage_type_t
 		/* get the current path from directory array */
 		current_path = g_array_index(dir_array , char*, 0);
 		g_array_remove_index (dir_array, 0);
-		//MSC_DBG_INFO("%d", dir_array->len);
+//		MSC_DBG_SLOG("%d", dir_array->len);
 
 		if (_msc_check_scan_ignore(current_path)) {
 			MSC_DBG_ERR("%s is ignore", current_path);
@@ -306,7 +306,7 @@ static int _msc_db_update(void **handle, const ms_comm_msg_s * scan_data)
 		if (err != MS_MEDIA_ERR_NONE) {
 			MSC_DBG_ERR("error : %d", err);
 		}
-	} else if ( scan_type == MS_MSG_STORAGE_INVALID) {
+	} else if (scan_type == MS_MSG_STORAGE_INVALID) {
 		MSC_DBG_INFO("INVALID");
 		/*In this case, update just validation record*/
 		/*update just valid type*/
@@ -335,11 +335,11 @@ gboolean msc_directory_scan_thread(void *data)
 	while (1) {
 		scan_data = g_async_queue_pop(scan_queue);
 		if (scan_data->pid == POWEROFF) {
-			MSC_DBG_INFO("power off");
+			MSC_DBG_ERR("power off");
 			goto _POWEROFF;
 		}
 
-		MSC_DBG_INFO("DIRECTORY SCAN START");
+		MSC_DBG_INFO("DIRECTORY SCAN START [%s]", scan_data->msg);
 
 		/*connect to media db, if conneting is failed, db updating is stopped*/
 		err = msc_connect_db(&handle, scan_data->uid);
@@ -383,8 +383,8 @@ gboolean msc_directory_scan_thread(void *data)
 			noti_path = strndup(scan_data->msg, scan_data->msg_size);
 			msc_count_delete_items_in_folder(handle, noti_path, &count);
 
-			MSC_DBG_INFO("delete count %d", count);
-			MSC_DBG_INFO("insert count %d", insert_count);
+			MSC_DBG_SLOG("delete count %d", count);
+			MSC_DBG_SLOG("insert count %d", insert_count);
 
 			msc_delete_invalid_items_in_folder(handle, scan_data->msg,scan_data->uid);
 
@@ -397,7 +397,7 @@ gboolean msc_directory_scan_thread(void *data)
 		insert_count = 0;
 
 		if (power_off) {
-			MSC_DBG_INFO("power off");
+			MSC_DBG_WAN("power off");
 			goto _POWEROFF;
 		}
 
@@ -436,11 +436,11 @@ gboolean msc_storage_scan_thread(void *data)
 	while (1) {
 		scan_data = g_async_queue_pop(storage_queue);
 		if (scan_data->pid == POWEROFF) {
-			MSC_DBG_INFO("power off");
+			MSC_DBG_WAN("power off");
 			goto _POWEROFF;
 		}
 
-		MSC_DBG_INFO("STORAGE SCAN START");
+		MSC_DBG_INFO("STORAGE SCAN START [%s]", scan_data->msg);
 
 		scan_type = scan_data->msg_type;
 		if (scan_type != MS_MSG_STORAGE_ALL
@@ -520,7 +520,7 @@ gboolean msc_storage_scan_thread(void *data)
 		_msc_set_db_status(MS_DB_UPDATED);
 
 		if (power_off) {
-			MSC_DBG_INFO("power off");
+			MSC_DBG_ERR("[No-error] power off");
 			goto _POWEROFF;
 		}
 
@@ -547,7 +547,7 @@ _POWEROFF:
 
 static void _msc_insert_register_request(GArray *register_array, ms_comm_msg_s *insert_data)
 {
-	MSC_DBG_INFO("path : %s", insert_data->msg);
+	MSC_DBG_SLOG("path : %s", insert_data->msg);
 
 	if (insert_data->pid == POWEROFF) {
 		g_array_prepend_val(register_array, insert_data);
