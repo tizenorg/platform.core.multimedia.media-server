@@ -355,11 +355,8 @@ static int __media_db_request_update(ms_msg_type_e msg_type, const char *request
 	int request_msg_size = 0;
 	int sockfd = -1;
 	int err = -1;
-#ifdef _USE_UDS_SOCKET_
 	struct sockaddr_un serv_addr;
-#else
-	struct sockaddr_in serv_addr;
-#endif
+
 	unsigned int serv_addr_len = -1;
 	int port = MS_DB_UPDATE_PORT;
 
@@ -392,11 +389,7 @@ static int __media_db_request_update(ms_msg_type_e msg_type, const char *request
 	send_msg.uid = uid;
 
 	/*Create Socket*/
-#ifdef _USE_UDS_SOCKET_
 	ret = ms_ipc_create_client_socket(MS_PROTOCOL_UDP, MS_TIMEOUT_SEC_10, &sockfd, port);
-#else
-	ret = ms_ipc_create_client_socket(MS_PROTOCOL_UDP, MS_TIMEOUT_SEC_10, &sockfd);
-#endif
 	MSAPI_RETV_IF(ret != MS_MEDIA_ERR_NONE, ret);
 
 	ret = ms_ipc_send_msg_to_server(sockfd, port, &send_msg, &serv_addr);
@@ -433,51 +426,24 @@ static int __media_db_get_client_tcp_sock()
 	return g_tcp_client_sock;
 }
 
-#ifdef _USE_UDS_SOCKET_
 extern char MEDIA_IPC_PATH[][70];
-#elif defined(_USE_UDS_SOCKET_TCP_)
-extern char MEDIA_IPC_PATH[][50];
-#endif
 
 static int __media_db_prepare_tcp_client_socket()
 {
 	int ret = MS_MEDIA_ERR_NONE;
 	int sockfd = -1;
-#ifdef _USE_UDS_SOCKET_
 	struct sockaddr_un serv_addr;
-#elif defined(_USE_UDS_SOCKET_TCP_)
-	struct sockaddr_un serv_addr;
-#else
-	struct sockaddr_in serv_addr;
-#endif
 	int port = MS_DB_BATCH_UPDATE_PORT;
 
 	/*Create TCP Socket*/
-#ifdef _USE_UDS_SOCKET_
 	ret = ms_ipc_create_client_socket(MS_PROTOCOL_TCP, MS_TIMEOUT_SEC_10, &sockfd, 0);
-#elif defined(_USE_UDS_SOCKET_TCP_)
-	ret = ms_ipc_create_client_tcp_socket(MS_PROTOCOL_TCP, MS_TIMEOUT_SEC_10, &sockfd, MS_DB_BATCH_UPDATE_TCP_PORT);
-#else
-	ret = ms_ipc_create_client_socket(MS_PROTOCOL_TCP, MS_TIMEOUT_SEC_10, &sockfd);
-#endif
 	MSAPI_RETV_IF(ret != MS_MEDIA_ERR_NONE, ret);
 
 	/*Set server Address*/
 	memset(&serv_addr, 0, sizeof(serv_addr));
-#ifdef _USE_UDS_SOCKET_
 	serv_addr.sun_family = AF_UNIX;
 	MSAPI_DBG("%s", MEDIA_IPC_PATH[port]);
 	strcpy(serv_addr.sun_path, MEDIA_IPC_PATH[port]);
-#elif defined(_USE_UDS_SOCKET_TCP_)
-	serv_addr.sun_family = AF_UNIX;
-	MSAPI_DBG("%s", MEDIA_IPC_PATH[MS_DB_BATCH_UPDATE_TCP_PORT]);
-	strcpy(serv_addr.sun_path, MEDIA_IPC_PATH[MS_DB_BATCH_UPDATE_TCP_PORT]);
-#else
-	serv_addr.sin_family = AF_INET;
-	serv_addr.sin_addr.s_addr = htonl(INADDR_ANY);
-	//serv_addr.sin_addr.s_addr = inet_addr(SERVER_IP);
-	serv_addr.sin_port = htons(port);
-#endif
 
 	/* Connecting to the media db server */
 	if (connect(sockfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0) {
@@ -495,10 +461,18 @@ static int __media_db_prepare_tcp_client_socket()
 
 static int __media_db_close_tcp_client_socket()
 {
-	close(g_tcp_client_sock);
-	g_tcp_client_sock = -1;
+	int ret = MS_MEDIA_ERR_NONE;
 
-	return 0;
+	if (g_tcp_client_sock != -1) {
+		if (close(g_tcp_client_sock)<0) {
+			MSAPI_DBG_ERR("sock(%d) close failed", g_tcp_client_sock);
+			MSAPI_DBG_STRERROR("socket close failed");
+			ret = MS_MEDIA_ERR_SOCKET_INTERNAL;
+		}
+		g_tcp_client_sock = -1;
+	}
+
+	return ret;
 }
 
 static int __media_db_request_batch_update(ms_msg_type_e msg_type, const char *request_msg, uid_t uid)
