@@ -39,7 +39,7 @@ static MediaDBHandle *db_handle = NULL;
 void callback(media_request_result_s * result, void *user_data)
 {
 	printf("db updating done\n");
-	
+
 	media_db_disconnect(db_handle);
 	g_main_loop_quit(mainloop);
 }

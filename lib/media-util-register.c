@@ -33,11 +33,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#ifdef _USE_UDS_SOCKET_
 #include <sys/un.h>
-#else
-#include <sys/socket.h>
-#endif
 #include <sys/syscall.h>
 #include <string.h>
 #include <stdbool.h>
@@ -275,11 +271,7 @@ static int __media_db_request_update_async(ms_msg_type_e msg_type, const char *r
 	strncpy(send_msg.msg, request_msg, request_msg_size);
 
 	/*Create Socket*/
-#ifdef _USE_UDS_SOCKET_
 	ret = ms_ipc_create_client_socket(MS_PROTOCOL_UDP, 0, &sockfd, port);
-#else
-	ret = ms_ipc_create_client_socket(MS_PROTOCOL_UDP, 0, &sockfd);
-#endif
 	MSAPI_RETV_IF(ret != MS_MEDIA_ERR_NONE, ret);
 
 	ret = ms_ipc_send_msg_to_server(sockfd, port, &send_msg, NULL);
