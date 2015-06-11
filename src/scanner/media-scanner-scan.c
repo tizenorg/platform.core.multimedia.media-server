@@ -628,7 +628,7 @@ gboolean msc_register_thread(void *data)
 	int ret;
 	void **handle = NULL;
 	ms_msg_type_e current_msg = MS_MSG_MAX;
-	int (*insert_function)(void **, uid_t, const char*) = NULL;
+	int (*insert_function)(void **, const char*, uid_t) = NULL;
 
 	/*create array for processing overlay data*/
 	register_array = g_array_new (FALSE, FALSE, sizeof (ms_comm_msg_s *));

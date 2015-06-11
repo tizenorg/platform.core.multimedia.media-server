@@ -51,8 +51,9 @@ int ms_ipc_create_client_socket(ms_protocol_e protocol, int timeout_sec, int *so
 int ms_ipc_create_server_socket(ms_protocol_e protocol, int port, int *sock_fd);
 int ms_ipc_send_msg_to_server(int sockfd, int port, ms_comm_msg_s *send_msg, struct sockaddr_un *serv_addr);
 int ms_ipc_send_msg_to_client(int sockfd, ms_comm_msg_s *send_msg, struct sockaddr_un *client_addr);
-int ms_ipc_receive_message(int sockfd, void *recv_msg, unsigned int msg_size, struct sockaddr_un *client_addr, unsigned int *size, int *recv_socket);
-int ms_ipc_wait_message(int sockfd, void  *recv_msg, unsigned int msg_size, struct sockaddr_un *recv_addr, unsigned int *size, int connected);
+int ms_ipc_receive_message(int sockfd, void *recv_msg, unsigned int msg_size, struct sockaddr_un *client_addr, unsigned int *size);
+int ms_ipc_wait_message(int sockfd, void  *recv_msg, unsigned int msg_size, struct sockaddr_un *recv_addr, unsigned int *size);
+int ms_ipc_wait_block_message(int sockfd, void  *recv_msg, unsigned int msg_size, struct sockaddr_un *recv_addr, unsigned int *size);
 
 #ifdef __cplusplus
 }

@@ -437,7 +437,7 @@ msc_insert_burst_item(void **handle, const char *path , uid_t uid)
 
 	for (lib_index = 0; lib_index < lib_num; lib_index++) {
 		if (!_msc_check_category(path, lib_index)) {
-			ret = ((INSERT_BURST_ITEM)func_array[lib_index][eINSERT_BURST])(handle[lib_index], uid, path, storage_type, &err_msg); /*dlopen*/
+			ret = ((INSERT_BURST_ITEM)func_array[lib_index][eINSERT_BURST])(handle[lib_index], path, storage_type, uid, &err_msg); /*dlopen*/
 			if (ret != 0) {
 				MSC_DBG_ERR("error : %s [%s]", g_array_index(so_array, char*, lib_index), err_msg);
 				MSC_DBG_ERR("[%s]", path);

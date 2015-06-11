@@ -40,6 +40,9 @@
 
 #include "media-util-dbg.h"
 #include "media-util.h"
+#include "media-util-internal.h"
+
+#define MS_SOCK_UDP_BLOCK_SIZE 512
 
 char MEDIA_IPC_PATH[][70] ={
 	{"/var/run/media-server/media_ipc_dbbatchupdate.socket"},
@@ -280,10 +283,9 @@ int ms_ipc_send_msg_to_client(int sockfd, ms_comm_msg_s *send_msg, struct sockad
 	return res;
 }
 
-int ms_ipc_receive_message(int sockfd, void *recv_msg, unsigned int msg_size, struct sockaddr_un *recv_addr, unsigned int *addr_size, int *recv_socket)
+int ms_ipc_receive_message(int sockfd, void *recv_msg, unsigned int msg_size, struct sockaddr_un *recv_addr, unsigned int *addr_size)
 {
 	int recv_msg_size;
-	int client_socket = -1;
 	struct sockaddr_un addr;
 	socklen_t addr_len;
 
@@ -306,15 +308,11 @@ int ms_ipc_receive_message(int sockfd, void *recv_msg, unsigned int msg_size, st
 	return MS_MEDIA_ERR_NONE;
 }
 
-int ms_ipc_wait_message(int sockfd, void *recv_msg, unsigned int msg_size, struct sockaddr_un *recv_addr, unsigned int *addr_size, int connected)
+int ms_ipc_wait_message(int sockfd, void *recv_msg, unsigned int msg_size, struct sockaddr_un *recv_addr, unsigned int *addr_size)
 {
 	int recv_msg_size;
 	socklen_t addr_len;
 
-	struct sockaddr_un client_addr;
-	unsigned int client_addr_len;
-	int client_socket = -1;
-	
 	if (!recv_msg ||!recv_addr)
 		return MS_MEDIA_ERR_INVALID_PARAMETER;
 
@@ -336,3 +334,45 @@ int ms_ipc_wait_message(int sockfd, void *recv_msg, unsigned int msg_size, struc
 	return MS_MEDIA_ERR_NONE;
 }
 
+int ms_ipc_wait_block_message(int sockfd, void *recv_msg, unsigned int msg_size, struct sockaddr_un *recv_addr, unsigned int *addr_size)
+{
+	int recv_msg_size;
+	socklen_t addr_len;
+	unsigned char *block_buf;
+	int block_size = 0;
+	int recv_size = 0;
+	unsigned int remain_size = msg_size;
+
+	if (!recv_msg ||!recv_addr)
+		return MS_MEDIA_ERR_INVALID_PARAMETER;
+
+	addr_len = sizeof(struct sockaddr_un);
+	block_size = MS_SOCK_UDP_BLOCK_SIZE;
+	block_buf = malloc(block_size * sizeof(unsigned char));
+
+	while(remain_size > 0) {
+		if(remain_size < MS_SOCK_UDP_BLOCK_SIZE) {
+			block_size = remain_size;
+		}
+		if ((recv_msg_size = recvfrom(sockfd, block_buf, block_size, 0, (struct sockaddr *)recv_addr, &addr_len)) < 0) {
+			MSAPI_DBG_ERR("recvfrom failed [%s]", strerror(errno));
+			if (errno == EWOULDBLOCK) {
+				MSAPI_DBG_ERR("recvfrom Timeout.");
+				return MS_MEDIA_ERR_SOCKET_RECEIVE_TIMEOUT;
+			} else {
+				MSAPI_DBG_ERR("recvfrom error [%s]", strerror(errno));
+				return MS_MEDIA_ERR_SOCKET_RECEIVE;
+			}
+		}
+
+		memcpy(recv_msg+recv_size, block_buf, block_size);
+		recv_size += block_size;
+		remain_size -= block_size;
+	}
+	if (addr_size != NULL)
+		*addr_size  = addr_len;
+
+	MS_SAFE_FREE(block_buf);
+
+	return MS_MEDIA_ERR_NONE;
+}

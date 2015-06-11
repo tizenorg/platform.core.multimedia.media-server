@@ -52,7 +52,7 @@ gboolean
 _ms_thumb_agent_prepare_udp_socket();
 
 int
-_ms_thumb_recv_msg(int sock, int header_size, thumbMsg *msg);
+_ms_thumb_recv_msg(int sock, thumbMsg *msg);
 
 int
 _ms_thumb_recv_udp_msg(int sock, int header_size, thumbMsg *msg, struct sockaddr_un *from_addr, unsigned int *from_size);
