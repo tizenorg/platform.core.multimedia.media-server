@@ -169,9 +169,9 @@ gboolean _read_socket(GIOChannel *src, GIOCondition condition, gpointer data)
 	/* Socket is readable */
 	struct sockaddr_in recv_add;
 	
-	ret = ms_ipc_wait_message(sockfd, &recv_msg, sizeof(recv_msg), &recv_add, NULL, TRUE);
+	ret = ms_ipc_wait_message(sockfd, &recv_msg, sizeof(recv_msg), &recv_add, NULL);
 	if (ret != MS_MEDIA_ERR_NONE) {
-		MSAPI_DBG("ms_ipc_receive_message failed");
+		MSAPI_DBG("ms_ipc_wait_message failed");
 		return TRUE;
 	}
 

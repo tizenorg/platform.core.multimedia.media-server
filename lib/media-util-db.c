@@ -406,7 +406,7 @@ static int __media_db_request_update(ms_msg_type_e msg_type, const char *request
 	memset(&recv_msg, 0x0, sizeof(ms_comm_msg_s));
 
 	/* connected socket*/
-	err = ms_ipc_wait_message(sockfd, &recv_msg, sizeof(recv_msg), &serv_addr, NULL,TRUE);
+	err = ms_ipc_wait_message(sockfd, &recv_msg, sizeof(recv_msg), &serv_addr, NULL);
 	if (err != MS_MEDIA_ERR_NONE) {
 		ret = err;
 	} else {

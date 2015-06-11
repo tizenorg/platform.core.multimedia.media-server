@@ -136,7 +136,7 @@ gboolean ms_read_socket(GIOChannel *src, GIOCondition condition, gpointer data)
 		return TRUE;
 	}
 	client_addr_len = sizeof(struct sockaddr_un);
-	ret = ms_ipc_receive_message(sockfd, &recv_msg, sizeof(recv_msg), client_addr, NULL, &client_sock);
+	ret = ms_ipc_receive_message(sockfd, &recv_msg, sizeof(recv_msg), client_addr, NULL);
 	if (ret != MS_MEDIA_ERR_NONE) {
 		MS_DBG_ERR("ms_ipc_receive_message failed");
 		MS_SAFE_FREE(client_addr);
@@ -240,7 +240,7 @@ gboolean ms_receive_message_from_scanner(GIOChannel *src, GIOCondition condition
 	}
 
 	/* Socket is readable */
-	ret = ms_ipc_receive_message(sockfd, &recv_msg, sizeof(recv_msg), &client_addr, NULL, NULL);
+	ret = ms_ipc_receive_message(sockfd, &recv_msg, sizeof(recv_msg), &client_addr, NULL);
 	if (ret != MS_MEDIA_ERR_NONE) {
 		MS_DBG_ERR("ms_ipc_receive_message failed [%s]", strerror(errno));
 		return TRUE;
@@ -391,7 +391,7 @@ gboolean ms_read_db_socket(GIOChannel *src, GIOCondition condition, gpointer dat
 		return TRUE;
 	}
 
-	ret = ms_ipc_receive_message(sockfd, &recv_msg, sizeof(recv_msg), &client_addr, NULL, &client_sock);
+	ret = ms_ipc_receive_message(sockfd, &recv_msg, sizeof(recv_msg), &client_addr, NULL);
 	if (ret != MS_MEDIA_ERR_NONE) {
 		return TRUE;
 	}
