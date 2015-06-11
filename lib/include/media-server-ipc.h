@@ -46,7 +46,8 @@ typedef enum{
 	MS_PORT_MAX,
 }ms_msg_port_type_e;
 
-#define MAX_MSG_SIZE				4096
+#define MAX_MSG_SIZE				4096*2
+#define MAX_FILEPATH_LEN			4096
 
 typedef enum{
 	MS_MSG_DB_UPDATE = 0,		/**< Media DB Update */
@@ -75,7 +76,7 @@ typedef struct
 	uid_t uid;
 	int result;
 	size_t msg_size; /*this is size of message below and this does not include the terminationg null byte ('\0'). */
-	char msg[MAX_MSG_SIZE];
+	char msg[MAX_FILEPATH_LEN];
 }ms_comm_msg_s;
 
 typedef enum {
@@ -95,6 +96,7 @@ typedef struct {
 typedef struct _thumbMsg{
 	int msg_type;
 	int thumb_type;
+	int request_id;
 	int status;
 	int pid;
 	uid_t uid;
@@ -105,9 +107,14 @@ typedef struct _thumbMsg{
 	int origin_height;
 	int origin_path_size;
 	int dest_path_size;
-	char org_path[MAX_MSG_SIZE];
-	char dst_path[MAX_MSG_SIZE];
+	unsigned char *thumb_data;
+	char org_path[MAX_FILEPATH_LEN];
+	char dst_path[MAX_FILEPATH_LEN];
 } thumbMsg;
 
+typedef struct _thumbRawAddMsg{
+	int thumb_size;
+	unsigned char *thumb_data;
+} thumbRawAddMsg;
 
 #endif /*_MEDIA_SERVER_IPC_H_*/

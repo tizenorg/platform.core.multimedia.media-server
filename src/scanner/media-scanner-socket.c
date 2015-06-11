@@ -68,7 +68,7 @@ gboolean msc_receive_request(GIOChannel *src, GIOCondition condition, gpointer d
 	}
 
 	/* Socket is readable */
-	ret = ms_ipc_receive_message(sockfd, recv_msg, sizeof(*recv_msg), NULL, NULL, NULL);
+	ret = ms_ipc_receive_message(sockfd, recv_msg, sizeof(*recv_msg), NULL, NULL);
 	if (ret != MS_MEDIA_ERR_NONE) {
 		MS_SAFE_FREE(recv_msg);
 		return TRUE;

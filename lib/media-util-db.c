@@ -356,8 +356,6 @@ static int __media_db_request_update(ms_msg_type_e msg_type, const char *request
 	int sockfd = -1;
 	int err = -1;
 	struct sockaddr_un serv_addr;
-
-	unsigned int serv_addr_len = -1;
 	int port = MS_DB_UPDATE_PORT;
 
 	if(msg_type == MS_MSG_DB_UPDATE)
@@ -372,9 +370,9 @@ static int __media_db_request_update(ms_msg_type_e msg_type, const char *request
 	}
 
 	request_msg_size = strlen(request_msg);
-	if(request_msg_size >= MAX_MSG_SIZE)
+	if(request_msg_size >= MAX_FILEPATH_LEN)
 	{
-		MSAPI_DBG_ERR("Query is Too long. [%d] query size limit is [%d]", request_msg_size, MAX_MSG_SIZE);
+		MSAPI_DBG_ERR("Query is Too long. [%d] query size limit is [%d]", request_msg_size, MAX_FILEPATH_LEN);
 		return MS_MEDIA_ERR_INVALID_PARAMETER;
 	}
 
@@ -402,11 +400,10 @@ static int __media_db_request_update(ms_msg_type_e msg_type, const char *request
 
 	/*Receive Response*/
 	ms_comm_msg_s recv_msg;
-	serv_addr_len = sizeof(serv_addr);
 	memset(&recv_msg, 0x0, sizeof(ms_comm_msg_s));
 
 	/* connected socket*/
-	err = ms_ipc_wait_message(sockfd, &recv_msg, sizeof(recv_msg), &serv_addr, NULL,TRUE);
+	err = ms_ipc_wait_message(sockfd, &recv_msg, sizeof(recv_msg), &serv_addr, NULL);
 	if (err != MS_MEDIA_ERR_NONE) {
 		ret = err;
 	} else {
@@ -488,9 +485,9 @@ static int __media_db_request_batch_update(ms_msg_type_e msg_type, const char *r
 	}
 
 	request_msg_size = strlen(request_msg);
-	if(request_msg_size >= MAX_MSG_SIZE)
+	if(request_msg_size >= MAX_FILEPATH_LEN)
 	{
-		MSAPI_DBG_ERR("Query is Too long. [%d] query size limit is [%d]", request_msg_size, MAX_MSG_SIZE);
+		MSAPI_DBG_ERR("Query is Too long. [%d] query size limit is [%d]", request_msg_size, MAX_FILEPATH_LEN);
 		return MS_MEDIA_ERR_INVALID_PARAMETER;
 	}
 
@@ -511,7 +508,7 @@ static int __media_db_request_batch_update(ms_msg_type_e msg_type, const char *r
 	/* Send request */
 	if (send(sockfd, &send_msg, sizeof(send_msg), 0) != sizeof(send_msg)) {
 		MSAPI_DBG_STRERROR("send failed");
-		__media_db_close_tcp_client_socket(sockfd);
+		__media_db_close_tcp_client_socket();
 		return MS_MEDIA_ERR_SOCKET_SEND;
 	}
 
@@ -520,7 +517,7 @@ static int __media_db_request_batch_update(ms_msg_type_e msg_type, const char *r
 	int recv_msg = -1;
 	if ((recv_msg_size = recv(sockfd, &recv_msg, sizeof(recv_msg), 0)) < 0) {
 		MSAPI_DBG_ERR("recv failed : [%d]", sockfd);
-		__media_db_close_tcp_client_socket(sockfd);
+		__media_db_close_tcp_client_socket();
 		if (errno == EWOULDBLOCK) {
 			MSAPI_DBG_ERR("Timeout. Can't try any more");
 			return MS_MEDIA_ERR_SOCKET_RECEIVE_TIMEOUT;

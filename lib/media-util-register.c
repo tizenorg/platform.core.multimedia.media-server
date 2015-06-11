@@ -167,11 +167,11 @@ gboolean _read_socket(GIOChannel *src, GIOCondition condition, gpointer data)
 	memset(&recv_msg, 0x0, sizeof(ms_comm_msg_s));
 
 	/* Socket is readable */
-	struct sockaddr_in recv_add;
+	struct sockaddr_un recv_add;
 	
-	ret = ms_ipc_wait_message(sockfd, &recv_msg, sizeof(recv_msg), &recv_add, NULL, TRUE);
+	ret = ms_ipc_wait_message(sockfd, &recv_msg, sizeof(recv_msg), &recv_add, NULL);
 	if (ret != MS_MEDIA_ERR_NONE) {
-		MSAPI_DBG("ms_ipc_receive_message failed");
+		MSAPI_DBG("ms_ipc_wait_message failed");
 		return TRUE;
 	}
 
@@ -255,9 +255,9 @@ static int __media_db_request_update_async(ms_msg_type_e msg_type, const char *r
 	MSAPI_DBG("REQUEST DIRECTORY SCANNING");
 
 	request_msg_size = strlen(request_msg);
-	if(request_msg_size >= MAX_MSG_SIZE)
+	if(request_msg_size >= MAX_FILEPATH_LEN)
 	{
-		MSAPI_DBG_ERR("Query is Too long. [%d] query size limit is [%d]", request_msg_size, MAX_MSG_SIZE);
+		MSAPI_DBG_ERR("Query is Too long. [%d] query size limit is [%d]", request_msg_size, MAX_FILEPATH_LEN);
 		return MS_MEDIA_ERR_INVALID_PARAMETER;
 	}
 

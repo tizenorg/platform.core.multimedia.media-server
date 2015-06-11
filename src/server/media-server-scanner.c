@@ -172,7 +172,7 @@ int ms_scanner_start(void)
 		/*Receive Response*/
 		serv_addr_len = sizeof(serv_addr);
 
-		err = ms_ipc_wait_message(sockfd, &recv_msg, sizeof(recv_msg), &serv_addr, NULL, FALSE);
+		err = ms_ipc_wait_message(sockfd, &recv_msg, sizeof(recv_msg), &serv_addr, NULL);
 		if (err != MS_MEDIA_ERR_NONE) {
 			ret = err;
 			close(sockfd);
