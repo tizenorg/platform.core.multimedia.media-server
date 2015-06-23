@@ -18,7 +18,7 @@
  * limitations under the License.
  *
  */
-
+ 
 #define _GNU_SOURCE
 
 #include <dirent.h>
@@ -526,24 +526,26 @@ gboolean _ms_thumb_agent_execute_server()
 gboolean _ms_thumb_agent_send_msg_to_thumb_server(thumbMsg *recv_msg, thumbMsg *res_msg)
 {
 	int sock;
-	const char *serv_ip = "127.0.0.1";
+	ms_sock_info_s sock_info;
 	struct sockaddr_un serv_addr;
 	int send_str_len = strlen(recv_msg->org_path);
+	sock_info.port = MS_THUMB_DAEMON_PORT;
 
 	if (send_str_len > MAX_FILEPATH_LEN) {
 		MS_DBG_ERR("original path's length exceeds %d(max packet size)", MAX_FILEPATH_LEN);
 		return FALSE;
 	}
 
-	if (ms_ipc_create_client_socket(MS_PROTOCOL_UDP, MS_TIMEOUT_SEC_10, &sock, MS_THUMB_DAEMON_PORT) < 0) {
+	if (ms_ipc_create_client_socket(MS_PROTOCOL_UDP, MS_TIMEOUT_SEC_10, &sock_info) < 0) {
 		MS_DBG_ERR("ms_ipc_create_client_socket failed");
 		return FALSE;
 	}
 
 	memset(&serv_addr, 0, sizeof(serv_addr));
+	sock = sock_info.sock_fd;
 	serv_addr.sun_family = AF_UNIX;
-	MS_DBG("%s", MEDIA_IPC_PATH[MS_THUMB_DAEMON_PORT]);
-	strcpy(serv_addr.sun_path, MEDIA_IPC_PATH[MS_THUMB_DAEMON_PORT]);
+//	MS_DBG_SLOG("%s", MEDIA_IPC_PATH[MS_THUMB_DAEMON_PORT]);
+	strncpy(serv_addr.sun_path, MEDIA_IPC_PATH[MS_THUMB_DAEMON_PORT], strlen(MEDIA_IPC_PATH[MS_THUMB_DAEMON_PORT]));
 
 	int buf_size = 0;
 	int header_size = 0;
@@ -554,7 +556,7 @@ gboolean _ms_thumb_agent_send_msg_to_thumb_server(thumbMsg *recv_msg, thumbMsg *
 	if (sendto(sock, buf, buf_size, 0, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) != buf_size) {
 		MS_DBG_STRERROR("sendto failed");
 		MS_SAFE_FREE(buf);
-		close(sock);
+		ms_ipc_delete_client_socket(&sock_info);
 		return FALSE;
 	}
 
@@ -567,12 +569,12 @@ gboolean _ms_thumb_agent_send_msg_to_thumb_server(thumbMsg *recv_msg, thumbMsg *
 
 	if (_ms_thumb_recv_udp_msg(sock, header_size, res_msg, &client_addr, &client_addr_len) < 0) {
 		MS_DBG_ERR("_ms_thumb_recv_udp_msg failed");
-		close(sock);
+		ms_ipc_delete_client_socket(&sock_info);
 		return FALSE;
 	}
 
-	MS_DBG("recv %s from thumb daemon is successful", res_msg->dst_path);
-	close(sock);
+	MS_DBG_SLOG("recv %s from thumb daemon is successful", res_msg->dst_path);
+	ms_ipc_delete_client_socket(&sock_info);
 
 	if (res_msg->msg_type == 2 && g_communicate_sock > 0) { // THUMB_REQUEST_ALL_MEDIA
 		/* Create new channel to watch udp socket */

@@ -31,7 +31,6 @@
 #include "media-server-ipc.h"
 #include "media-common-dbg.h"
 #include "media-common-utils.h"
-#include "media-common-drm.h"
 #include "media-common-external-storage.h"
 
 #include <pwd.h>
@@ -54,8 +53,7 @@ char default_path[][MS_FILE_NAME_LEN_MAX + 1] = {
 
 #define DIR_NUM       ((int)(sizeof(default_path)/sizeof(default_path[0])))
 
-void
-ms_init_default_path(void){
+void ms_init_default_path(void){
 
 	strcpy (default_path[0], PATH_IMAGES);
 	strcpy (default_path[1], PATH_VIDEOS);
@@ -64,8 +62,7 @@ ms_init_default_path(void){
 	strcpy (default_path[4], PATH_CAMERA);
 }
 
-void
-ms_make_default_path_mmc(void)
+void ms_make_default_path_mmc(void)
 {
 	int i = 0;
 	int ret = 0;
@@ -94,8 +91,7 @@ ms_make_default_path_mmc(void)
 	}
 }
 
-int
-_ms_update_mmc_info(const char *cid)
+int _ms_update_mmc_info(const char *cid)
 {
 	bool res;
 
@@ -113,8 +109,7 @@ _ms_update_mmc_info(const char *cid)
 	return MS_MEDIA_ERR_NONE;
 }
 
-bool
-_ms_check_mmc_info(const char *cid)
+bool _ms_check_mmc_info(const char *cid)
 {
 	char pre_mmc_info[MMC_INFO_SIZE] = { 0 };
 	bool res = false;
@@ -140,8 +135,7 @@ _ms_check_mmc_info(const char *cid)
 	return false;
 }
 
-static int
-_get_contents(const char *filename, char *buf)
+static int __get_contents(const char *filename, char *buf)
 {
 	FILE *fp;
 
@@ -159,8 +153,7 @@ _get_contents(const char *filename, char *buf)
 }
 
 /*need optimize*/
-int
-_ms_get_mmc_info(char *cid)
+int _ms_get_mmc_info(char *cid)
 {
 	int i;
 	int j;
@@ -218,7 +211,7 @@ _ms_get_mmc_info(char *cid)
 						continue;
 					}
 
-					if (_get_contents(path, cid) != MS_MEDIA_ERR_NONE)
+					if (__get_contents(path, cid) != MS_MEDIA_ERR_NONE)
 						break;
 					else
 						getdata = true;
@@ -235,8 +228,7 @@ _ms_get_mmc_info(char *cid)
 	return MS_MEDIA_ERR_NONE;
 }
 
-ms_dir_scan_type_t
-ms_get_mmc_state(void)
+ms_dir_scan_type_t ms_get_mmc_state(void)
 {
 	char cid[MMC_INFO_SIZE] = { 0 };
 	ms_dir_scan_type_t ret = MS_SCAN_ALL;
@@ -252,8 +244,7 @@ ms_get_mmc_state(void)
 	return ret;
 }
 
-int
-ms_update_mmc_info(void)
+int ms_update_mmc_info(void)
 {
 	int err;
 	char cid[MMC_INFO_SIZE] = { 0 };
@@ -289,8 +280,7 @@ void update_lang(void)
 	}
 }
 
-int
-ms_present_mmc_status(ms_sdcard_status_type_t status)
+int ms_present_mmc_status(ms_sdcard_status_type_t status)
 {
 	int ret = NOTIFICATION_ERROR_NONE;
 

@@ -22,66 +22,54 @@
 /**
  * This file defines api utilities of contents manager engines.
  *
- * @file		media-util-noti.h
+ * @file		media-util-not-commoni.h
  * @author	Yong Yeon Kim(yy9875.kim@samsung.com)
  * @version	1.0
  * @brief
  */
- #ifndef _MEDIA_UTIL_NOTI_H_
-#define _MEDIA_UTIL_NOTI_H_
+ #ifndef _MEDIA_UTIL_NOTI_COMMON_H_
+#define _MEDIA_UTIL_NOTI_COMMON_H_
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#include "media-util-noti-common.h"
+typedef enum {
+	MS_MEDIA_ITEM_FILE			= 0,
+	MS_MEDIA_ITEM_DIRECTORY	= 1,
+}media_item_type_e;
 
-/**
-* @fn 		int media_db_update_subscribe(void);
-* @brief 		This function announce media database is updated to other applications.<br>
-* @return	This function returns 0 on success, and -1 on failure.
-* @param[in]	none
-* @remark  	This function is recommandation for other application being aware of database updating.<br>
-* @par example
-* @code
+typedef enum {
+	MS_MEDIA_ITEM_INSERT		= 0,
+	MS_MEDIA_ITEM_DELETE 		= 1,
+	MS_MEDIA_ITEM_UPDATE		= 2,
+}media_item_update_type_e;
 
-#include <stdio.h>
-#include <glib.h>
-#include <media-util-noti.h>
+typedef enum {
+	MS_MEDIA_UNKNOWN	= -1,	 /**< Unknown Conntent*/
+	MS_MEDIA_IMAGE	= 0,		/**< Image Content*/
+	MS_MEDIA_VIDEO	= 1,		/**< Video Content*/
+	MS_MEDIA_SOUND	= 2,		/**< Sound Content like Ringtone*/
+	MS_MEDIA_MUSIC	= 3,		/**< Music Content like mp3*/
+	MS_MEDIA_OTHER	= 4,		/**< Invalid Content*/
+}media_type_e;
 
-void callback()
-{
-        printf("listen dbus from media-server\n");
-}
-
-int
-main (int argc, char **argv)
-{
-	GMainLoop *loop;
-
-	loop = g_main_loop_new (NULL, FALSE);
-
-	media_db_update_subscribe(callback);
-
-	g_main_loop_run (loop);
-
-	return 0;
-}
-
-*/
-
-int media_db_update_subscribe(db_update_cb user_cb, void *user_data);
-
-int media_db_update_unsubscribe(void);
-
-int media_db_update_send(int pid, /* mandatory */
+typedef void (*db_update_cb)(int pid, /* mandatory */
 							media_item_type_e item, /* mandatory */
 							media_item_update_type_e update_type, /* mandatory */
 							char* path, /* mandatory */
 							char* uuid, /* optional */
 							media_type_e media_type, /* optional */
-							char *mime_type /* optional */
-							);
+							char *mime_type, /* optional */
+							void *user_data);
+
+typedef void (*clear_user_data_cb)(void * user_data);
+
+typedef void *MediaNotiHandle;		/**< Handle */
+
+#define MS_MEDIA_DBUS_PATH "/com/mediaserver/dbus/notify"
+#define MS_MEDIA_DBUS_INTERFACE "com.mediaserver.dbus.Signal"
+#define MS_MEDIA_DBUS_MATCH_RULE "type='signal',interface='com.mediaserver.dbus.Signal'"
 
 /**
 * @}
@@ -91,4 +79,4 @@ int media_db_update_send(int pid, /* mandatory */
 }
 #endif
 
-#endif /*_MEDIA_UTIL_NOTI_H_*/
+#endif /*_MEDIA_UTIL_NOTI_COMMON_H_*/

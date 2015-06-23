@@ -30,35 +30,10 @@
 
 #define MAX_THUMB_REQUEST 100
 
-GMainLoop *
-ms_get_thumb_thread_mainloop(void);
-
-int
-ms_thumb_get_server_pid();
-
-void
-ms_thumb_reset_server_status();
-
-gpointer
-ms_thumb_agent_start_thread(gpointer data);
-
-int
-_ms_thumb_create_socket(int sock_type, int *sock);
-
-int
-_ms_thumb_create_udp_socket(int *sock);
-
-gboolean
-_ms_thumb_agent_prepare_udp_socket();
-
-int
-_ms_thumb_recv_msg(int sock, thumbMsg *msg);
-
-int
-_ms_thumb_recv_udp_msg(int sock, int header_size, thumbMsg *msg, struct sockaddr_un *from_addr, unsigned int *from_size);
-
-int
-_ms_thumb_set_buffer(thumbMsg *req_msg, unsigned char **buf, int *buf_size);
+GMainLoop * ms_get_thumb_thread_mainloop(void);
+int ms_thumb_get_server_pid();
+void ms_thumb_reset_server_status();
+gpointer ms_thumb_agent_start_thread(gpointer data);
 
 #endif /*_MEDIA_SERVER_THUMB_H_*/
 

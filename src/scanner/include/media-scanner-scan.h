@@ -40,4 +40,14 @@ int msc_check_remain_task(void);
 
 ms_db_status_type_t msc_check_scanning_status(void);
 
+int msc_set_cancel_path(const char *cancel_path);
+
+int msc_del_cancel_path(void);
+
+int msc_set_blocked_path(const char *blocked_path);
+
+int msc_del_blocked_path(void);
+
+void msc_metadata_update_thread(ms_comm_msg_s *recv_msg);
+
 #endif /*_MEDIA_SCANNER_SCAN_H_*/

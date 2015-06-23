@@ -48,7 +48,7 @@ int media_db_request_update_db_batch(const char *query_str, uid_t uid);
 
 int media_db_request_update_db_batch_end(const char *query_str, uid_t uid);
 
-int media_db_request_directory_scan(const char *directory_path , uid_t uid);
+int media_db_request_update_db_batch_clear(void);
 
 /**
 * @}

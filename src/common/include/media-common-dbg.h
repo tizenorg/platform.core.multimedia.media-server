@@ -28,8 +28,8 @@
  * @brief
  */
 
-#ifndef _MEDIA_SERVER_DBG_H_
-#define _MEDIA_SERVER_DBG_H_
+#ifndef _MEDIA_COMMON_DBG_H_
+#define _MEDIA_COMMON_DBG_H_
 
 #include <sys/syscall.h>
 #include <dlog.h>
@@ -47,7 +47,6 @@
 			LOGE(fmt" : STANDARD ERROR [%s]", buf);	 \
 		} while (0)
 
-
 #define MS_DBG_SLOG(fmt, args...)	SECURE_LOGD(fmt "\n", ##args);
 
 #define MS_DBG(fmt, args...)        LOGD(fmt "\n", ##args);
@@ -64,4 +63,4 @@
 		LOGE(fmt "\n", ##args); \
 		}} while(false)
 
-#endif /*_MEDIA_SERVER_DBG_H_*/
+#endif /*_MEDIA_COMMON_DBG_H_*/

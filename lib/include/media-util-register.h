@@ -56,6 +56,8 @@ typedef void (*insert_complete_cb)(media_request_result_s *, void *);
 
 int media_directory_scanning_async(const char *directory_path, bool recursive_on, scan_complete_cb user_callback, void *user_data, uid_t uid);
 
+int media_directory_scanning_cancel(const char *directory_path, uid_t uid);
+
 int media_files_register(const char *list_path, insert_complete_cb user_callback, void *user_data, uid_t uid);
 
 int media_burstshot_register(const char *list_path, insert_complete_cb user_callback, void *user_data, uid_t uid);

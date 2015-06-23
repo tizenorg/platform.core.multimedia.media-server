@@ -37,7 +37,6 @@
 typedef enum{
 	MS_DB_BATCH_UPDATE_PORT = 0,	/**< Media DB batch update */
 	MS_SCAN_DAEMON_PORT,		/**< Port of communication between scanner and server */
-	MS_SCAN_COMM_PORT,		/**< Port of communication between scanner and server */
 	MS_SCANNER_PORT,		/**< Directory Scanner */
 	MS_DB_UPDATE_PORT,		/**< Media DB Update */
 	MS_THUMB_CREATOR_PORT,	/**< Create thumbnail */
@@ -66,8 +65,21 @@ typedef enum{
 	MS_MSG_SCANNER_READY,				/**< Ready from media scanner */
 	MS_MSG_SCANNER_RESULT,				/**< Result of directory scanning */
 	MS_MSG_SCANNER_BULK_RESULT,			/**< Request bulk insert */
+	MS_MSG_STORAGE_META,				/**< Request updating meta data */
+	MS_MSG_DIRECTORY_SCANNING_CANCEL,	/**< Request cancel directory scan*/
 	MS_MSG_MAX							/**< Invalid msg type */
 }ms_msg_type_e;
+
+#define MS_SCANNER_FIFO_PATH_REQ "/tmp/media-scanner-fifo-req"
+#define MS_SCANNER_FIFO_PATH_RES "/tmp/media-scanner-fifo-res"
+#define MS_SCANNER_FIFO_MODE 0666
+
+typedef struct
+{
+	int sock_fd;
+	int port;
+	char *sock_path;
+}ms_sock_info_s;
 
 typedef struct
 {
@@ -76,7 +88,7 @@ typedef struct
 	uid_t uid;
 	int result;
 	size_t msg_size; /*this is size of message below and this does not include the terminationg null byte ('\0'). */
-	char msg[MAX_FILEPATH_LEN];
+	char msg[MAX_MSG_SIZE];
 }ms_comm_msg_s;
 
 typedef enum {

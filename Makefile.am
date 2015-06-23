@@ -136,13 +136,19 @@ mediadb_update_CFLAGS = -I${srcdir}/lib/include \
                              $(GTHREAD_CFLAGS) \
                              $(GLIB_CFLAGS)
 
+mediadb_update_CFLAGS += -fPIE
+
+mediadb_update_LDFLAGS = -pie
+
 mediadb_update_LDADD = libmedia-utils.la \
                               $(GLIB_LIBS) \
-                              $(GTHREAD_LIBS)
+                              $(GTHREAD_LIBS) \
+                              -ldl
 
 ### includeheaders ###
 includeheadersdir = $(includedir)/media-utils
-includeheaders_HEADERS = lib/include/media-util-noti.h \
+includeheaders_HEADERS = lib/include/media-util-noti-common.h \
+                         lib/include/media-util-noti.h \
                          lib/include/media-util-register.h \
                          lib/include/media-util-err.h \
                          lib/include/media-util-db.h \

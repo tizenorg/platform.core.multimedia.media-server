@@ -37,8 +37,6 @@ gboolean msc_receive_request(GIOChannel *src, GIOCondition condition, gpointer d
 
 int msc_send_ready(void);
 
-int msc_send_scan_result(int result, ms_comm_msg_s *scan_data);
-
-int msc_send_register_result(int result, ms_comm_msg_s *reg_data);
+int msc_send_result(int result, ms_comm_msg_s *scan_data);
 
 #endif /*_MEDIA_SCANNER_SOCKET_H_*/

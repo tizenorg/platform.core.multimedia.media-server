@@ -62,9 +62,8 @@ gboolean ms_db_thread(void *data)
 	GMainContext *context = NULL;
 	MediaDBHandle *db_handle = NULL;
 
-
-	/* Create Socket*/
-	ret = ms_ipc_create_server_socket(MS_PROTOCOL_UDP, MS_DB_UPDATE_PORT, &sockfd);
+	/* Create TCP Socket*/
+	ret = ms_ipc_create_server_socket(MS_PROTOCOL_TCP, MS_DB_UPDATE_PORT, &sockfd);
 	if(ret != MS_MEDIA_ERR_NONE) {
 		MS_DBG_ERR("Failed to create socket");
 		return FALSE;
@@ -88,7 +87,7 @@ gboolean ms_db_thread(void *data)
 	source = g_io_create_watch(channel, G_IO_IN);
 
 	/* Set callback to be called when socket is readable */
-	g_source_set_callback(source, (GSourceFunc)ms_read_db_socket, db_handle, NULL);
+	g_source_set_callback(source, (GSourceFunc)ms_read_db_tcp_socket, db_handle, NULL);
 	g_source_attach(source, context);
 
 	/* Create new channel to watch TCP socket */
@@ -96,7 +95,7 @@ gboolean ms_db_thread(void *data)
 	tcp_source = g_io_create_watch(tcp_channel, G_IO_IN);
 
 	/* Set callback to be called when socket is readable */
-	g_source_set_callback(tcp_source, (GSourceFunc)ms_read_db_tcp_socket, db_handle, NULL);
+	g_source_set_callback(tcp_source, (GSourceFunc)ms_read_db_tcp_batch_socket, db_handle, NULL);
 	g_source_attach(tcp_source, context);
 
 	g_main_context_push_thread_default(context);
@@ -115,7 +114,6 @@ gboolean ms_db_thread(void *data)
 
 	g_io_channel_shutdown(channel,  FALSE, NULL);
 	g_io_channel_unref(channel);
-
 
 	/*close socket*/
 	close(sockfd);
