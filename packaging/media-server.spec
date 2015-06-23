@@ -1,6 +1,6 @@
 Name:       media-server
-Summary:    File manager service server
-Version:    0.2.50
+Summary:    File manager service server.
+Version:    0.2.51
 Release:    0
 Group:      Multimedia/Service
 License:    Apache-2.0
@@ -10,15 +10,12 @@ Source2:	media-server-user.service
 Source1001:     %{name}.manifest
 Source1002:     libmedia-utils.manifest
 Source1003:     libmedia-utils-devel.manifest
-Source1004:     media-data-sdk_create_db.sh
 Requires(post): /usr/bin/vconftool
 BuildRequires:  pkgconfig(glib-2.0)
 BuildRequires:  pkgconfig(vconf)
 BuildRequires:  pkgconfig(dlog)
-BuildRequires:  pkgconfig(drm-client)
 BuildRequires:  pkgconfig(aul)
 BuildRequires:  pkgconfig(pmapi)
-BuildRequires:  pkgconfig(heynoti)
 BuildRequires:  pkgconfig(dbus-glib-1)
 BuildRequires:  pkgconfig(sqlite3)
 BuildRequires:  pkgconfig(db-util)
@@ -78,7 +75,6 @@ install -D -m 0775 ./data-media/dbspace/file-manager-service/.thumb/mmc/* %{buil
 install -m 0775 ./data-media/dbspace/file-manager-service/.thumb/phone/PHONE_THUMB_HERE %{buildroot}%{TZ_SYS_DATA}/file-manager-service/.thumb/phone/
 install -m 0775 ./data-media/dbspace/file-manager-service/.thumb/phone/.jpg* %{buildroot}%{TZ_SYS_DATA}/file-manager-service/.thumb/phone/
 install -D -m 0775 ./data-media/dbspace/file-manager-service/* %{buildroot}%{TZ_SYS_DATA}/file-manager-service/
-install -m 0775 %{SOURCE1004} %{buildroot}%{_bindir}/media-data-sdk_create_db.sh
 
 %post
 vconftool set -t int db/filemanager/dbupdate "1" -f
@@ -86,7 +82,6 @@ vconftool set -t int memory/filemanager/Mmc "0" -i -f
 vconftool set -t string db/private/mediaserver/mmc_info "" -f
 vconftool set -t int file/private/mediaserver/scan_internal "1" -f
 vconftool set -t int file/private/mediaserver/scan_directory "1" -f
-chgrp %TZ_SYS_USER_GROUP %{_bindir}/media-data-sdk_create_db.sh
 chgrp -R %TZ_SYS_USER_GROUP %{TZ_SYS_DATA}/data-media
 chgrp -R %TZ_SYS_USER_GROUP %{TZ_SYS_DATA}/file-manager-service
 
@@ -111,7 +106,6 @@ ln -sf ../media-server-user.service  %{_unitdir_user}/default.target.wants/
 %{_unitdir}/multi-user.target.wants/media-server.service
 %{_unitdir_user}/media-server-user.service
 %license LICENSE.APLv2.0
-%{_bindir}/media-data-sdk_create_db.sh
 %{TZ_SYS_DATA}/data-media/*
 %{TZ_SYS_DATA}/file-manager-service/.thumb/*
 %{TZ_SYS_DATA}/file-manager-service/plugin-config

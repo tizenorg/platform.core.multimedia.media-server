@@ -19,15 +19,7 @@
  *
  */
 
-/**
- * This file defines api utilities of contents manager engines.
- *
- * @file		media-util-noti.h
- * @author	Yong Yeon Kim(yy9875.kim@samsung.com)
- * @version	1.0
- * @brief
- */
- #ifndef _MEDIA_UTIL_DB_H_
+#ifndef _MEDIA_UTIL_DB_H_
 #define _MEDIA_UTIL_DB_H_
 
 #ifdef __cplusplus
@@ -48,7 +40,7 @@ int media_db_request_update_db_batch(const char *query_str, uid_t uid);
 
 int media_db_request_update_db_batch_end(const char *query_str, uid_t uid);
 
-int media_db_request_directory_scan(const char *directory_path , uid_t uid);
+int media_db_request_update_db_batch_clear(void);
 
 /**
 * @}

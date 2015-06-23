@@ -19,14 +19,6 @@
  *
  */
 
-/**
- * This file defines api utilities of contents manager engines.
- *
- * @file		media-server-thumb.c
- * @author	Yong Yeon Kim(yy9875.kim@samsung.com)
- * @version	1.0
- * @brief
- */
 #ifndef _MEDIA_SCANNER_SOCKET_H_
 #define _MEDIA_SCANNER_SOCKET_H_
 
@@ -37,8 +29,6 @@ gboolean msc_receive_request(GIOChannel *src, GIOCondition condition, gpointer d
 
 int msc_send_ready(void);
 
-int msc_send_scan_result(int result, ms_comm_msg_s *scan_data);
-
-int msc_send_register_result(int result, ms_comm_msg_s *reg_data);
+int msc_send_result(int result, ms_comm_msg_s *scan_data);
 
 #endif /*_MEDIA_SCANNER_SOCKET_H_*/

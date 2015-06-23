@@ -35,6 +35,7 @@
 typedef int (*CONNECT)(void**, uid_t, char **);
 typedef int (*DISCONNECT)(void*, char **);
 typedef int (*SET_ALL_STORAGE_ITEMS_VALIDITY)(void*, int, int, uid_t,char **);
+typedef int (*CHECK_DB)(void*, uid_t uid, char **);
 
 int
 ms_load_functions(void);
@@ -50,5 +51,8 @@ ms_disconnect_db(void ***handle);
 
 int
 ms_invalidate_all_items(void **handle, ms_storage_type_t store_type, uid_t uid);
+
+int
+ms_check_db_upgrade(void **handle, uid_t uid);
 
 #endif /*_MEDIA_SERVER_DB_SVC_H_*/

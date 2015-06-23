@@ -32,13 +32,13 @@
 
 #include "media-common-types.h"
 
-typedef int (*CHECK_ITEM)(const char*, char **);
 typedef int (*CONNECT)(void**, uid_t, char **);
 typedef int (*DISCONNECT)(void*, char **);
-typedef int (*CHECK_ITEM_EXIST)(void*, const char*, int, char **);
+typedef int (*CHECK_ITEM_EXIST)(void*, const char*, bool*, char **);
 typedef int (*INSERT_ITEM_BEGIN)(void*, int, int, int, char **);
 typedef int (*INSERT_ITEM_END)(void*, uid_t, char **);
 typedef int (*INSERT_ITEM)(void*, const char*, int, uid_t, char **);
+typedef int (*INSERT_ITEM_IMMEDIATELY)(void*, const char*, int, uid_t, char **);
 typedef int (*SET_ALL_STORAGE_ITEMS_VALIDITY)(void*, int, int, uid_t, char **);
 typedef int (*SET_ITEM_VALIDITY_BEGIN)(void*, int, char **);
 typedef int (*SET_ITEM_VALIDITY_END)(void*, uid_t, char **);
@@ -52,6 +52,12 @@ typedef int (*DELETE_ALL_INVALID_ITEMS_IN_FOLDER)(void*, const char*, uid_t, cha
 typedef int (*INSERT_BURST_ITEM)(void *, const char *, int, uid_t, char **);
 typedef int (*SEND_DIR_UPDATE_NOTI)(void *, const char *, char **);
 typedef int (*COUNT_DELETE_ITEMS_IN_FOLDER)(void *, const char *, int *, char **);
+typedef int (*DELETE_ITEM)(void *, const char *, uid_t, char **);
+typedef int (*GET_FOLDER_LIST)(void *, char*, char ***, int **, int **, int *, char **);
+typedef int (*UPDATE_FOLDER_TIME)(void *, const char *, uid_t, char **);
+typedef int (*UPDATE_ITEM_META)(void *, const char *, int, uid_t, char **);
+typedef int (*UPDATE_ITEM_BEGIN)(void *, int, char **);
+typedef int (*UPDATE_ITEM_END)(void *, uid_t, char **);
 
 int
 msc_load_functions(void);
@@ -78,7 +84,7 @@ bool
 msc_delete_all_items(void **handle, ms_storage_type_t store_type, uid_t uid);
 
 int
-msc_invalidate_all_items(void **handle, ms_storage_type_t store_type, uid_t uid);
+msc_validaty_change_all_items(void **handle, ms_storage_type_t store_type, bool validity, uid_t uid);
 
 bool
 msc_delete_invalid_items(void **handle, ms_storage_type_t store_type, uid_t uid);
@@ -94,6 +100,24 @@ msc_send_dir_update_noti(void **handle, const char*path);
 
 int
 msc_count_delete_items_in_folder(void **handle, const char*path, int *count);
+
+typedef struct msc_dir_info_s {
+	char *dir_path;
+	int modified_time;
+	int item_num;
+} msc_dir_info_s;
+
+int
+msc_get_folder_list(void **handle, char* start_path, GArray **dir_array);
+
+int
+msc_update_folder_time(void **handle, char *folder_path, uid_t uid);
+
+int
+msc_insert_item_immediately(void **handle, const char *path, uid_t uid);
+
+int
+msc_update_meta_batch(void **handle, const char *path, uid_t uid);
 
 /****************************************************************************************************
 FOR BULK COMMIT
@@ -114,5 +138,11 @@ msc_validate_start(void **handle);
 
 void
 msc_validate_end(void **handle, uid_t uid);
+
+void
+msc_update_start(void **handle);
+
+void
+msc_update_end(void **handle, uid_t uid);
 
 #endif /*_MEDIA_SCANNER_DB_SVC_H_*/

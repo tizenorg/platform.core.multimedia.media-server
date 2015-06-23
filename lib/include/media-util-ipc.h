@@ -19,15 +19,7 @@
  *
  */
 
-/**
- * This file defines api utilities of IPC.
- *
- * @file		media-util-ipc.h
- * @author	Haejeong Kim(backto.kim@samsung.com)
- * @version	1.0
- * @brief
- */
- #ifndef _MEDIA_UTIL_IPC_H_
+#ifndef _MEDIA_UTIL_IPC_H_
 #define _MEDIA_UTIL_IPC_H_
 
 #ifdef __cplusplus
@@ -47,13 +39,18 @@ typedef enum {
 	MS_PROTOCOL_TCP
 } ms_protocol_e;
 
-int ms_ipc_create_client_socket(ms_protocol_e protocol, int timeout_sec, int *sock_fd, int port);
-int ms_ipc_create_server_socket(ms_protocol_e protocol, int port, int *sock_fd);
-int ms_ipc_send_msg_to_server(int sockfd, int port, ms_comm_msg_s *send_msg, struct sockaddr_un *serv_addr);
+int ms_ipc_create_client_socket(ms_protocol_e protocol, int timeout_sec, ms_sock_info_s* sock_info);
+int ms_ipc_create_server_socket(ms_protocol_e protocol, ms_msg_port_type_e port, int *sock_fd);
+int ms_ipc_send_msg_to_server(int sockfd, ms_msg_port_type_e port, ms_comm_msg_s *send_msg, struct sockaddr_un *serv_addr);
+int ms_ipc_send_msg_to_server_tcp(int sockfd, ms_msg_port_type_e port, ms_comm_msg_s *send_msg, struct sockaddr_un *serv_addr);
 int ms_ipc_send_msg_to_client(int sockfd, ms_comm_msg_s *send_msg, struct sockaddr_un *client_addr);
+int ms_ipc_send_msg_to_client_tcp(int sockfd, ms_comm_msg_s *send_msg, struct sockaddr_un *client_addr);
 int ms_ipc_receive_message(int sockfd, void *recv_msg, unsigned int msg_size, struct sockaddr_un *client_addr, unsigned int *size);
+int ms_ipc_receive_message_tcp(int client_sock, ms_comm_msg_s *recv_msg);
 int ms_ipc_wait_message(int sockfd, void  *recv_msg, unsigned int msg_size, struct sockaddr_un *recv_addr, unsigned int *size);
 int ms_ipc_wait_block_message(int sockfd, void  *recv_msg, unsigned int msg_size, struct sockaddr_un *recv_addr, unsigned int *size);
+int ms_ipc_delete_client_socket(ms_sock_info_s* sock_info);
+int ms_ipc_accept_client_tcp(int serv_sock, int* client_sock);
 
 #ifdef __cplusplus
 }
