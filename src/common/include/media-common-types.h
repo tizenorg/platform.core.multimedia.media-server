@@ -19,15 +19,6 @@
  *
  */
 
-/**
- * This file defines api utilities of contents manager engines.
- *
- * @file		media-common-types.h
- * @author	Yong Yeon Kim(yy9875.kim@samsung.com)
- * @version	1.0
- * @brief
- */
-
 #ifndef _MEDIA_SERVER_TYPES_H_
 #define _MEDIA_SERVER_TYPES_H_
 
@@ -57,7 +48,7 @@
 
 #define MS_SAFE_FREE(src)      { if(src) {free(src); src = NULL;} }
 #define MS_MALLOC(src, size)	{ if (size > SIZE_MAX || size <= 0) {src = NULL;} \
-							else { src = malloc(size); memset(src, 0x0, size);} }
+							else { src = malloc(size); if(src) memset(src, 0x0, size);} }
 
 /*System default folder definition*/
 #define FAT_FILENAME_LEN_MAX          255	/* not inc null */
@@ -82,6 +73,7 @@ typedef enum {
 typedef enum {
 	MS_SCAN_INVALID,
 	MS_SCAN_PART,
+	MS_SCAN_META,
 	MS_SCAN_ALL,
 } ms_dir_scan_type_t;
 
@@ -109,9 +101,5 @@ typedef struct {
 	char *path;
 	int pid;
 } ms_register_data_t;
-
-/**
- * @}
- */
 
 #endif /*_MEDIA_SERVER_TYPES_H_*/

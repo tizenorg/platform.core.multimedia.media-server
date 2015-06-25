@@ -19,17 +19,7 @@
  *
  */
 
-/**
- * This file defines api utilities of contents manager engines.
- *
- * @file		media-server-utils.c
- * @author	Yong Yeon Kim(yy9875.kim@samsung.com)
- * @version	1.0
- * @brief       This file implements main database operation.
- */
-
 #define _GNU_SOURCE
-
 #include <errno.h>
 #include <vconf.h>
 #include <aul/aul.h>
@@ -39,7 +29,6 @@
 #include "media-util.h"
 #include "media-server-ipc.h"
 #include "media-common-dbg.h"
-#include "media-common-drm.h"
 #include "media-common-utils.h"
 
 #ifdef FMS_PERF
@@ -129,21 +118,21 @@ static char* __media_get_path(uid_t uid)
 ms_storage_type_t
 ms_get_storage_type_by_full(const char *path, uid_t uid)
 {
-	int lenght_path;
+	int length_path;
 	char * user_path = NULL;
 	
 	if (path == NULL)
 		return false;
 
 	user_path = __media_get_path(uid);
-	lenght_path = strlen(user_path);
+	length_path = strlen(user_path);
 
-	if (strncmp(path, user_path, lenght_path) == 0) {
+	if (strncmp(path, user_path, length_path) == 0) {
 		return MS_STORAGE_INTERNAL;
 	} else if (strncmp(path, MEDIA_ROOT_PATH_SDCARD, strlen(MEDIA_ROOT_PATH_SDCARD)) == 0) {
 		return MS_STORAGE_EXTERNAL;
-	} else
-       { free(user_path);
+	} else {
+		free(user_path);
 		return MS_MEDIA_ERR_INVALID_PATH;
     }
 }
@@ -278,3 +267,23 @@ ms_config_set_str(const char *key, const char *value)
 	return false;
 }
 
+bool
+ms_config_get_bool(const char *key, int *value)
+{
+	int err;
+
+	if (!key || !value) {
+		MS_DBG_ERR("Arguments key or value is NULL");
+		return false;
+	}
+
+	err = vconf_get_bool(key, value);
+	if (err == 0)
+		return true;
+	else if (err == -1)
+		return false;
+	else
+		MS_DBG_ERR("Unexpected error code: %d", err);
+
+	return false;
+}

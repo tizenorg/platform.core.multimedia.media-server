@@ -19,15 +19,6 @@
  *
  */
 
-/**
- * This file defines api utilities of contents manager engines.
- *
- * @file		media-scanner-dbg.h
- * @author	Yong Yeon Kim(yy9875.kim@samsung.com)
- * @version	1.0
- * @brief
- */
-
 #ifndef _MEDIA_SCANNER_DBG_H_
 #define _MEDIA_SCANNER_DBG_H_
 #include <sys/syscall.h>
@@ -42,8 +33,7 @@
 
 #define MSC_DBG_STRERROR(fmt) do { \
 			char buf[BUF_LENGTH] = {0,}; \
-			strerror_r(errno, buf, BUF_LENGTH); \
-			LOGE(fmt" : STANDARD ERROR [%s]", buf);	 \
+			LOGE(fmt" : STANDARD ERROR [%s]", strerror_r(errno, buf, BUF_LENGTH)); \
 		} while (0)
 
 #define MSC_DBG_SLOG(fmt, args...)	do{ if (true) { \

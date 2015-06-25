@@ -26,7 +26,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <dirent.h>
-
+#include <dlfcn.h>
 
 #include <glib.h>
 #include "media-util.h"
@@ -36,11 +36,14 @@
 GMainLoop * mainloop = NULL;
 static MediaDBHandle *db_handle = NULL;
 
+int (*svc_connect)				(void ** handle, uid_t uid, char ** err_msg);
+int (*svc_disconnect)			(void * handle, char ** err_msg);
+int (*svc_check_db)			(void * handle, uid_t uid, char ** err_msg);
+
 void callback(media_request_result_s * result, void *user_data)
 {
 	printf("db updating done\n");
 
-	media_db_disconnect(db_handle);
 	g_main_loop_quit(mainloop);
 }
 
@@ -59,6 +62,41 @@ void print_help()
 	printf("Using %s is allowed SD card is mounted.\n",tzplatform_mkpath(TZ_SYS_STORAGE,"sdcard"));
 	printf("\n");
 	printf("=======================================================================================\n");
+}
+
+void check_media_db(void)
+{
+	void *funcHandle = NULL;
+	void *db_handle = NULL;
+	char *err_msg = NULL;
+	int ret = 0;
+
+	funcHandle = dlopen ("/usr/lib/libmedia-content-plugin.so", RTLD_LAZY);
+	if(funcHandle == NULL)
+	{
+		printf("Error when open plug-in\n");
+		return;
+	}
+
+	svc_connect			= dlsym (funcHandle, "connect_db");
+	svc_disconnect		= dlsym (funcHandle, "disconnect_db");
+	svc_check_db 		= dlsym (funcHandle, "check_db");
+
+	ret = svc_connect(&db_handle,tzplatform_getuid(TZ_USER_NAME), &err_msg);
+	if(ret < 0)
+		printf("Error svc_connect\n");
+
+	ret = svc_check_db(db_handle,tzplatform_getuid(TZ_USER_NAME), &err_msg);
+	if(ret < 0)
+		printf("Error svc_check_db\n");
+
+	ret = svc_disconnect(db_handle, &err_msg);
+	if(ret < 0)
+		printf("Error svc_disconnect\n");
+
+	printf("Check media db done\n");
+
+	dlclose (funcHandle);
 }
 
 int dir_scan_non_recursive(char *path)
@@ -138,6 +176,11 @@ int main(int argc, char **argv)
 	if (argc == 2) {
 		if (strcmp(argv1 , "--help") == 0) {
 			print_help();
+			exit(1);
+		}
+
+		if (strcmp(argv1 , "check_db") == 0) {
+			check_media_db();
 			exit(1);
 		}
 

@@ -19,21 +19,14 @@
  *
  */
 
-/**
- * This file defines api utilities of contents manager engines.
- *
- * @file		media-server-main.c
- * @author	Yong Yeon Kim(yy9875.kim@samsung.com)
- * @version	1.0
- * @brief
- */
-
 #include <dirent.h>
 #include <vconf.h>
-#include <heynoti.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <errno.h>
 
 #include "media-common-utils.h"
-#include "media-common-drm.h"
 #include "media-common-external-storage.h"
 
 #include "media-util.h"
@@ -44,14 +37,14 @@
 
 #define APP_NAME "media-scanner"
 
-static int heynoti_id;
 extern int mmc_state;
 
 extern GAsyncQueue *storage_queue;
 extern GAsyncQueue *scan_queue;
 extern GAsyncQueue *reg_queue;
-extern GMutex *db_mutex;
-extern GMutex *receive_mutex;
+extern GMutex db_mutex;
+extern GMutex scan_req_mutex;
+extern bool g_directory_scan_processing;
 bool power_off; /*If this is TRUE, poweroff notification received*/
 
 static GMainLoop *scanner_mainloop = NULL;
@@ -130,35 +123,37 @@ static void _power_off_cb(void* data)
 	if (scan_queue) {
 		/*notify to scannig thread*/
 		MS_MALLOC(scan_data, sizeof(ms_comm_msg_s));
-		scan_data->pid = POWEROFF;
-		g_async_queue_push(scan_queue, GINT_TO_POINTER(scan_data));
+		if(scan_data) {
+			scan_data->pid = POWEROFF;
+			g_async_queue_push(scan_queue, GINT_TO_POINTER(scan_data));
+		}
 	}
 
 	if (reg_queue) {
 		/*notify to register thread*/
 		MS_MALLOC(reg_data, sizeof(ms_comm_msg_s));
-		reg_data->pid = POWEROFF;
-		g_async_queue_push(reg_queue, GINT_TO_POINTER(reg_data));
+		if(reg_data) {
+			reg_data->pid = POWEROFF;
+			g_async_queue_push(reg_queue, GINT_TO_POINTER(reg_data));
+		}
 	}
 
 	if (storage_queue) {
 		/*notify to register thread*/
 		MS_MALLOC(reg_data, sizeof(ms_comm_msg_s));
-		reg_data->pid = POWEROFF;
-		g_async_queue_push(storage_queue, GINT_TO_POINTER(reg_data));
+		if(reg_data) {
+			reg_data->pid = POWEROFF;
+			g_async_queue_push(storage_queue, GINT_TO_POINTER(reg_data));
+		}
 	}
 
 	if (g_main_loop_is_running(scanner_mainloop)) g_main_loop_quit(scanner_mainloop);
 }
 
-void
-_msc_mmc_vconf_cb(void *data)
+void _msc_mmc_vconf_cb(keynode_t *key, void* data)
 {
 	int status = 0;
-/*
-	ms_comm_msg_s *scan_msg;
-	ms_dir_scan_type_t scan_type = MS_SCAN_PART;
-*/
+
 	if (!ms_config_get_int(VCONFKEY_SYSMAN_MMC_STATUS, &status)) {
 		MSC_DBG_ERR("Get VCONFKEY_SYSMAN_MMC_STATUS failed.");
 	}
@@ -166,36 +161,7 @@ _msc_mmc_vconf_cb(void *data)
 	MSC_DBG_INFO("VCONFKEY_SYSMAN_MMC_STATUS :%d", status);
 
 	mmc_state = status;
-/*
-	MS_MALLOC(scan_msg, sizeof(ms_comm_msg_s));
 
-	if (mmc_state == VCONFKEY_SYSMAN_MMC_REMOVED ||
-		mmc_state == VCONFKEY_SYSMAN_MMC_INSERTED_NOT_MOUNTED) {
-		scan_type = MS_SCAN_INVALID;
-	} else if (mmc_state == VCONFKEY_SYSMAN_MMC_MOUNTED) {
-		scan_type = ms_get_mmc_state();
-	}
-
-	switch (scan_type) {
-		case MS_SCAN_ALL:
-			scan_msg->msg_type = MS_MSG_STORAGE_ALL;
-			break;
-		case MS_SCAN_PART:
-			scan_msg->msg_type = MS_MSG_STORAGE_PARTIAL;
-			break;
-		case MS_SCAN_INVALID:
-			scan_msg->msg_type = MS_MSG_STORAGE_INVALID;
-			break;
-	}
-
-	scan_msg->pid = 0;
-	scan_msg->msg_size = strlen(MEDIA_ROOT_PATH_SDCARD);
-	ms_strcopy(scan_msg->msg, scan_msg->msg_size+1, "%s", MEDIA_ROOT_PATH_SDCARD);
-
-	MSC_DBG_INFO("ms_get_mmc_state is %d", scan_msg->msg_type);
-
-	g_async_queue_push(storage_queue, GINT_TO_POINTER(scan_msg));
-*/
 	return;
 }
 
@@ -208,40 +174,18 @@ int main(int argc, char **argv)
 	GIOChannel *channel = NULL;
 	GMainContext *context = NULL;
 
-	int sockfd = -1;
-	int err;
-
-#if 0 /* temporary */
-	check_result = check_process();
-	if (check_result == false)
-		exit(0);
-#endif
-	if (!g_thread_supported()) {
-		g_thread_init(NULL);
-	}
-
-	/*Init main loop*/
-	scanner_mainloop = g_main_loop_new(NULL, FALSE);
-
-	/*heynoti for power off*/
-	if ((heynoti_id = heynoti_init()) <0) {
-		MSC_DBG_INFO("heynoti_init failed");
-	} else {
-		err = heynoti_subscribe(heynoti_id, POWEROFF_NOTI_NAME, _power_off_cb, NULL);
-		if (err < 0)
-			MSC_DBG_INFO("heynoti_subscribe failed");
-
-		err = heynoti_attach_handler(heynoti_id);
-		if (err < 0)
-			MSC_DBG_INFO("heynoti_attach_handler failed");
-	}
+	int err = -1;
+	int fd = -1;
 
 	/*load functions from plusin(s)*/
 	err = msc_load_functions();
 	if (err != MS_MEDIA_ERR_NONE) {
-		MSC_DBG_ERR("function load failed");
-		exit(0);
+		MSC_DBG_ERR("function load failed[%d]", err);
+		goto EXIT;
 	}
+
+	/*Init main loop*/
+	scanner_mainloop = g_main_loop_new(NULL, FALSE);
 
 	/*Init for register file*/
 	/*These are a communicator for thread*/
@@ -249,27 +193,34 @@ int main(int argc, char **argv)
 	if (!reg_queue) reg_queue = g_async_queue_new();
 	if (!storage_queue) storage_queue = g_async_queue_new();
 
-	/*Init mutex variable*/
-	if (!db_mutex) db_mutex = g_mutex_new();
-
-	/*prepare socket*/
-	/* Create and bind new UDP socket */
-	if (ms_ipc_create_server_socket(MS_PROTOCOL_UDP, MS_SCAN_DAEMON_PORT, &sockfd)
-		!= MS_MEDIA_ERR_NONE) {
-		MSC_DBG_ERR("Failed to create socket\n");
-		exit(0);
-	} else {
-		context = g_main_loop_get_context(scanner_mainloop);
-
-		/* Create new channel to watch udp socket */
-		channel = g_io_channel_unix_new(sockfd);
-		source = g_io_create_watch(channel, G_IO_IN);
-
-		/* Set callback to be called when socket is readable */
-		g_source_set_callback(source, (GSourceFunc)msc_receive_request, NULL, NULL);
-		g_source_attach(source, context);
-		g_source_unref(source);
+	/* Create pipe */
+	err = unlink(MS_SCANNER_FIFO_PATH_REQ);
+	if (err !=0) {
+		MSC_DBG_STRERROR("unlink failed");
 	}
+
+	err = mkfifo(MS_SCANNER_FIFO_PATH_REQ, MS_SCANNER_FIFO_MODE);
+	if (err !=0) {
+		MSC_DBG_STRERROR("mkfifo failed");
+		return MS_MEDIA_ERR_INTERNAL;
+	}
+
+	fd = open(MS_SCANNER_FIFO_PATH_REQ, O_RDWR);
+	if (fd < 0) {
+		MSC_DBG_STRERROR("fifo open failed");
+		return MS_MEDIA_ERR_FILE_OPEN_FAIL;
+	}
+
+	context = g_main_loop_get_context(scanner_mainloop);
+
+	/* Create new channel to watch pipe */
+	channel = g_io_channel_unix_new(fd);
+	source = g_io_create_watch(channel, G_IO_IN);
+
+	/* Set callback to be called when pipe is readable */
+	g_source_set_callback(source, (GSourceFunc)msc_receive_request, NULL, NULL);
+	g_source_attach(source, context);
+	g_source_unref(source);
 
 	/*create each threads*/
 	storage_scan_thread = g_thread_new("storage_scan_thread", (GThreadFunc)msc_storage_scan_thread, NULL);
@@ -304,24 +255,19 @@ int main(int argc, char **argv)
 		g_io_channel_unref(channel);
 	}
 
-	heynoti_unsubscribe(heynoti_id, POWEROFF_NOTI_NAME, _power_off_cb);
-	heynoti_close(heynoti_id);
-
 	if (scan_queue) g_async_queue_unref(scan_queue);
 	if (reg_queue) g_async_queue_unref(reg_queue);
 	if (storage_queue) g_async_queue_unref(storage_queue);
 
-	/*Clear db mutex variable*/
-	if (db_mutex) g_mutex_free (db_mutex);
-
-	/*close socket*/
-	close(sockfd);
+	/*close pipe*/
+	close(fd);
 
 	/*unload functions*/
 	msc_unload_functions();
 
+EXIT:
 	MSC_DBG_INFO("SCANNER IS END");
 
-	exit(0);
+	return 0;
 }
 

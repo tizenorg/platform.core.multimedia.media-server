@@ -19,64 +19,30 @@
  *
  */
 
-/**
- * This file defines api utilities of Media DB.
- *
- * @file		media-util-db.c
- * @author	Haejeong Kim(backto.kim@samsung.com)
- * @version	1.0
- * @brief
- */
-#include <sys/stat.h>
-#include <sys/wait.h>
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
 #include <db-util.h>
 #include <grp.h>
 #include <pwd.h>
+#include <sys/stat.h>
+#include <sys/wait.h>
 #include <sys/smack.h>
 #include "media-server-ipc.h"
 #include "media-util-dbg.h"
 #include "media-util-internal.h"
 #include "media-util.h"
 
-#define GLOBAL_USER	0 //#define 	tzplatform_getenv(TZ_GLOBAL) //TODO
 #define BUFSIZE 4096
-
-#define QUERY_ATTACH "attach database '%s' as Global"
-#define QUERY_CREATE_VIEW_ALBUM "CREATE temp VIEW album as select distinct * from (select  * from main.album m union select * from Global.album g)"
-#define QUERY_CREATE_VIEW_FOLDER "CREATE temp VIEW folder as select distinct * from (select  * from main.folder m union select * from Global.folder g)"
-#define QUERY_CREATE_VIEW_PLAYLIST "CREATE temp VIEW playlist as select distinct * from (select  * from main.playlist m union select * from Global.playlist g)"
-#define QUERY_CREATE_VIEW_PLAYLIST_VIEW "CREATE temp VIEW playlist_view as select distinct * from (select  * from main.playlist_view m union select * from Global.playlist_view g)"
-#define QUERY_CREATE_VIEW_TAG_MAP "CREATE temp VIEW tag_map as select distinct * from (select  * from main.tag_map m union select * from Global.tag_map g)"
-#define QUERY_CREATE_VIEW_BOOKMARK "CREATE temp VIEW bookmark as select distinct * from (select  * from main.bookmark m union select * from Global.bookmark g)"
-#define QUERY_CREATE_VIEW_MEDIA "CREATE temp VIEW media as select distinct * from (select  * from main.media m union select * from Global.media g)"
-#define QUERY_CREATE_VIEW_PLAYLIST_MAP "CREATE temp VIEW playlist_map as select distinct * from (select  * from main.playlist_map m union select * from Global.playlist_map g)"
-#define QUERY_CREATE_VIEW_TAG "CREATE temp VIEW tag as select distinct * from (select  * from main.tag m union select * from Global.tag g)"
-#define QUERY_CREATE_VIEW_TAG_VIEW "CREATE temp VIEW tag_view as select distinct * from (select  * from main.tag_view m union select * from Global.tag_view g)"
-
-#define QUERY_DETACH "detach database Global"
-#define QUERY_DROP_VIEW_ALBUM "DROP VIEW album"
-#define QUERY_DROP_VIEW_FOLDER "DROP VIEW folder"
-#define QUERY_DROP_VIEW_PLAYLIST "DROP VIEW playlist"
-#define QUERY_DROP_VIEW_PLAYLIST_VIEW "DROP VIEW playlist_view"
-#define QUERY_DROP_VIEW_TAG_MAP "DROP VIEW tag_map"
-#define QUERY_DROP_VIEW_BOOKMARK "DROP VIEW bookmark"
-#define QUERY_DROP_VIEW_MEDIA "DROP VIEW media"
-#define QUERY_DROP_VIEW_PLAYLIST_MAP "DROP VIEW playlist_map"
-#define QUERY_DROP_VIEW_TAG "DROP VIEW tag"
-#define QUERY_DROP_VIEW_TAG_VIEW "DROP VIEW tag_view"
-
+#define GLOBAL_USER	0 //#define 	tzplatform_getenv(TZ_GLOBAL) //TODO
 static __thread char **sql_list = NULL;
 static __thread int g_list_idx = 0;
 
 static int __media_db_busy_handler(void *pData, int count);
 static int __media_db_connect_db_with_handle(sqlite3 **db_handle, uid_t uid);
 static int __media_db_disconnect_db_with_handle(sqlite3 *db_handle);
-static int __media_db_request_update(ms_msg_type_e msg_type, const char *request_msg, uid_t uid);
 
-void __media_db_destroy_sql_list()
+static void __media_db_destroy_sql_list()
 {
 	int i = 0;
 
@@ -95,41 +61,6 @@ static int __media_db_busy_handler(void *pData, int count)
 	MSAPI_DBG("media_db_busy_handler called : %d", count);
 
 	return 100 - count;
-}
-int _xsystem(const char *argv[])
-{
-	int status = 0;
-	pid_t pid;
-	pid = fork();
-	switch (pid) {
-	case -1:
-		perror("fork failed");
-		return -1;
-	case 0:
-		/* child */
-		execvp(argv[0], (char *const *)argv);
-		_exit(-1);
-	default:
-		/* parent */
-		break;
-	}
-	if (waitpid(pid, &status, 0) == -1)
-	{
-		perror("waitpid failed");
-		return -1;
-	}
-	if (WIFSIGNALED(status))
-	{
-		perror("signal");
-		return -1;
-	}
-	if (!WIFEXITED(status))
-	{
-		/* shouldn't happen */
-		perror("should not happen");
-		return -1;
-	}
-	return WEXITSTATUS(status);
 }
 
 static char* __media_get_media_DB(uid_t uid)
@@ -185,105 +116,16 @@ static char* __media_get_media_DB(uid_t uid)
 	return result_psswd;
 }
 
-static int __media_db_update_directly(sqlite3 *db_handle, const char *sql_str)
-{
-	int ret = MS_MEDIA_ERR_NONE;
-	char *zErrMsg = NULL;
-
-	MSAPI_DBG_INFO("SQL = [%s]", sql_str);
-
-	ret = sqlite3_exec(db_handle, sql_str, NULL, NULL, &zErrMsg);
-
-	if (SQLITE_OK != ret) {
-		MSAPI_DBG_ERR("DB Update Fail SQL:%s [%s], err[%d]", sql_str, zErrMsg, ret);
-		if (ret == SQLITE_BUSY)
-			ret = MS_MEDIA_ERR_DB_BUSY_FAIL;
-		else
-			ret = MS_MEDIA_ERR_DB_UPDATE_FAIL;
-	} else {
-		MSAPI_DBG("DB Update Success");
-	}
-
-	if (zErrMsg)
-		sqlite3_free (zErrMsg);
-
-	return ret;
-}
-
 static int __media_db_connect_db_with_handle(sqlite3 **db_handle,uid_t uid)
 {
-	int i;
 	int ret = MS_MEDIA_ERR_NONE;
-	char *mediadb_path = NULL;
-	char *mediadbjournal_path = NULL;
 
-	/*Init DB*/
-	const char *tbls[35] = {
-		"CREATE TABLE IF NOT EXISTS album (album_id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, artist TEXT, album_art TEXT);",
-		"CREATE TABLE IF NOT EXISTS bookmark (bookmark_id INTEGER PRIMARY KEY AUTOINCREMENT, media_uuid TEXT NOT NULL, marked_time INTEGER DEFAULT 0, thumbnail_path TEXT, unique(media_uuid, marked_time));",
-		"CREATE TABLE IF NOT EXISTS folder (folder_uuid TEXT PRIMARY KEY, path TEXT NOT NULL, name TEXT NOT NULL, modified_time INTEGER DEFAULT 0, name_pinyin TEXT, storage_type INTEGER, storage_uuid TEXT, folder_order INTEGER DEFAULT 0, parent_folder_uuid TEXT, validity INTEGER DEFAULT 1, unique(path, name));",
-		"CREATE TABLE IF NOT EXISTS media (media_uuid TEXT PRIMARY KEY, path TEXT NOT NULL UNIQUE, file_name TEXT NOT NULL, media_type INTEGER, mime_type TEXT, size INTEGER DEFAULT 0, added_time INTEGER DEFAULT 0, modified_time INTEGER DEFAULT 0, folder_uuid TEXT NOT NULL, thumbnail_path TEXT, title TEXT, album_id INTEGER DEFAULT 0, album TEXT, artist TEXT, album_artist TEXT, genre TEXT, composer TEXT, year TEXT, recorded_date TEXT, copyright TEXT, track_num TEXT, description TEXT, bitrate INTEGER DEFAULT -1, bitpersample INTEGER DEFAULT 0, samplerate INTEGER DEFAULT -1, channel INTEGER DEFAULT -1, duration INTEGER DEFAULT -1, longitude DOUBLE DEFAULT 0, latitude DOUBLE DEFAULT 0, altitude DOUBLE DEFAULT 0, exposure_time TEXT, fnumber DOUBLE DEFAULT 0, iso INTEGER DEFAULT -1, model TEXT, width INTEGER DEFAULT -1, height INTEGER DEFAULT -1, datetaken TEXT, orientation INTEGER DEFAULT -1, burst_id TEXT, played_count INTEGER DEFAULT 0, last_played_time INTEGER DEFAULT 0, last_played_position INTEGER DEFAULT 0, rating INTEGER DEFAULT 0, favourite INTEGER DEFAULT 0, author TEXT, provider TEXT, content_name TEXT, category TEXT, location_tag TEXT, age_rating TEXT, keyword TEXT, is_drm INTEGER DEFAULT 0, storage_type INTEGER, timeline INTEGER DEFAULT 0, weather TEXT, sync_status INTEGER DEFAULT 0, file_name_pinyin TEXT, title_pinyin TEXT, album_pinyin TEXT, artist_pinyin TEXT, album_artist_pinyin TEXT, genre_pinyin TEXT, composer_pinyin TEXT, copyright_pinyin TEXT, description_pinyin TEXT, author_pinyin TEXT, provider_pinyin TEXT, content_name_pinyin TEXT, category_pinyin TEXT, location_tag_pinyin TEXT, age_rating_pinyin TEXT, keyword_pinyin TEXT, storage_uuid TEXT, validity INTEGER DEFAULT 1, unique(path, file_name));",
-		"CREATE TABLE IF NOT EXISTS playlist (playlist_id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE, name_pinyin TEXT, thumbnail_path TEXT);",
-		"CREATE TABLE IF NOT EXISTS playlist_map (_id INTEGER PRIMARY KEY AUTOINCREMENT, playlist_id INTEGER NOT NULL, media_uuid TEXT NOT NULL, play_order INTEGER NOT NULL);",
-		"CREATE TABLE IF NOT EXISTS storage (storage_uuid TEXT PRIMARY KEY, storage_name TEXT, storage_path TEXT NOT NULL, storage_account TEXT, storage_type INTEGER DEFAULT 0, scan_status INTEGER DEFAULT 0, validity INTEGER DEFAULT 1, unique(storage_name, storage_path, storage_account));",
-		"CREATE TABLE IF NOT EXISTS tag (tag_id  INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE, name_pinyin TEXT);",
-		"CREATE TABLE IF NOT EXISTS tag_map (_id INTEGER PRIMARY KEY AUTOINCREMENT, tag_id INTEGER NOT NULL, media_uuid TEXT NOT NULL, unique(tag_id, media_uuid));",
-		"CREATE VIEW IF NOT EXISTS media_view AS SELECT * from media;",
-		"CREATE VIEW IF NOT EXISTS playlist_view AS SELECT playlist.playlist_id, playlist.name, playlist.thumbnail_path AS p_thumbnail_path, media_count IS NOT NULL AS media_count, playlist_map._id AS pm_id, playlist_map.play_order, media.media_uuid, media.path, media.file_name, media.media_type, media.mime_type, media.size, media.added_time, media.modified_time, media.thumbnail_path, media.title, media.album, media.artist, media.album_artist, media.genre, media.composer, media.year, media.recorded_date, media.copyright, media.track_num, media.description, media.bitrate, media.bitpersample, media.samplerate, media.channel, media.duration, media.longitude, media.latitude, media.altitude, media.exposure_time, media.fnumber, media.iso, media.model, media.width, media.height, media.datetaken, media.orientation, media.burst_id, media.played_count, media.last_played_time, media.last_played_position, media.rating, media.favourite, media.author, media.provider, media.content_name, media.category, media.location_tag, media.age_rating, media.keyword, media.is_drm, media.storage_type, media.timeline, media.weather, media.sync_status, media.storage_uuid FROM playlist  LEFT OUTER JOIN playlist_map ON playlist.playlist_id = playlist_map.playlist_id LEFT OUTER JOIN media ON (playlist_map.media_uuid = media.media_uuid AND media.validity=1)  LEFT OUTER JOIN (SELECT count(playlist_id) as media_count, playlist_id FROM playlist_map group by playlist_id) as cnt_tbl ON (cnt_tbl.playlist_id=playlist_map.playlist_id AND media.validity=1);",
-		"CREATE VIEW IF NOT EXISTS tag_view AS SELECT tag.tag_id , tag.name, media_count IS NOT NULL AS media_count, tag_map._id AS tm_id, media.media_uuid, media.path, media.file_name, media.media_type, media.mime_type, media.size, media.added_time, media.modified_time, media.thumbnail_path, media.title, media.album, media.artist, media.album_artist, media.genre, media.composer, media.year, media.recorded_date, media.copyright, media.track_num, media.description, media.bitrate, media.bitpersample, media.samplerate, media.channel, media.duration, media.longitude, media.latitude, media.altitude, media.exposure_time, media.fnumber, media.iso, media.model, media.width, media.height, media.datetaken, media.orientation, media.burst_id, media.played_count, media.last_played_time, media.last_played_position, media.rating, media.favourite, media.author, media.provider, media.content_name, media.category, media.location_tag, media.age_rating, media.keyword, media.is_drm, media.storage_type, media.timeline, media.weather, media.sync_status, media.storage_uuid FROM tag LEFT OUTER JOIN tag_map ON tag.tag_id=tag_map.tag_id LEFT OUTER JOIN media ON (tag_map.media_uuid = media.media_uuid AND media.validity=1)   LEFT OUTER JOIN (SELECT count(tag_id) as media_count, tag_id FROM tag_map group by tag_id) as cnt_tbl ON (cnt_tbl.tag_id=tag_map.tag_id AND media.validity=1);",
-		"CREATE INDEX folder_uuid_idx on media (folder_uuid);",
-		"CREATE INDEX media_album_idx on media (album);",
-		"CREATE INDEX media_artist_idx on media (artist);",
-		"CREATE INDEX media_author_idx on media (author);",
-		"CREATE INDEX media_category_idx on media (category);",
-		"CREATE INDEX media_composer_idx on media (composer);",
-		"CREATE INDEX media_content_name_idx on media (content_name);",
-		"CREATE INDEX media_file_name_idx on media (file_name);",
-		"CREATE INDEX media_genre_idx on media (genre);",
-		"CREATE INDEX media_location_tag_idx on media (location_tag);",
-		"CREATE INDEX media_media_type_idx on media (media_type);",
-		"CREATE INDEX media_modified_time_idx on media (modified_time);",
-		"CREATE INDEX media_provider_idx on media (provider);",
-		"CREATE INDEX media_timeline_idx on media (timeline);",
-		"CREATE INDEX media_title_idx on media (title);",
-		"CREATE TRIGGER album_cleanup DELETE ON media BEGIN DELETE FROM album WHERE (SELECT count(*) FROM media WHERE album_id=old.album_id)=1 AND album_id=old.album_id;END;",
-		"CREATE TRIGGER bookmark_cleanup DELETE ON media BEGIN DELETE FROM bookmark WHERE media_uuid=old.media_uuid;END;",
-		"CREATE TRIGGER playlist_map_cleanup DELETE ON media BEGIN DELETE FROM playlist_map WHERE media_uuid=old.media_uuid;END;",
-		"CREATE TRIGGER playlist_map_cleanup_1 DELETE ON playlist BEGIN DELETE FROM playlist_map WHERE playlist_id=old.playlist_id;END;",
-		"CREATE TRIGGER storage_folder_cleanup DELETE ON storage BEGIN DELETE FROM folder WHERE storage_uuid=old.storage_uuid;END;",
-		"CREATE TRIGGER tag_map_cleanup DELETE ON media BEGIN DELETE FROM tag_map WHERE media_uuid=old.media_uuid;END;",
-		"CREATE TRIGGER tag_map_cleanup_1 DELETE ON tag BEGIN DELETE FROM tag_map WHERE tag_id =old.tag_id ;END;",
-		NULL
-	};
-
-	mediadb_path = __media_get_media_DB(uid);
-
-	if (access(mediadb_path, F_OK)) {
-		if (MS_MEDIA_ERR_NONE == db_util_open_with_options(mediadb_path, db_handle, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE, NULL)) {
-			for (i = 0; tbls[i] != NULL; i++) {
-				ret = __media_db_update_directly(*db_handle, tbls[i]);
-			}
-			if(smack_setlabel(__media_get_media_DB(uid), "User", SMACK_LABEL_ACCESS)){
-				MSAPI_DBG_ERR("failed chsmack -a \"User\" %s", mediadb_path);
-			} else {
-				MSAPI_DBG_ERR("chsmack -a \"User\" %s", mediadb_path);
-			}
-			asprintf(&mediadbjournal_path, "%s-journal", mediadb_path);
-			if(smack_setlabel(mediadbjournal_path, "User", SMACK_LABEL_ACCESS)){
-				MSAPI_DBG_ERR("failed chsmack -a \"User\" %s", mediadbjournal_path);
-			} else {
-				MSAPI_DBG_ERR("chsmack -a \"User\" %s", mediadbjournal_path);
-			}
-		} else {
-			MSAPI_DBG_ERR("Failed to create table %s\n",__media_get_media_DB(uid));
-			return MS_MEDIA_ERR_DB_CONNECT_FAIL;
-		}
-	}
-
+	/*Connect DB*/
 	ret = db_util_open(__media_get_media_DB(uid), db_handle, DB_UTIL_REGISTER_HOOK_METHOD);
+
 	if (SQLITE_OK != ret) {
 
-		MSAPI_DBG_ERR("error when db open");
+		MSAPI_DBG_ERR("error when db open [%s]", __media_get_media_DB(uid));
 		*db_handle = NULL;
 		return MS_MEDIA_ERR_DB_CONNECT_FAIL;
 	}
@@ -327,19 +169,18 @@ static int __media_db_disconnect_db_with_handle(sqlite3 *db_handle)
 	return MS_MEDIA_ERR_NONE;
 }
 
-static int __media_db_request_update(ms_msg_type_e msg_type, const char *request_msg, uid_t uid)
+extern char MEDIA_IPC_PATH[][70];
+#define MAX_RETRY_COUNT 3
+
+static int __media_db_request_update_tcp(ms_msg_type_e msg_type, const char *request_msg, uid_t uid)
 {
 	int ret = MS_MEDIA_ERR_NONE;
 	int request_msg_size = 0;
 	int sockfd = -1;
-	int err = -1;
+	ms_sock_info_s sock_info;
 	struct sockaddr_un serv_addr;
-	int port = MS_DB_UPDATE_PORT;
-
-	if(msg_type == MS_MSG_DB_UPDATE)
-		port = MS_DB_UPDATE_PORT;
-	else
-		port = MS_SCANNER_PORT;
+	int retry_count = 0;
+	sock_info.port = MS_DB_UPDATE_PORT;
 
 	if(!MS_STRING_VALID(request_msg))
 	{
@@ -365,60 +206,94 @@ static int __media_db_request_update(ms_msg_type_e msg_type, const char *request
 	send_msg.uid = uid;
 
 	/*Create Socket*/
-	ret = ms_ipc_create_client_socket(MS_PROTOCOL_UDP, MS_TIMEOUT_SEC_10, &sockfd, port);
+	ret = ms_ipc_create_client_socket(MS_PROTOCOL_TCP, MS_TIMEOUT_SEC_10, &sock_info);
+	sockfd = sock_info.sock_fd;
 	MSAPI_RETV_IF(ret != MS_MEDIA_ERR_NONE, ret);
 
-	ret = ms_ipc_send_msg_to_server(sockfd, port, &send_msg, &serv_addr);
-	if (ret != MS_MEDIA_ERR_NONE) {
-		MSAPI_DBG_ERR("ms_ipc_send_msg_to_server failed : %d", ret);
+	/*Set server Address*/
+	memset(&serv_addr, 0, sizeof(serv_addr));
+	serv_addr.sun_family = AF_UNIX;
+//	MSAPI_DBG_SLOG("%s", MEDIA_IPC_PATH[port]);
+	strncpy(serv_addr.sun_path, MEDIA_IPC_PATH[sock_info.port], strlen(MEDIA_IPC_PATH[sock_info.port]));
+
+	/* Connecting to the media db server */
+	if (connect(sockfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0) {
+		MSAPI_DBG_STRERROR("connect error");
 		close(sockfd);
 		return MS_MEDIA_ERR_SOCKET_CONN;
 	}
 
+	/* Send request */
+	if (send(sockfd, &send_msg, sizeof(send_msg), 0) != sizeof(send_msg)) {
+		MSAPI_DBG_STRERROR("send failed");
+		close(sockfd);
+		return MS_MEDIA_ERR_SOCKET_SEND;
+	}
 
 	/*Receive Response*/
-	ms_comm_msg_s recv_msg;
-	memset(&recv_msg, 0x0, sizeof(ms_comm_msg_s));
+	int recv_msg_size = -1;
+	int recv_msg = -1;
+RETRY:
+	if ((recv_msg_size = recv(sockfd, &recv_msg, sizeof(recv_msg), 0)) < 0) {
+		MSAPI_DBG_ERR("recv failed : [%d]", sockfd);
 
-	/* connected socket*/
-	err = ms_ipc_wait_message(sockfd, &recv_msg, sizeof(recv_msg), &serv_addr, NULL);
-	if (err != MS_MEDIA_ERR_NONE) {
-		ret = err;
-	} else {
-		MSAPI_DBG("RECEIVE OK [%d]", recv_msg.result);
-		ret = recv_msg.result;
+		 if (errno == EINTR) {
+			MSAPI_DBG_STRERROR("catch interrupt");
+			goto RETRY;
+	 	}
+
+		if (errno == EWOULDBLOCK) {
+			if(retry_count < MAX_RETRY_COUNT)	{
+				MSAPI_DBG_ERR("TIME OUT[%d]", retry_count);
+				retry_count ++;
+				goto RETRY;
+		 	}
+
+			close(sockfd);
+			MSAPI_DBG_ERR("Timeout. Can't try any more");
+			return MS_MEDIA_ERR_SOCKET_RECEIVE_TIMEOUT;
+		} else {
+			MSAPI_DBG_STRERROR("recv failed");
+
+			close(sockfd);
+
+			return MS_MEDIA_ERR_SOCKET_RECEIVE;
+		}
 	}
+
+	MSAPI_DBG("RECEIVE OK [%d]", recv_msg);
+	ret = recv_msg;
 
 	close(sockfd);
 
 	return ret;
 }
 
-static int g_tcp_client_sock = -1;
+static __thread int g_tcp_client_sock = -1;
 
 static int __media_db_get_client_tcp_sock()
 {
 	return g_tcp_client_sock;
 }
 
-extern char MEDIA_IPC_PATH[][70];
-
 static int __media_db_prepare_tcp_client_socket()
 {
 	int ret = MS_MEDIA_ERR_NONE;
 	int sockfd = -1;
+	ms_sock_info_s sock_info;
 	struct sockaddr_un serv_addr;
-	int port = MS_DB_BATCH_UPDATE_PORT;
+	sock_info.port = MS_DB_BATCH_UPDATE_PORT;
 
 	/*Create TCP Socket*/
-	ret = ms_ipc_create_client_socket(MS_PROTOCOL_TCP, MS_TIMEOUT_SEC_10, &sockfd, 0);
+	ret = ms_ipc_create_client_socket(MS_PROTOCOL_TCP, MS_TIMEOUT_SEC_10, &sock_info);
+	sockfd = sock_info.sock_fd;
 	MSAPI_RETV_IF(ret != MS_MEDIA_ERR_NONE, ret);
 
 	/*Set server Address*/
 	memset(&serv_addr, 0, sizeof(serv_addr));
 	serv_addr.sun_family = AF_UNIX;
-	MSAPI_DBG("%s", MEDIA_IPC_PATH[port]);
-	strcpy(serv_addr.sun_path, MEDIA_IPC_PATH[port]);
+//	MSAPI_DBG_SLOG("%s", MEDIA_IPC_PATH[port]);
+	strncpy(serv_addr.sun_path, MEDIA_IPC_PATH[sock_info.port], strlen(MEDIA_IPC_PATH[sock_info.port]));
 
 	/* Connecting to the media db server */
 	if (connect(sockfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0) {
@@ -486,7 +361,6 @@ static int __media_db_request_batch_update(ms_msg_type_e msg_type, const char *r
 	/* Send request */
 	if (send(sockfd, &send_msg, sizeof(send_msg), 0) != sizeof(send_msg)) {
 		MSAPI_DBG_STRERROR("send failed");
-		__media_db_close_tcp_client_socket();
 		return MS_MEDIA_ERR_SOCKET_SEND;
 	}
 
@@ -495,7 +369,6 @@ static int __media_db_request_batch_update(ms_msg_type_e msg_type, const char *r
 	int recv_msg = -1;
 	if ((recv_msg_size = recv(sockfd, &recv_msg, sizeof(recv_msg), 0)) < 0) {
 		MSAPI_DBG_ERR("recv failed : [%d]", sockfd);
-		__media_db_close_tcp_client_socket();
 		if (errno == EWOULDBLOCK) {
 			MSAPI_DBG_ERR("Timeout. Can't try any more");
 			return MS_MEDIA_ERR_SOCKET_RECEIVE_TIMEOUT;
@@ -511,6 +384,34 @@ static int __media_db_request_batch_update(ms_msg_type_e msg_type, const char *r
 	if (ret != MS_MEDIA_ERR_NONE) {
 		MSAPI_DBG_ERR("batch updated[%d] failed, error [%d]", msg_type, ret);
 	}
+
+	return ret;
+}
+
+static int _media_db_update_directly(sqlite3 *db_handle, const char *sql_str)
+{
+	int ret = MS_MEDIA_ERR_NONE;
+	char *zErrMsg = NULL;
+
+//	MSAPI_DBG_SLOG("SQL = [%s]", sql_str);
+
+	ret = sqlite3_exec(db_handle, sql_str, NULL, NULL, &zErrMsg);
+
+	if (SQLITE_OK != ret) {
+		MSAPI_DBG_ERR("DB Update Fail SQL:%s", sql_str);
+		MSAPI_DBG_ERR("ERROR [%s]", zErrMsg);
+		if (ret == SQLITE_BUSY)
+			ret = MS_MEDIA_ERR_DB_BUSY_FAIL;
+		else if (ret == SQLITE_CONSTRAINT)
+			ret = MS_MEDIA_ERR_DB_CONSTRAINT_FAIL;
+		else if (ret == SQLITE_FULL)
+			ret = MS_MEDIA_ERR_DB_FULL_FAIL;
+		else
+			ret = MS_MEDIA_ERR_DB_UPDATE_FAIL;
+	}
+
+	if (zErrMsg)
+		sqlite3_free (zErrMsg);
 
 	return ret;
 }
@@ -548,7 +449,10 @@ int media_db_request_update_db(const char *query_str, uid_t uid)
 
 	MSAPI_RETVM_IF(!MS_STRING_VALID(query_str), MS_MEDIA_ERR_INVALID_PARAMETER, "Invalid Query");
 
-	ret = __media_db_request_update(MS_MSG_DB_UPDATE, query_str ,uid);
+	ret = __media_db_request_update_tcp(MS_MSG_DB_UPDATE, query_str ,uid);
+	if (ret != MS_MEDIA_ERR_NONE) {
+		MSAPI_DBG_ERR("__media_db_request_update_tcp failed : %d", ret);
+	}
 
 	return ret;
 }
@@ -569,6 +473,9 @@ int media_db_request_update_db_batch_start(const char *query_str, uid_t uid)
 	}
 
 	ret = __media_db_request_batch_update(MS_MSG_DB_UPDATE_BATCH_START, query_str, uid);
+	if (ret != MS_MEDIA_ERR_NONE) {
+		__media_db_close_tcp_client_socket();
+	}
 
 	return ret;
 }
@@ -582,6 +489,9 @@ int media_db_request_update_db_batch(const char *query_str, uid_t uid)
 	MSAPI_RETVM_IF(!MS_STRING_VALID(query_str), MS_MEDIA_ERR_INVALID_PARAMETER, "Invalid Query");
 
 	ret = __media_db_request_batch_update(MS_MSG_DB_UPDATE_BATCH, query_str, uid);
+	if (ret != MS_MEDIA_ERR_NONE) {
+		__media_db_close_tcp_client_socket();
+	}
 
 	return ret;
 }
@@ -605,17 +515,6 @@ int media_db_request_update_db_batch_end(const char *query_str, uid_t uid)
 	return ret;
 }
 
-int media_db_request_directory_scan(const char *directory_path, uid_t uid)
-{
-	int ret = MS_MEDIA_ERR_NONE;
-
-	MSAPI_RETVM_IF(!MS_STRING_VALID(directory_path), MS_MEDIA_ERR_INVALID_PARAMETER, "Directory Path is NULL");
-
-	ret = __media_db_request_update(MS_MSG_DIRECTORY_SCANNING, directory_path, uid);
-
-	return ret;
-}
-
 int media_db_update_db(MediaDBHandle *handle, const char *query_str)
 {
 	sqlite3 * db_handle = (sqlite3 *)handle;
@@ -624,7 +523,7 @@ int media_db_update_db(MediaDBHandle *handle, const char *query_str)
 	MSAPI_RETVM_IF(db_handle == NULL, MS_MEDIA_ERR_INVALID_PARAMETER, "Handle is NULL");
 	MSAPI_RETVM_IF(!MS_STRING_VALID(query_str), MS_MEDIA_ERR_INVALID_PARAMETER, "Invalid Query");
 
-	ret = __media_db_update_directly(db_handle, query_str);
+	ret = _media_db_update_directly(db_handle, query_str);
 
 	return ret;
 }
@@ -692,7 +591,7 @@ int media_db_update_db_batch_end(MediaDBHandle *handle, const char *query_str)
 	char *current_sql = NULL;
 	for (i = 0; i < g_list_idx; i++) {
 		current_sql = sql_list[i];
-		ret = __media_db_update_directly(db_handle, current_sql);
+		ret = _media_db_update_directly(db_handle, current_sql);
 		if (ret < 0) {
 			if (i == 0) {
 				/* This is fail of "BEGIN" */
@@ -707,6 +606,15 @@ int media_db_update_db_batch_end(MediaDBHandle *handle, const char *query_str)
 			}
 		}
 	}
+
+	__media_db_destroy_sql_list();
+
+	return ret;
+}
+
+int media_db_request_update_db_batch_clear(void)
+{
+	int ret = MS_MEDIA_ERR_NONE;
 
 	__media_db_destroy_sql_list();
 
