@@ -19,14 +19,6 @@
  *
  */
 
-/**
- * This file defines api utilities of contents manager engines.
- *
- * @file		media-util-err.h
- * @author	Yong Yeon Kim(yy9875.kim@samsung.com)
- * @version	1.0
- * @brief
- */
 #ifndef _MEDIA_UTIL_ERR_H_
 #define _MEDIA_UTIL_ERR_H_
 

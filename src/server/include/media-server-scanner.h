@@ -19,10 +19,13 @@
  *
  */
 
+#ifndef _MEDIA_SERVER_SCANNER_H
+#define _MEDIA_SERVER_SCANNER_H
+
 int ms_scanner_start(void);
-
 bool ms_get_scanner_status(void);
-
 void ms_reset_scanner_status(void);
-
 int ms_get_scanner_pid(void);
+void ms_cleanup_scanner(void);
+
+#endif /*_MEDIA_SERVER_SCANNER_H*/

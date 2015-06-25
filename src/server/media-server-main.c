@@ -19,27 +19,16 @@
  *
  */
 
-/**
- * This file defines api utilities of contents manager engines.
- *
- * @file		media-server-main.c
- * @author	Yong Yeon Kim(yy9875.kim@samsung.com)
- * @version	1.0
- * @brief
- */
-
 #include <sys/wait.h>
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <dirent.h>
 #include <errno.h>
 #include <malloc.h>
 #include <vconf.h>
-#include <heynoti.h>
-#include <sys/stat.h>
 
 #include "media-util.h"
 #include "media-common-utils.h"
-#include "media-common-drm.h"
 #include "media-common-external-storage.h"
 #include "media-server-dbg.h"
 #include "media-server-db-svc.h"
@@ -50,9 +39,19 @@
 
 #define APP_NAME "media-server"
 
-extern GMutex *scanner_mutex;
+extern GMutex scanner_mutex;
 
 GMainLoop *mainloop = NULL;
+bool power_off; /*If this is TRUE, poweroff notification received*/
+
+static void __ms_check_mediadb(void);
+static void __ms_add_signal_handler(void);
+static void __ms_remove_event_receiver(void);
+static void __ms_add_event_receiver(GIOChannel *channel);
+static void __ms_remove_requst_receiver(GIOChannel *channel);
+static void __ms_add_requst_receiver(GMainLoop *mainloop, GIOChannel **channel);
+
+static char *priv_lang = NULL;
 
 bool check_process()
 {
@@ -109,14 +108,13 @@ bool check_process()
 	return ret;
 }
 
-void init_process()
-{
-
-}
-
-static void _power_off_cb(void* data)
+void _power_off_cb(void* data)
 {
 	MS_DBG_ERR("POWER OFF");
+
+	GIOChannel *channel = (GIOChannel *)data;
+
+	power_off = TRUE;
 
 	/*Quit Thumbnail Thread*/
 	GMainLoop *thumb_mainloop = ms_get_thumb_thread_mainloop();
@@ -130,10 +128,9 @@ static void _power_off_cb(void* data)
 		g_main_loop_quit(db_mainloop);
 	}
 
-	/*Quit Main Thread*/
-	if (mainloop && g_main_loop_is_running(mainloop)) {
-		g_main_loop_quit(mainloop);
-	}
+	__ms_remove_requst_receiver(channel);
+
+	__ms_remove_event_receiver();
 
 	return;
 }
@@ -146,12 +143,18 @@ static void _db_clear(void)
 	/*load functions from plusin(s)*/
 	err = ms_load_functions();
 	if (err != MS_MEDIA_ERR_NONE) {
-		MS_DBG_ERR("function load failed");
-		exit(0);
+		MS_DBG_ERR("function load failed [%d]", err);
+		return;
 	}
 
 	/*connect to media db, if conneting is failed, db updating is stopped*/
 	ms_connect_db(&handle,tzplatform_getuid(TZ_USER_NAME));
+
+	/* check schema of db is chaged and need upgrade */
+	MS_DBG_WARN("Check DB upgrade start");
+	if (ms_check_db_upgrade(handle,tzplatform_getuid(TZ_USER_NAME))  != MS_MEDIA_ERR_NONE)
+		MS_DBG_ERR("ms_check_db_upgrade fail");
+	MS_DBG_WARN("Check DB upgrade end");
 
 	/*update just valid type*/
 	if (ms_invalidate_all_items(handle, MS_STORAGE_EXTERNAL, tzplatform_getuid(TZ_USER_NAME))  != MS_MEDIA_ERR_NONE)
@@ -166,35 +169,32 @@ static void _db_clear(void)
 
 void _ms_signal_handler(int n)
 {
-	MS_DBG("Receive SIGNAL");
 	int stat, pid, thumb_pid;
 	int scanner_pid;
 
 	thumb_pid = ms_thumb_get_server_pid();
-	MS_DBG("Thumbnail server pid : %d", thumb_pid);
-
 	scanner_pid = ms_get_scanner_pid();
 
-	pid = waitpid(-1, &stat, WNOHANG);
-	/* check pid of child process of thumbnail thread */
-	MS_DBG_ERR("[PID %d] signal ID %d", pid, n);
-
-	if (pid == thumb_pid) {
-		MS_DBG_ERR("Thumbnail server is dead");
-		ms_thumb_reset_server_status();
-	} else if (pid == scanner_pid) {
-		MS_DBG_ERR("Scanner is dead");
-		ms_reset_scanner_status();
-	} else if (pid == -1) {
-		MS_DBG_ERR("%s", strerror(errno));
-	}
-
-	if (WIFEXITED(stat)) {
-		MS_DBG_ERR("normal termination , exit status : %d", WEXITSTATUS(stat));
-	} else if (WIFSIGNALED(stat)) {
-		MS_DBG_ERR("abnormal termination , signal number : %d", WTERMSIG(stat));
-	} else if (WIFSTOPPED(stat)) {
-		MS_DBG_ERR("child process is stoped, signal number : %d", WSTOPSIG(stat));
+	while ((pid = waitpid(-1, &stat, WNOHANG)) > 0) {
+		/* check pid of child process of thumbnail thread */
+		if (pid == thumb_pid) {
+			MS_DBG_ERR("[%d] Thumbnail server is stopped by media-server", pid);
+			ms_thumb_reset_server_status();
+		} else if (pid == scanner_pid) {
+			MS_DBG_ERR("[%d] Scanner is stopped by media-server", pid);
+			ms_reset_scanner_status();
+		} else {
+			MS_DBG_ERR("[%d] is stopped", pid);
+		}
+/*
+		if (WIFEXITED(stat)) {
+			MS_DBG_ERR("normal termination , exit status : %d", WEXITSTATUS(stat));
+		} else if (WIFSIGNALED(stat)) {
+			MS_DBG_ERR("abnormal termination , signal number : %d", WTERMSIG(stat));
+		} else if (WIFSTOPPED(stat)) {
+			MS_DBG_ERR("child process is stoped, signal number : %d", WSTOPSIG(stat));
+		}
+*/
 	}
 
 	return;
@@ -204,15 +204,14 @@ static void _ms_new_global_variable(void)
 {
 	/*Init mutex variable*/
 	/*media scanner stop/start mutex*/
-	if (!scanner_mutex) scanner_mutex = g_mutex_new();
+	g_mutex_init(&scanner_mutex);
 }
 
 static void _ms_free_global_variable(void)
 {
 	/*Clear mutex variable*/
-	if (scanner_mutex) g_mutex_free(scanner_mutex);
+	g_mutex_clear(&scanner_mutex);
 }
-
 
 void
 _ms_mmc_vconf_cb(void *data)
@@ -233,9 +232,6 @@ _ms_mmc_vconf_cb(void *data)
 		/*remove added watch descriptors */
 		ms_present_mmc_status(MS_SDCARD_REMOVED);
 
-		if (!ms_drm_extract_ext_memory())
-			MS_DBG_ERR("ms_drm_extract_ext_memory failed");
-
 		ms_send_storage_scan_request(MS_STORAGE_EXTERNAL, MS_SCAN_INVALID);
 	} else if (status == VCONFKEY_SYSMAN_MMC_MOUNTED) {
 
@@ -243,10 +239,73 @@ _ms_mmc_vconf_cb(void *data)
 
 		ms_present_mmc_status(MS_SDCARD_INSERTED);
 
-		if (!ms_drm_insert_ext_memory())
-			MS_DBG_ERR("ms_drm_insert_ext_memory failed");
-
 		ms_send_storage_scan_request(MS_STORAGE_EXTERNAL, ms_get_mmc_state());
+	}
+
+	return;
+}
+
+void
+_ms_change_lang_vconf_cb(keynode_t *key, void* data)
+{
+	char lang[10] = {0,};
+	char *eng = "en";
+	char *chi = "zh";
+	char *jpn = "ja";
+	char *kor = "ko";
+	bool need_update = FALSE;
+
+	if (!ms_config_get_str(VCONFKEY_LANGSET, lang)) {
+		MS_DBG_ERR("Get VCONFKEY_LANGSET failed.");
+		return;
+	}
+
+	MS_DBG("CURRENT LANGUAGE [%s %s]", priv_lang, lang);
+
+	if (strcmp(priv_lang, lang) == 0) {
+		need_update = FALSE;
+	} else if ((strncmp(lang, eng, strlen(eng)) == 0) ||
+			(strncmp(lang, chi, strlen(chi)) == 0) ||
+			(strncmp(lang, jpn, strlen(jpn)) == 0) ||
+			(strncmp(lang, kor, strlen(kor)) == 0)) {
+			need_update = TRUE;
+	} else {
+		if ((strncmp(priv_lang, eng, strlen(eng)) == 0) ||
+			(strncmp(priv_lang, chi, strlen(chi)) == 0) ||
+			(strncmp(priv_lang, jpn, strlen(jpn)) == 0) ||
+			(strncmp(priv_lang, kor, strlen(kor)) == 0)) {
+			need_update = TRUE;
+		}
+	}
+
+	if (need_update) {
+		ms_send_storage_scan_request(MS_STORAGE_INTERNAL, MS_SCAN_META);
+	} else {
+		MS_DBG_WARN("language is changed but do not update meta data");
+	}
+
+	MS_SAFE_FREE(priv_lang);
+	priv_lang = strdup(lang);
+
+	return;
+}
+
+static void _ms_check_pw_status(void)
+{
+	int pw_status = 0;
+
+	if (!ms_config_get_int(VCONFKEY_SYSMAN_POWER_OFF_STATUS, &pw_status)) {
+		MS_DBG_ERR("Get VCONFKEY_SYSMAN_POWER_OFF_STATUS failed.");
+	}
+
+	if (pw_status == VCONFKEY_SYSMAN_POWER_OFF_DIRECT ||
+		pw_status == VCONFKEY_SYSMAN_POWER_OFF_RESTART) {
+		power_off = TRUE;
+
+		while(1) {
+			MS_DBG_WARN("wait power off");
+			sleep(3);
+		}
 	}
 
 	return;
@@ -274,129 +333,171 @@ int main(int argc, char **argv)
 {
 	GThread *db_thread = NULL;
 	GThread *thumb_thread = NULL;
-	GSource *source = NULL;
 	GIOChannel *channel = NULL;
-	GMainContext *context = NULL;
-	int sockfd = MS_SOCK_NOT_ALLOCATE;
-	int err;
-	int heynoti_id;
+#if 0
 	bool check_result = false;
-	struct sigaction sigset;
+#endif
+	power_off = FALSE;
 
+	_ms_check_pw_status();
+
+#if 0
 	check_result = check_process();
 	if (check_result == false)
-		exit(0);
-
-	if (!g_thread_supported()) {
-		g_thread_init(NULL);
-	}
-
+		goto EXIT;
+#endif
 	/*Init main loop*/
 	mainloop = g_main_loop_new(NULL, FALSE);
 
-	/*heynoti for power off*/
-	if ((heynoti_id = heynoti_init()) <0) {
-		MS_DBG("heynoti_init failed");
-	} else {
-		err = heynoti_subscribe(heynoti_id, POWEROFF_NOTI_NAME, _power_off_cb, NULL);
-		if (err < 0)
-			MS_DBG("heynoti_subscribe failed");
+	_ms_new_global_variable();
 
-		err = heynoti_attach_handler(heynoti_id);
-		if (err < 0)
-			MS_DBG("heynoti_attach_handler failed");
+	__ms_add_requst_receiver(mainloop, &channel);
+
+	/* recevie event from other modules */
+	__ms_add_event_receiver(channel);
+
+	__ms_add_signal_handler();
+
+	/*create each threads*/
+	db_thread = g_thread_new("db_thread", (GThreadFunc)ms_db_thread, NULL);
+	thumb_thread = g_thread_new("thumb_agent_thread", (GThreadFunc)ms_thumb_agent_start_thread, NULL);
+
+	/*clear previous data of sdcard on media database and check db status for updating*/
+	while(!ms_db_get_thread_status()) {
+		MS_DBG_ERR("wait db thread");
+		sleep(1);
 	}
 
-	_ms_new_global_variable();
+	/* update media DB */
+	__ms_check_mediadb();
+
+	/*Active flush */
+	malloc_trim(0);
+
+
+	MS_DBG_ERR("*** Media Server is running ***");
+
+	g_main_loop_run(mainloop);
+
+	g_thread_join(db_thread);
+	g_thread_join(thumb_thread);
+
+	_ms_free_global_variable();
+
+	MS_DBG_ERR("*** Media Server is stopped ***");
+#if 0
+EXIT:
+#endif
+	return 0;
+}
+
+static void __ms_add_requst_receiver(GMainLoop *mainloop, GIOChannel **channel)
+{
+
+	int sockfd = -1;
+	GSource *source = NULL;
+	GMainContext *context = NULL;
 
 	/*prepare socket*/
 	/* create dir socket */
 	_mkdir("/var/run/media-server",S_IRWXU | S_IRWXG | S_IRWXO);
 	
 	/* Create and bind new UDP socket */
-	if (ms_ipc_create_server_socket(MS_PROTOCOL_UDP, MS_SCANNER_PORT, &sockfd)
+	if (ms_ipc_create_server_socket(MS_PROTOCOL_TCP, MS_SCANNER_PORT, &sockfd)
 		!= MS_MEDIA_ERR_NONE) {
 		MS_DBG_ERR("Failed to create socket");
+		return;
 	} else {
 		context = g_main_loop_get_context(mainloop);
 
 		/* Create new channel to watch udp socket */
-		channel = g_io_channel_unix_new(sockfd);
-		source = g_io_create_watch(channel, G_IO_IN);
+		*channel = g_io_channel_unix_new(sockfd);
+		source = g_io_create_watch(*channel, G_IO_IN);
 
 		/* Set callback to be called when socket is readable */
-		g_source_set_callback(source, (GSourceFunc)ms_read_socket, NULL, NULL);
+		g_source_set_callback(source, (GSourceFunc)ms_read_socket, *channel, NULL);
 		g_source_attach(source, context);
 		g_source_unref(source);
 	}
+}
 
-	/*create each threads*/
-	db_thread = g_thread_new("db_thread", (GThreadFunc)ms_db_thread, NULL);
-	thumb_thread = g_thread_new("thumb_agent_thread", (GThreadFunc)ms_thumb_agent_start_thread, NULL);
+static void __ms_remove_requst_receiver(GIOChannel *channel)
+{
+	int fd = -1;
 
-	/*set vconf callback function*/
+	/*close an IO channel*/
+	fd = g_io_channel_unix_get_fd(channel);
+	g_io_channel_shutdown(channel,  FALSE, NULL);
+	g_io_channel_unref(channel);
+
+	if (fd > 0) {
+		if (close(fd) < 0) {
+			MS_DBG_STRERROR("CLOSE ERROR");
+		}
+	}
+}
+
+static void __ms_add_event_receiver(GIOChannel *channel)
+{
+	int err;
+	char lang[10] = {0,};
+
+	/*set power off callback function*/
+//	ms_add_poweoff_event_receiver(_power_off_cb,channel);
+
+	/*add noti receiver for SD card event */
 	err = vconf_notify_key_changed(VCONFKEY_SYSMAN_MMC_STATUS, (vconf_callback_fn) _ms_mmc_vconf_cb, NULL);
 	if (err == -1)
 		MS_DBG_ERR("add call back function for event %s fails", VCONFKEY_SYSMAN_MMC_STATUS);
 
-	MS_DBG("*********************************************************");
-	MS_DBG("*** Begin to check tables of file manager in database ***");
-	MS_DBG("*********************************************************");
+	if (!ms_config_get_str(VCONFKEY_LANGSET, lang)) {
+		MS_DBG_ERR("Get VCONFKEY_LANGSET failed.");
+		return;
+	}
+
+	priv_lang = strdup(lang);
+
+	err = vconf_notify_key_changed(VCONFKEY_LANGSET, (vconf_callback_fn) _ms_change_lang_vconf_cb, NULL);
+	if (err == -1)
+		MS_DBG_ERR("add call back function for event %s fails", VCONFKEY_LANGSET);
+
+}
+
+static void __ms_remove_event_receiver(void)
+{
+	vconf_ignore_key_changed(VCONFKEY_SYSMAN_MMC_STATUS,
+				 (vconf_callback_fn) _ms_mmc_vconf_cb);
+}
+
+static void __ms_add_signal_handler(void)
+{
+	struct sigaction sigset;
 
 	/* Add signal handler */
 	sigemptyset(&sigset.sa_mask);
 	sigaddset(&sigset.sa_mask, SIGCHLD);
-	sigset.sa_flags = 0;
+	sigset.sa_flags = SA_RESTART |SA_NODEFER;
 	sigset.sa_handler = _ms_signal_handler;
 
 	if (sigaction(SIGCHLD, &sigset, NULL) < 0) {
 		MS_DBG_STRERROR("sigaction failed");
 	}
 
-	/*clear previous data of sdcard on media database and check db status for updating*/
-	while(!ms_db_get_thread_status()) {
-		MS_DBG("wait db thread");
-		sleep(1);
-	}
+	signal(SIGPIPE,SIG_IGN);
+}
+static void __ms_check_mediadb(void)
+{
+	_db_clear();
 
+	/* update internal storage */
+	ms_send_storage_scan_request(MS_STORAGE_INTERNAL, MS_SCAN_PART);
+
+	/* update external storage */
 	if (ms_is_mmc_inserted()) {
-		if (!ms_drm_insert_ext_memory())
-			MS_DBG_ERR("ms_drm_insert_ext_memory failed");
-
 		ms_make_default_path_mmc();
 		ms_present_mmc_status(MS_SDCARD_INSERTED);
 
 		ms_send_storage_scan_request(MS_STORAGE_EXTERNAL, ms_get_mmc_state());
 	}
-
-	/*Active flush */
-	malloc_trim(0);
-
-	MS_DBG("*****************************************");
-	MS_DBG("*** Server of File Manager is running ***");
-	MS_DBG("*****************************************");
-
-	g_main_loop_run(mainloop);
-	g_thread_join(db_thread);
-	g_thread_join(thumb_thread);
-
-	/*close an IO channel*/
-	g_io_channel_shutdown(channel,  FALSE, NULL);
-	g_io_channel_unref(channel);
-
-	heynoti_unsubscribe(heynoti_id, POWEROFF_NOTI_NAME, _power_off_cb);
-	heynoti_close(heynoti_id);
-
-	/***********
-	**remove call back functions
-	************/
-	vconf_ignore_key_changed(VCONFKEY_SYSMAN_MMC_STATUS,
-				 (vconf_callback_fn) _ms_mmc_vconf_cb);
-
-	_ms_free_global_variable();
-
-	/*close socket*/
-	close(sockfd);
-
-	exit(0);
 }
+

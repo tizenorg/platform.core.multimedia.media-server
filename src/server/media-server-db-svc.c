@@ -33,7 +33,6 @@
 #include "media-util.h"
 
 #include "media-common-utils.h"
-#include "media-common-drm.h"
 #include "media-server-dbg.h"
 #include "media-server-db-svc.h"
 
@@ -53,6 +52,7 @@ enum func_list {
 	eCONNECT,
 	eDISCONNECT,
 	eSET_ALL_VALIDITY,
+	eCHECK_DB,
 	eFUNC_MAX
 };
 
@@ -116,6 +116,7 @@ ms_load_functions(void)
 		"connect_db",
 		"disconnect_db",
 		"set_all_storage_items_validity",
+		"check_db",
 		};
 	/*init array for adding name of so*/
 	so_array = g_array_new(FALSE, FALSE, sizeof(char*));
@@ -153,7 +154,7 @@ ms_load_functions(void)
 	dlerror();    /* Clear any existing error */
 
 	/*allocate for array of functions*/
-	MS_MALLOC(func_array, sizeof(void*) * lib_num);
+	MS_MALLOC(func_array, sizeof(void**) * lib_num);
 	if (func_array == NULL) {
 		MS_DBG_ERR("malloc failed");
 		MS_SAFE_FREE(func_handle);
@@ -225,6 +226,10 @@ ms_connect_db(void ***handle, uid_t uid)
 	char * err_msg = NULL;
 
 	MS_MALLOC(*handle, sizeof (void*) * lib_num);
+	if (*handle == NULL) {
+		MS_DBG_ERR("MS_MALLOC failed");
+		return TRUE;
+	}
 
 	for (lib_index = 0; lib_index < lib_num; lib_index++) {
 		ret = ((CONNECT)func_array[lib_index][eCONNECT])(&((*handle)[lib_index]), uid, &err_msg); /*dlopen*/
@@ -273,6 +278,26 @@ ms_invalidate_all_items(void **handle, ms_storage_type_t store_type, uid_t uid)
 	MS_DBG("");
 	for (lib_index = 0; lib_index < lib_num; lib_index++) {
 		ret = ((SET_ALL_STORAGE_ITEMS_VALIDITY)func_array[lib_index][eSET_ALL_VALIDITY])(handle[lib_index], store_type, false, uid, &err_msg); /*dlopen*/
+		if (ret != 0) {
+			MS_DBG_ERR("error : %s [%s]", g_array_index(so_array, char*, lib_index), err_msg);
+			MS_SAFE_FREE(err_msg);
+			res = MS_MEDIA_ERR_DB_UPDATE_FAIL;
+		}
+	}
+	MS_DBG("");
+	return res;
+}
+
+int
+ms_check_db_upgrade(void **handle, uid_t uid)
+{
+	int lib_index;
+	int res = MS_MEDIA_ERR_NONE;
+	int ret;
+	char *err_msg = NULL;
+	MS_DBG("");
+	for (lib_index = 0; lib_index < lib_num; lib_index++) {
+		ret = ((CHECK_DB)func_array[lib_index][eCHECK_DB])(handle[lib_index], uid, &err_msg); /*dlopen*/
 		if (ret != 0) {
 			MS_DBG_ERR("error : %s [%s]", g_array_index(so_array, char*, lib_index), err_msg);
 			MS_SAFE_FREE(err_msg);

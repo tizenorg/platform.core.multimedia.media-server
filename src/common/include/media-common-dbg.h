@@ -19,17 +19,8 @@
  *
  */
 
-/**
- * This file defines api utilities of contents manager engines.
- *
- * @file		media-server-dbg.h
- * @author	Yong Yeon Kim(yy9875.kim@samsung.com)
- * @version	1.0
- * @brief
- */
-
-#ifndef _MEDIA_SERVER_DBG_H_
-#define _MEDIA_SERVER_DBG_H_
+#ifndef _MEDIA_COMMON_DBG_H_
+#define _MEDIA_COMMON_DBG_H_
 
 #include <sys/syscall.h>
 #include <dlog.h>
@@ -43,10 +34,8 @@
 
 #define MS_DBG_STRERROR(fmt) do { \
 			char buf[BUF_LENGTH] = {0,}; \
-			strerror_r(errno, buf, BUF_LENGTH); \
-			LOGE(fmt" : STANDARD ERROR [%s]", buf);	 \
+			LOGE(fmt" : STANDARD ERROR [%s]", strerror_r(errno, buf, BUF_LENGTH)); \
 		} while (0)
-
 
 #define MS_DBG_SLOG(fmt, args...)	SECURE_LOGD(fmt "\n", ##args);
 
@@ -64,4 +53,4 @@
 		LOGE(fmt "\n", ##args); \
 		}} while(false)
 
-#endif /*_MEDIA_SERVER_DBG_H_*/
+#endif /*_MEDIA_COMMON_DBG_H_*/

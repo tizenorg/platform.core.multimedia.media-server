@@ -57,15 +57,14 @@ bin_PROGRAMS = media-server \
 		media-scanner \
 		mediadb-update
 
-media_server_SOURCES = src/common/media-common-drm.c \
-                       src/common/media-common-utils.c \
+media_server_SOURCES = src/common/media-common-utils.c \
                        src/common/media-common-external-storage.c \
                        src/server/media-server-db-svc.c \
                        src/server/media-server-db.c \
                        src/server/media-server-socket.c \
                        src/server/media-server-thumb.c \
                        src/server/media-server-scanner.c \
-                       src/server/media-server-main.c 
+                       src/server/media-server-main.c
 
 media_server_CFLAGS = -I${srcdir}/src/common/include \
 		      -I${srcdir}/src/server/include \
@@ -74,10 +73,8 @@ media_server_CFLAGS = -I${srcdir}/src/common/include \
                              $(GLIB_CFLAGS) \
                              $(PHONESTATUS_CFLAGS) \
                              $(DLOG_CFLAGS) \
-                             $(DRM_SERVICE_CFLAGS) \
 			     $(AUL_CFLAG)\
 			     $(LIBPMCONTROL_CFLAGS) \
-			     $(HEYNOTI_CFLAGS) \
 			     $(DBUS_CFLAGS) \
                              $(STATUS_CFLAGS)
 
@@ -86,17 +83,14 @@ media_server_LDADD = libmedia-utils.la \
                               $(GTHREAD_LIBS) \
                               $(PHONESTATUS_LIBS) \
                               $(DLOG_LIBS) \
-                              $(DRM_SERVICE_LIBS) \
 			      $(AUL_LIBS) \
 			      $(LIBPMCONTROL_LIBS) \
-			      $(HEYNOTI_LIBS) \
 			      $(DBUS_LIBS) \
                               -ldl \
                               $(STATUS_LIBS)
 
 media_scanner_SOURCES = src/common/media-common-utils.c \
                 	src/common/media-common-external-storage.c \
-		       	src/common/media-common-drm.c \
                        	src/scanner/media-scanner-db-svc.c \
                        	src/scanner/media-scanner-scan.c \
                        	src/scanner/media-scanner-socket.c \
@@ -109,10 +103,8 @@ media_scanner_CFLAGS = -I${srcdir}/lib/include \
                              $(GLIB_CFLAGS) \
                              $(PHONESTATUS_CFLAGS) \
                              $(DLOG_CFLAGS) \
-                             $(DRM_SERVICE_CFLAGS) \
                              $(AUL_CFLAG)\
                              $(LIBPMCONTROL_CFLAGS) \
-                             $(HEYNOTI_CFLAGS) \
                              $(DBUS_CFLAGS) \
 			     $(STATUS_CFLAGS)
 
@@ -121,11 +113,9 @@ media_scanner_LDADD = libmedia-utils.la \
                               $(GTHREAD_LIBS) \
                               $(PHONESTATUS_LIBS) \
                               $(DLOG_LIBS) \
-                              $(DRM_SERVICE_LIBS) \
                               $(AUL_LIBS) \
                               $(LIBPMCONTROL_LIBS) \
                               $(THUMB_GEN_LIBS) \
-                              $(HEYNOTI_LIBS) \
                               $(DBUS_LIBS) \
                               -ldl \
 			      $(STATUS_LIBS)
@@ -136,13 +126,19 @@ mediadb_update_CFLAGS = -I${srcdir}/lib/include \
                              $(GTHREAD_CFLAGS) \
                              $(GLIB_CFLAGS)
 
+mediadb_update_CFLAGS += -fPIE
+
+mediadb_update_LDFLAGS = -pie
+
 mediadb_update_LDADD = libmedia-utils.la \
                               $(GLIB_LIBS) \
-                              $(GTHREAD_LIBS)
+                              $(GTHREAD_LIBS) \
+                              -ldl
 
 ### includeheaders ###
 includeheadersdir = $(includedir)/media-utils
-includeheaders_HEADERS = lib/include/media-util-noti.h \
+includeheaders_HEADERS = lib/include/media-util-noti-common.h \
+                         lib/include/media-util-noti.h \
                          lib/include/media-util-register.h \
                          lib/include/media-util-err.h \
                          lib/include/media-util-db.h \

@@ -19,15 +19,6 @@
  *
  */
 
-/**
- * This file defines api utilities of contents manager engines.
- *
- * @file		media-util-internal.h
- * @author	Yong Yeon Kim(yy9875.kim@samsung.com)
- * @version	1.0
- * @brief
- */
-
 #ifndef _MEDIA_UTIL_INTERNAL_H_
 #define _MEDIA_UTIL_INTERNAL_H_
 
@@ -42,14 +33,9 @@
 
 #define MS_SAFE_FREE(src)      { if(src) {free(src); src = NULL;} }
 #define MS_MALLOC(src, size)	{ if (size > SIZE_MAX || size <= 0) {src = NULL;} \
-							else { src = malloc(size); memset(src, 0x0, size);} }
+							else { src = malloc(size); if(src) memset(src, 0x0, size);} }
 #define MS_STRING_VALID(str)	\
 	((str != NULL && strlen(str) > 0) ? TRUE : FALSE)
-
-#define MS_MEDIA_DBUS_PATH "/com/mediaserver/dbus/notify"
-#define MS_MEDIA_DBUS_INTERFACE "com.mediaserver.dbus.Signal"
-#define MS_MEDIA_DBUS_NAME "ms_db_updated"
-#define MS_MEDIA_DBUS_MATCH_RULE "type='signal',interface='com.mediaserver.dbus.Signal'"
 
 int media_db_update_db(MediaDBHandle *handle, const char *query_str);
 
