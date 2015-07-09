@@ -6,8 +6,7 @@ Type=idle
 CPUAccounting=true
 CPUQuota=10%
 ExecStartPre=/usr/bin/sleep 5
-ExecStart=/usr/bin/sh -c "/usr/bin/mediadb-update check_db"
-ExecStart=/usr/bin/sh -c "/usr/bin/mediadb-update -r `/usr/bin/tzplatform-get TZ_USER_CONTENT | /usr/bin/sed -e 's/^.*=//g'`"
+ExecStart=/usr/bin/sh -c "/usr/bin/mediadb-update check_db;/usr/bin/mediadb-update -r `/usr/bin/tzplatform-get TZ_USER_CONTENT | /usr/bin/sed -e 's/^.*=//g'`"
 
 [Install]
 WantedBy=default.target
