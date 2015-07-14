@@ -7,6 +7,7 @@ License:    Apache-2.0
 Source0:    %{name}-%{version}.tar.gz
 Source1:    media-server.service
 Source2:	media-server-user.service
+Source3:    media-server-user.path
 Source1001:     %{name}.manifest
 Source1002:     libmedia-utils.manifest
 Source1003:     libmedia-utils-devel.manifest
@@ -61,6 +62,7 @@ mkdir -p %{buildroot}%{_unitdir}/multi-user.target.wants
 install -m 644 %{SOURCE1} %{buildroot}%{_unitdir}/media-server.service
 mkdir -p %{buildroot}%{_unitdir_user}
 install -m 644 %{SOURCE2} %{buildroot}%{_unitdir_user}/media-server-user.service
+install -m 644 %{SOURCE2} %{buildroot}%{_unitdir_user}/media-server-user.path
 ln -s ../media-server.service %{buildroot}%{_unitdir}/multi-user.target.wants/media-server.service
 mkdir -p %{buildroot}%{TZ_SYS_DATA}/data-media/Camera
 mkdir -p %{buildroot}%{TZ_SYS_DATA}/data-media/Downloads
@@ -87,7 +89,7 @@ chgrp -R %TZ_SYS_USER_GROUP %{TZ_SYS_DATA}/file-manager-service
 
 # setup dbupdate in user session
 mkdir -p %{_unitdir_user}/default.target.wants/
-ln -sf ../media-server-user.service  %{_unitdir_user}/default.target.wants/
+ln -sf ../media-server-user.path  %{_unitdir_user}/default.target.wants/
 
 %post -n libmedia-utils -p /sbin/ldconfig
 
@@ -105,6 +107,7 @@ ln -sf ../media-server-user.service  %{_unitdir_user}/default.target.wants/
 %{_unitdir}/media-server.service
 %{_unitdir}/multi-user.target.wants/media-server.service
 %{_unitdir_user}/media-server-user.service
+%{_unitdir_user}/media-server-user.path
 %license LICENSE.APLv2.0
 %{TZ_SYS_DATA}/data-media/*
 %{TZ_SYS_DATA}/file-manager-service/.thumb/*
