@@ -1,6 +1,6 @@
 Name:       media-server
 Summary:    File manager service server.
-Version:    0.2.53
+Version:    0.2.54
 Release:    0
 Group:      Multimedia/Service
 License:    Apache-2.0
@@ -62,7 +62,7 @@ mkdir -p %{buildroot}%{_unitdir}/multi-user.target.wants
 install -m 644 %{SOURCE1} %{buildroot}%{_unitdir}/media-server.service
 mkdir -p %{buildroot}%{_unitdir_user}
 install -m 644 %{SOURCE2} %{buildroot}%{_unitdir_user}/media-server-user.service
-install -m 644 %{SOURCE2} %{buildroot}%{_unitdir_user}/media-server-user.path
+install -m 644 %{SOURCE3} %{buildroot}%{_unitdir_user}/media-server-user.path
 ln -s ../media-server.service %{buildroot}%{_unitdir}/multi-user.target.wants/media-server.service
 mkdir -p %{buildroot}%{TZ_SYS_DATA}/data-media/Camera
 mkdir -p %{buildroot}%{TZ_SYS_DATA}/data-media/Downloads
