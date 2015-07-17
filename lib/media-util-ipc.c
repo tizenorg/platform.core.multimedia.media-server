@@ -137,6 +137,7 @@ int ms_ipc_create_client_socket(ms_protocol_e protocol, int timeout_sec, ms_sock
 			MSAPI_DBG_STRERROR("socket failed");
 			return MS_MEDIA_ERR_SOCKET_CONN;
 		}
+		sock_info->sock_path = NULL;
 	}
 
 	if (timeout_sec > 0) {
