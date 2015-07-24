@@ -89,9 +89,10 @@ static char* __media_get_path(uid_t uid)
 		grpinfo = getgrnam("users");
 		if(grpinfo == NULL) {
 			MS_DBG_ERR("getgrnam(users) returns NULL !");
+			MS_SAFE_FREE(result_psswd);
 			return NULL;
 		}
-    }
+	}
 	else
 	{
 		struct passwd *userinfo = getpwuid(uid);
@@ -120,7 +121,7 @@ ms_get_storage_type_by_full(const char *path, uid_t uid)
 {
 	int length_path;
 	char * user_path = NULL;
-	
+
 	if (path == NULL)
 		return false;
 

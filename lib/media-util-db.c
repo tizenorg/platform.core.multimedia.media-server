@@ -97,22 +97,6 @@ static char* __media_get_media_DB(uid_t uid)
 		asprintf(&result_psswd, "%s/.applications/dbspace/.media.db", userinfo->pw_dir);
 	}
 
-	dir = strrchr(result_psswd, '/');
-	if(!dir)
-		return result_psswd;
-
-	//Control if db exist create otherwise
-	if(access(dir + 1, F_OK)) {
-		int ret;
-		mkdir(dir + 1, S_IRWXU | S_IRGRP | S_IXGRP | S_IXOTH);
-		ret = chown(dir + 1, uid, grpinfo->gr_gid);
-		if (ret == -1) {
-			char buf[BUFSIZE];
-			strerror_r(errno, buf, sizeof(buf));
-			MSAPI_DBG_ERR("FAIL : chown %s %d.%d, because %s", dir + 1, uid, grpinfo->gr_gid, buf);
-		}
-	}
-
 	return result_psswd;
 }
 
