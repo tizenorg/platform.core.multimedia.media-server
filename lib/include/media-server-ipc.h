@@ -99,7 +99,6 @@ typedef struct {
 
 typedef struct _thumbMsg{
 	int msg_type;
-	int thumb_type;
 	int request_id;
 	int status;
 	int pid;
