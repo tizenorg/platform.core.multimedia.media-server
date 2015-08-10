@@ -45,8 +45,7 @@
 
 #define MSAPI_DBG_STRERROR(fmt) do { \
 			char buf[BUF_LENGTH] = {0,}; \
-			strerror_r(errno, buf, BUF_LENGTH);	\
-			LOGE(fmt" : STANDARD ERROR [%s]", buf);	\
+			LOGE(fmt" : STANDARD ERROR [%s]", strerror_r(errno, buf, BUF_LENGTH));	\
 		} while (0)
 
 #define MSAPI_DBG_SLOG(fmt, args...) do { \

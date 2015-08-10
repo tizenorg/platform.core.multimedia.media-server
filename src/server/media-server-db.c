@@ -60,6 +60,11 @@ gboolean ms_db_thread(void *data)
 		return FALSE;
 	}
 
+	if (ms_cynara_enable_credentials_passing(sockfd) != MS_MEDIA_ERR_NONE) {
+		MS_DBG_ERR("Failed to set up credentials passing\n");
+		return FALSE;
+	}
+
 	/* Create TCP Socket for batch query*/
 	ret = ms_ipc_create_server_socket(MS_PROTOCOL_TCP, MS_DB_BATCH_UPDATE_PORT, &tcp_sockfd);
 	if(ret != MS_MEDIA_ERR_NONE) {

@@ -19,6 +19,7 @@
  *
  */
 
+#define _GNU_SOURCE
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
@@ -67,7 +68,6 @@ static char* __media_get_media_DB(uid_t uid)
 {
 	char *result_psswd = NULL;
 	struct group *grpinfo = NULL;
-	char * dir = NULL;
 	if(uid == getuid())
 	{
 		result_psswd = strdup(MEDIA_DB_NAME);

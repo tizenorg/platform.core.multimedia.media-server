@@ -83,6 +83,8 @@ static char* __media_get_path(uid_t uid)
 {
 	char *result_psswd = NULL;
 	struct group *grpinfo = NULL;
+	int err = 0;
+
 	if(uid == getuid())
 	{
 		result_psswd = strdup(MEDIA_ROOT_PATH_INTERNAL);
@@ -110,7 +112,11 @@ static char* __media_get_path(uid_t uid)
 			MS_DBG_ERR("UID [%d] does not belong to 'users' group!", uid);
 			return NULL;
 		}
-		asprintf(&result_psswd, "%s", userinfo->pw_dir);
+		err = asprintf(&result_psswd, "%s", userinfo->pw_dir);
+		if(err < 0) {
+			MS_DBG_ERR("asprintf failed [%d]", err);
+			return NULL;
+		}
 	}
 
 	return result_psswd;
