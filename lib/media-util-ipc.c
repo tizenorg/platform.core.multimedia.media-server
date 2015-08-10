@@ -19,6 +19,7 @@
  *
  */
 
+#define _GNU_SOURCE
 #include <string.h>
 #include <unistd.h>
 #include <errno.h>
@@ -328,27 +329,22 @@ int ms_ipc_send_msg_to_client_tcp(int sockfd, ms_comm_msg_s *send_msg, struct so
 	return res;
 }
 
-int ms_ipc_receive_message(int sockfd, void *recv_msg, unsigned int msg_size, struct sockaddr_un *recv_addr, unsigned int *addr_size)
+int ms_ipc_receive_message(int sockfd, void *recv_msg, unsigned int msg_size)
 {
 	int recv_msg_size;
-	struct sockaddr_un addr;
-	socklen_t addr_len;
 
 	if (!recv_msg)
 		return MS_MEDIA_ERR_INVALID_PARAMETER;
 
-	addr_len = sizeof(addr);
-	if ((recv_msg_size = recvfrom(sockfd, recv_msg, msg_size, 0, (struct sockaddr *)&addr, &addr_len)) < 0) {
-		MSAPI_DBG_STRERROR("recvfrom failed");
-		return MS_MEDIA_ERR_SOCKET_RECEIVE;
+	if ((recv_msg_size = read(sockfd, recv_msg, sizeof(ms_comm_msg_s))) < 0) {
+		if (errno == EWOULDBLOCK) {
+			MSAPI_DBG_ERR("Timeout. Can't try any more");
+			return MS_MEDIA_ERR_SOCKET_RECEIVE_TIMEOUT;
+		} else {
+			MSAPI_DBG_STRERROR("recv failed");
+			return MS_MEDIA_ERR_SOCKET_RECEIVE;
+		}
 	}
-
-	MSAPI_DBG_SLOG("the path of received client address : %s", addr.sun_path);
-
-	if (recv_addr != NULL)
-		*recv_addr = addr;
-	if (addr_size != NULL)
-		*addr_size  = addr_len;
 
 	return MS_MEDIA_ERR_NONE;
 }

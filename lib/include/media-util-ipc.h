@@ -45,7 +45,7 @@ int ms_ipc_send_msg_to_server(int sockfd, ms_msg_port_type_e port, ms_comm_msg_s
 int ms_ipc_send_msg_to_server_tcp(int sockfd, ms_msg_port_type_e port, ms_comm_msg_s *send_msg, struct sockaddr_un *serv_addr);
 int ms_ipc_send_msg_to_client(int sockfd, ms_comm_msg_s *send_msg, struct sockaddr_un *client_addr);
 int ms_ipc_send_msg_to_client_tcp(int sockfd, ms_comm_msg_s *send_msg, struct sockaddr_un *client_addr);
-int ms_ipc_receive_message(int sockfd, void *recv_msg, unsigned int msg_size, struct sockaddr_un *client_addr, unsigned int *size);
+int ms_ipc_receive_message(int sockfd, void *recv_msg, unsigned int msg_size);
 int ms_ipc_receive_message_tcp(int client_sock, ms_comm_msg_s *recv_msg);
 int ms_ipc_wait_message(int sockfd, void  *recv_msg, unsigned int msg_size, struct sockaddr_un *recv_addr, unsigned int *size);
 int ms_ipc_wait_block_message(int sockfd, void  *recv_msg, unsigned int msg_size, struct sockaddr_un *recv_addr, unsigned int *size);
