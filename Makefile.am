@@ -30,7 +30,8 @@ lib_LTLIBRARIES = libmedia-utils.la
 libmedia_utils_la_SOURCES = lib/media-util-noti.c \
                             lib/media-util-ipc.c \
                             lib/media-util-db.c \
-                            lib/media-util-register.c
+                            lib/media-util-register.c \
+                            lib/media-util-cynara.c
 
 libmedia_utils_la_CFLAGS = -I${srcdir}/lib/include \
                               $(GLIB_CFLAGS) \
@@ -40,7 +41,10 @@ libmedia_utils_la_CFLAGS = -I${srcdir}/lib/include \
 			      $(DB_UTIL_CFLAGS) \
 			      $(PHONESTATUS_CFLAGS) \
 			      $(TZ_PLATFORM_CONFIG_CFLAGS) \
-			      $(LIBSMACK_CFLAGS)
+			      $(LIBSMACK_CFLAGS) \
+                  $(CYNARA_CLIENT_CFLAGS) \
+                  $(CYNARA_SESSION_CFLAGS) \
+                  $(CYNARA_CREDS_SOCKET_CFLAGS)
 
 libmedia_utils_la_LIBADD  =   $(GLIB_LIBS) \
                               $(DLOG_LIBS) \
@@ -49,7 +53,10 @@ libmedia_utils_la_LIBADD  =   $(GLIB_LIBS) \
 			      $(DB_UTIL_LIBS) \
 			      $(PHONESTATUS_LIBS) \
 			      $(TZ_PLATFORM_CONFIG_LIBS) \
-			      $(LIBSMACK_LIBS)
+			      $(LIBSMACK_LIBS) \
+                  $(CYNARA_CLIENT_LIBS) \
+                  $(CYNARA_SESSION_LIBS) \
+                  $(CYNARA_CREDS_SOCKET_LIBS)
 
 
 ### file-manager-server ###
@@ -67,27 +74,27 @@ media_server_SOURCES = src/common/media-common-utils.c \
                        src/server/media-server-main.c
 
 media_server_CFLAGS = -I${srcdir}/src/common/include \
-		      -I${srcdir}/src/server/include \
+                      -I${srcdir}/src/server/include \
                       -I${srcdir}/lib/include \
-                             $(GTHREAD_CFLAGS) \
-                             $(GLIB_CFLAGS) \
-                             $(PHONESTATUS_CFLAGS) \
-                             $(DLOG_CFLAGS) \
-			     $(AUL_CFLAG)\
-			     $(LIBPMCONTROL_CFLAGS) \
-			     $(DBUS_CFLAGS) \
-                             $(STATUS_CFLAGS)
+                      $(GTHREAD_CFLAGS) \
+                      $(GLIB_CFLAGS) \
+                      $(PHONESTATUS_CFLAGS) \
+                      $(DLOG_CFLAGS) \
+			          $(AUL_CFLAG)\
+			          $(LIBPMCONTROL_CFLAGS) \
+			          $(DBUS_CFLAGS) \
+                      $(STATUS_CFLAGS)
 
 media_server_LDADD = libmedia-utils.la \
 			      $(GLIB_LIBS) \
-                              $(GTHREAD_LIBS) \
-                              $(PHONESTATUS_LIBS) \
-                              $(DLOG_LIBS) \
+                  $(GTHREAD_LIBS) \
+                  $(PHONESTATUS_LIBS) \
+                  $(DLOG_LIBS) \
 			      $(AUL_LIBS) \
 			      $(LIBPMCONTROL_LIBS) \
 			      $(DBUS_LIBS) \
-                              -ldl \
-                              $(STATUS_LIBS)
+                  -ldl \
+                  $(STATUS_LIBS)
 
 media_scanner_SOURCES = src/common/media-common-utils.c \
                 	src/common/media-common-external-storage.c \
@@ -143,5 +150,6 @@ includeheaders_HEADERS = lib/include/media-util-noti-common.h \
                          lib/include/media-util-err.h \
                          lib/include/media-util-db.h \
                          lib/include/media-util-ipc.h \
+                         lib/include/media-util-cynara.h \
                          lib/include/media-util.h \
                          lib/include/media-server-ipc.h

@@ -351,6 +351,11 @@ int main(int argc, char **argv)
 
 	_ms_new_global_variable();
 
+	if (ms_cynara_initialize() != MS_MEDIA_ERR_NONE) {
+		MS_DBG_ERR("Failed to initialize cynara");
+		return -1;
+	}
+
 	__ms_add_requst_receiver(mainloop, &channel);
 
 	/* recevie event from other modules */
@@ -382,6 +387,8 @@ int main(int argc, char **argv)
 	g_thread_join(db_thread);
 	g_thread_join(thumb_thread);
 
+	ms_cynara_finish();
+
 	_ms_free_global_variable();
 
 	MS_DBG_ERR("*** Media Server is stopped ***");
@@ -408,6 +415,9 @@ static void __ms_add_requst_receiver(GMainLoop *mainloop, GIOChannel **channel)
 		MS_DBG_ERR("Failed to create socket");
 		return;
 	} else {
+		if (ms_cynara_enable_credentials_passing(sockfd) != MS_MEDIA_ERR_NONE)
+			MS_DBG_ERR("Failed to setup credential passing");
+
 		context = g_main_loop_get_context(mainloop);
 
 		/* Create new channel to watch udp socket */
