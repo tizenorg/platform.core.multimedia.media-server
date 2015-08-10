@@ -27,6 +27,8 @@
 #include <media-util-db.h>
 #include <media-util-noti.h>
 #include <media-util-ipc.h>
+#include <media-util-cynara.h>
+
 
 #include <tzplatform_config.h>
 
