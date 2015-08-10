@@ -19,6 +19,7 @@
  *
  */
 
+#define _GNU_SOURCE
 #include <string.h>
 #include <unistd.h>
 #include <errno.h>
@@ -90,55 +91,11 @@ int ms_ipc_create_client_socket(ms_protocol_e protocol, int timeout_sec, ms_sock
 
 	struct timeval tv_timeout = { timeout_sec, 0 };
 
-	if(protocol == MS_PROTOCOL_UDP)
-	{
-		char *path;
-		int cx,len;
-
-		if (tzplatform_getuid(TZ_USER_NAME) == 0 ){
-			cx = snprintf ( NULL, 0, MEDIA_IPC_PATH_CLIENT_ROOT[sock_info->port],getpid());
-			sock_info->sock_path = (char*)malloc((cx + 1 )*sizeof(char));
-			snprintf ( sock_info->sock_path, cx + 1,  MEDIA_IPC_PATH_CLIENT_ROOT[sock_info->port],getpid());
-		} else {
-			len = snprintf ( NULL, 0, "/var/run/user/%i/media-server", tzplatform_getuid(TZ_USER_NAME));
-			path = (char*)malloc((len + 1 )*sizeof(char));
-			snprintf ( path, len + 1, "/var/run/user/%i/media-server", tzplatform_getuid(TZ_USER_NAME));
-			_mkdir(path, 0777);
-			free(path);
-			cx = snprintf ( NULL, 0, MEDIA_IPC_PATH_CLIENT[sock_info->port], tzplatform_getuid(TZ_USER_NAME),getpid());
-			sock_info->sock_path = (char*)malloc((cx + 1 )*sizeof(char));
-			snprintf ( sock_info->sock_path, cx + 1,  MEDIA_IPC_PATH_CLIENT[sock_info->port],tzplatform_getuid(TZ_USER_NAME),getpid());
-		}
-
-		/* Create a datagram/UDP socket */
-		if ((sock = socket(PF_FILE, SOCK_DGRAM, 0)) < 0) {
-			MSAPI_DBG_STRERROR("socket failed");
-			return MS_MEDIA_ERR_SOCKET_CONN;
-		}
-
-		memset(&serv_addr, 0, sizeof(serv_addr));
-		serv_addr.sun_family = AF_UNIX;
-		MSAPI_DBG("%s", sock_info->sock_path);
-		unlink(sock_info->sock_path);
-		strcpy(serv_addr.sun_path, sock_info->sock_path);
-
-		/* Bind to the local address */
-		if (bind(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
-			MSAPI_DBG_STRERROR("bind failed");
-			close(sock);
-			free(sock_info->sock_path);
-			return MS_MEDIA_ERR_SOCKET_CONN;
-		}
+	if ((sock = socket(PF_FILE, SOCK_STREAM, 0)) < 0) {
+		MSAPI_DBG_STRERROR("socket failed");
+		return MS_MEDIA_ERR_SOCKET_CONN;
 	}
-	else
-	{
-		/*Create TCP Socket*/
-		if ((sock = socket(PF_FILE, SOCK_STREAM, 0)) < 0) {
-			MSAPI_DBG_STRERROR("socket failed");
-			return MS_MEDIA_ERR_SOCKET_CONN;
-		}
-		sock_info->sock_path = NULL;
-	}
+	sock_info->sock_path = NULL;
 
 	if (timeout_sec > 0) {
 		if (setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv_timeout, sizeof(tv_timeout)) == -1) {
@@ -328,27 +285,22 @@ int ms_ipc_send_msg_to_client_tcp(int sockfd, ms_comm_msg_s *send_msg, struct so
 	return res;
 }
 
-int ms_ipc_receive_message(int sockfd, void *recv_msg, unsigned int msg_size, struct sockaddr_un *recv_addr, unsigned int *addr_size)
+int ms_ipc_receive_message(int sockfd, void *recv_msg, unsigned int msg_size)
 {
 	int recv_msg_size;
-	struct sockaddr_un addr;
-	socklen_t addr_len;
 
 	if (!recv_msg)
 		return MS_MEDIA_ERR_INVALID_PARAMETER;
 
-	addr_len = sizeof(addr);
-	if ((recv_msg_size = recvfrom(sockfd, recv_msg, msg_size, 0, (struct sockaddr *)&addr, &addr_len)) < 0) {
-		MSAPI_DBG_STRERROR("recvfrom failed");
-		return MS_MEDIA_ERR_SOCKET_RECEIVE;
+	if ((recv_msg_size = read(sockfd, recv_msg, sizeof(ms_comm_msg_s))) < 0) {
+		if (errno == EWOULDBLOCK) {
+			MSAPI_DBG_ERR("Timeout. Can't try any more");
+			return MS_MEDIA_ERR_SOCKET_RECEIVE_TIMEOUT;
+		} else {
+			MSAPI_DBG_STRERROR("recv failed");
+			return MS_MEDIA_ERR_SOCKET_RECEIVE;
+		}
 	}
-
-	MSAPI_DBG_SLOG("the path of received client address : %s", addr.sun_path);
-
-	if (recv_addr != NULL)
-		*recv_addr = addr;
-	if (addr_size != NULL)
-		*addr_size  = addr_len;
 
 	return MS_MEDIA_ERR_NONE;
 }
