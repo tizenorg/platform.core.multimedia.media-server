@@ -67,7 +67,6 @@ static char* __media_get_media_DB(uid_t uid)
 {
 	char *result_psswd = NULL;
 	struct group *grpinfo = NULL;
-	char * dir = NULL;
 	if(uid == getuid())
 	{
 		result_psswd = strdup(MEDIA_DB_NAME);
@@ -188,6 +187,7 @@ static int __media_db_request_update_tcp(ms_msg_type_e msg_type, const char *req
 	send_msg.msg_size = request_msg_size;
 	strncpy(send_msg.msg, request_msg, request_msg_size);
 	send_msg.uid = uid;
+	send_msg.pid = getpid();
 
 	/*Create Socket*/
 	ret = ms_ipc_create_client_socket(MS_PROTOCOL_TCP, MS_TIMEOUT_SEC_10, &sock_info);

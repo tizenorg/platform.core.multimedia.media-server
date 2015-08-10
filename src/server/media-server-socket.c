@@ -19,6 +19,7 @@
  *
  */
 
+#define _GNU_SOURCE
 #include <arpa/inet.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -221,67 +222,6 @@ static int __ms_send_result_to_client(int pid, ms_comm_msg_s *recv_msg)
 
 }
 
-static int __ms_privilege_check(const char *msg, gboolean *privilege)
-{
-#define operation_cnt		3
-#define db_table_cnt		5
-
-	int o_idx = 0;
-	int t_idx = 0;
-	gboolean is_privilege = TRUE;
-
-	char *operation[operation_cnt] = {
-		"INSERT INTO ",
-		"DELETE FROM ",
-		"UPDATE "
-	};
-
-	char *db_table[db_table_cnt] = {
-		"playlist_map",
-		"playlist",
-		"tag_map",
-		"tag",
-		"bookmark"
-	};
-
-	if(strlen(msg) < 10) {
-		MS_DBG_ERR("msg is too short!!");
-		return MS_MEDIA_ERR_INVALID_PARAMETER;
-	}
-
-	for(o_idx = 0; o_idx < operation_cnt; o_idx++) {
-		if(strncmp(operation[o_idx], msg, strlen(operation[o_idx])) == 0) {
-			for(t_idx = 0; t_idx < db_table_cnt; t_idx++) {
-				if(strncmp(db_table[t_idx], msg+strlen(operation[o_idx]), strlen(db_table[t_idx])) == 0) {
-					MS_DBG("Non privilege [%s][%s]", operation[o_idx], db_table[t_idx]);
-					is_privilege = FALSE;
-					break;
-				}
-			}
-			break;
-		}
-	}
-
-	*privilege = is_privilege;
-
-	return MS_MEDIA_ERR_NONE;
-}
-
-static int __ms_privilege_ask(int client_sockfd)
-{
-//	int ret = 0;
-	int res = MS_MEDIA_ERR_NONE;
-#if 0
-	ret = security_server_check_privilege_by_sockfd(client_sockfd, "media-data::db", "w");
-	if (ret == SECURITY_SERVER_API_ERROR_ACCESS_DENIED) {
-		MS_DBG_ERR("You do not have permission for this operation.");
-		res = MS_MEDIA_ERR_PERMISSION_DENIED;
-	} else {
-		MS_DBG("PERMISSION OK");
-	}
-#endif
-	return res;
-}
 gboolean ms_read_socket(gpointer user_data)
 {
 	ms_comm_msg_s recv_msg;
@@ -292,6 +232,7 @@ gboolean ms_read_socket(gpointer user_data)
 	int req_num = -1;
 	int client_sock = -1;
 	GIOChannel *src = user_data;
+	ms_peer_credentials creds;
 
 	sockfd = g_io_channel_unix_get_fd(src);
 	if (sockfd < 0) {
@@ -305,17 +246,21 @@ gboolean ms_read_socket(gpointer user_data)
 		return TRUE;
 	}
 
-	ret = ms_ipc_receive_message_tcp(client_sock, &recv_msg);
+	memset(&creds, 0, sizeof(creds));
+
+	ret = ms_cynara_receive_untrusted_message(client_sock, &recv_msg, &creds);
 	if (ret != MS_MEDIA_ERR_NONE) {
 		res = ret;
 		goto ERROR;
 	}
 
-	ret = __ms_privilege_ask(client_sock);
-	if (ret == MS_MEDIA_ERR_PERMISSION_DENIED) {
-		res = MS_MEDIA_ERR_PERMISSION_DENIED;
+	if (ms_cynara_check(&creds, MEDIA_STORAGE_PRIVILEGE) != MS_MEDIA_ERR_NONE) {
+		res = ret;
 		goto ERROR;
 	}
+
+	SAFE_FREE(creds.smack);
+	SAFE_FREE(creds.uid);
 
 	/* copy received data */
 	req_num = recv_msg.msg_type;
@@ -502,7 +447,7 @@ gboolean ms_read_db_tcp_socket(GIOChannel *src, GIOCondition condition, gpointer
 	int ret = MS_MEDIA_ERR_NONE;
 	MediaDBHandle *db_handle = (MediaDBHandle *)data;
 	int send_msg = MS_MEDIA_ERR_NONE;
-	gboolean privilege = TRUE;
+	ms_peer_credentials creds;
 
 	if (power_off == TRUE) {
 		MS_DBG_WARN("in the power off sequence");
@@ -521,27 +466,23 @@ gboolean ms_read_db_tcp_socket(GIOChannel *src, GIOCondition condition, gpointer
 		return TRUE;
 	}
 
-	ret = ms_ipc_receive_message_tcp(client_sock, &recv_msg);
+	memset(&creds, 0, sizeof(creds));
+
+	ret = ms_cynara_receive_untrusted_message(client_sock, &recv_msg, &creds);
 	if (ret != MS_MEDIA_ERR_NONE) {
 		MS_DBG_ERR("ms_ipc_receive_message_tcp failed [%d]", ret);
 		send_msg = ret;
 		goto ERROR;
 	}
 
-	/* check privileage */
-	if(__ms_privilege_check(recv_msg.msg, &privilege) != MS_MEDIA_ERR_NONE) {
+	if (ms_cynara_check(&creds, CONTENT_WRITE_PRIVILEGE) != MS_MEDIA_ERR_NONE) {
 		MS_DBG_ERR("invalid query. size[%d]", recv_msg.msg_size);
-		send_msg = MS_MEDIA_ERR_SOCKET_RECEIVE;
+		send_msg = MS_MEDIA_ERR_PERMISSION_DENIED;
 		goto ERROR;
 	}
 
-	if (privilege == TRUE) {
-		ret = __ms_privilege_ask(client_sock);
-		if (ret == MS_MEDIA_ERR_PERMISSION_DENIED) {
-			send_msg = MS_MEDIA_ERR_PERMISSION_DENIED;
-			goto ERROR;
-		}
-	}
+	SAFE_FREE(creds.smack);
+	SAFE_FREE(creds.uid);
 
 	if(media_db_connect(&db_handle, recv_msg.uid) != MS_MEDIA_ERR_NONE) {
 		MS_DBG_ERR("Failed to connect DB");
