@@ -115,9 +115,4 @@ typedef struct _thumbMsg{
 	char dst_path[MAX_FILEPATH_LEN];
 } thumbMsg;
 
-typedef struct _thumbRawAddMsg{
-	int thumb_size;
-	unsigned char *thumb_data;
-} thumbRawAddMsg;
-
 #endif /*_MEDIA_SERVER_IPC_H_*/

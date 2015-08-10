@@ -689,6 +689,8 @@ gboolean _ms_thumb_agent_timer()
 		memset((void *)&recv_msg, 0, sizeof(recv_msg));
 
 		msg.msg_type = 5; // THUMB_REQUEST_KILL_SERVER
+		msg.uid = getuid();
+		msg.pid = getpid();
 		msg.org_path[0] = '\0';
 		msg.origin_path_size = 1;
 		msg.dst_path[0] = '\0';
@@ -1027,11 +1029,10 @@ gboolean _ms_thumb_agent_read_socket(GIOChannel *src,
 	int sock = -1;
 	int client_sock = -1;
 	unsigned char *buf = NULL;
-	int recv_msg_len = 0;
 
 	struct ucred cr;
 	int cl = sizeof(struct ucred);
-       
+
 	sock = g_io_channel_unix_get_fd(src);
 	if (sock < 0) {
 		MS_DBG_ERR("sock fd is invalid!");
@@ -1107,7 +1108,6 @@ gboolean _ms_thumb_agent_read_socket(GIOChannel *src,
 		res_msg.thumb_size = 0;
 
 		int buf_size = 0;
-		unsigned char *buf = NULL;
 		_ms_thumb_set_buffer(&res_msg, &buf, &buf_size);
 
 		if (send(client_sock, buf, buf_size, 0) != buf_size) {
