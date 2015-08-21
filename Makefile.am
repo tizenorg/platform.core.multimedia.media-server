@@ -44,7 +44,8 @@ libmedia_utils_la_CFLAGS = -I${srcdir}/lib/include \
 			      $(LIBSMACK_CFLAGS) \
 			      $(CYNARA_CLIENT_CFLAGS) \
 			      $(CYNARA_SESSION_CFLAGS) \
-			      $(CYNARA_CREDS_SOCKET_CFLAGS)
+			      $(CYNARA_CREDS_SOCKET_CFLAGS) \
+                  $(ICU_I18N_CFLAGS)
 
 libmedia_utils_la_LIBADD  =   $(GLIB_LIBS) \
                               $(DLOG_LIBS) \
@@ -56,7 +57,8 @@ libmedia_utils_la_LIBADD  =   $(GLIB_LIBS) \
 			      $(LIBSMACK_LIBS) \
 			      $(CYNARA_CLIENT_LIBS) \
 			      $(CYNARA_SESSION_LIBS) \
-			      $(CYNARA_CREDS_SOCKET_LIBS)
+			      $(CYNARA_CREDS_SOCKET_LIBS) \
+                  $(ICU_I18N_LIBS)
 
 
 ### file-manager-server ###
