@@ -34,7 +34,6 @@
 #include <tzplatform_config.h>
 
 GMainLoop * mainloop = NULL;
-static MediaDBHandle *db_handle = NULL;
 
 int (*svc_connect)				(void ** handle, uid_t uid, char ** err_msg);
 int (*svc_disconnect)			(void * handle, char ** err_msg);
@@ -101,23 +100,11 @@ void check_media_db(void)
 
 int dir_scan_non_recursive(char *path)
 {
-	int ret = MS_MEDIA_ERR_NONE;
-	ret = media_db_connect(&db_handle,tzplatform_getuid(TZ_USER_NAME));
-	if(ret != MS_MEDIA_ERR_NONE){
-		printf("Error connect DB failed\n");
-		return MS_MEDIA_ERR_DB_CONNECT_FAIL;
-	}
 	return media_directory_scanning_async(path, FALSE, callback, NULL, tzplatform_getuid(TZ_USER_NAME));
 }
 
 int dir_scan_recursive(char *path)
 {
-	int ret = MS_MEDIA_ERR_NONE;
-	ret = media_db_connect(&db_handle,tzplatform_getuid(TZ_USER_NAME));
-	if(ret != MS_MEDIA_ERR_NONE){
-		printf("Error connect DB failed\n");
-		return MS_MEDIA_ERR_DB_CONNECT_FAIL;
-	}
 	return media_directory_scanning_async(path, TRUE, callback, NULL, tzplatform_getuid(TZ_USER_NAME));
 }
 

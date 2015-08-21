@@ -26,9 +26,11 @@
 extern "C" {
 #endif
 
+#include <stdbool.h>
+
 typedef void MediaDBHandle;		/**< Handle */
 
-int media_db_connect(MediaDBHandle **handle, uid_t uid);
+int media_db_connect(MediaDBHandle **handle, uid_t uid, bool needWrite);
 
 int media_db_disconnect(MediaDBHandle *handle);
 
