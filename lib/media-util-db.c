@@ -40,7 +40,7 @@ static __thread char **sql_list = NULL;
 static __thread int g_list_idx = 0;
 
 static int __media_db_busy_handler(void *pData, int count);
-static int __media_db_connect_db_with_handle(sqlite3 **db_handle, uid_t uid);
+static int __media_db_connect_db_with_handle(sqlite3 **db_handle, uid_t uid, bool needWrite);
 static int __media_db_disconnect_db_with_handle(sqlite3 *db_handle);
 
 static void __media_db_destroy_sql_list()
@@ -100,15 +100,17 @@ static char* __media_get_media_DB(uid_t uid)
 	return result_psswd;
 }
 
-static int __media_db_connect_db_with_handle(sqlite3 **db_handle,uid_t uid)
+static int __media_db_connect_db_with_handle(sqlite3 **db_handle,uid_t uid, bool needWrite)
 {
 	int ret = MS_MEDIA_ERR_NONE;
 
 	/*Connect DB*/
-	ret = db_util_open(__media_get_media_DB(uid), db_handle, DB_UTIL_REGISTER_HOOK_METHOD);
-
+	if (needWrite) {
+		ret = db_util_open_with_options(__media_get_media_DB(uid), db_handle, SQLITE_OPEN_READWRITE, NULL);
+	} else {
+		ret = db_util_open_with_options(__media_get_media_DB(uid), db_handle, SQLITE_OPEN_READONLY, NULL);
+	}
 	if (SQLITE_OK != ret) {
-
 		MSAPI_DBG_ERR("error when db open [%s]", __media_get_media_DB(uid));
 		*db_handle = NULL;
 		return MS_MEDIA_ERR_DB_CONNECT_FAIL;
@@ -128,7 +130,7 @@ static int __media_db_connect_db_with_handle(sqlite3 **db_handle,uid_t uid)
 			MSAPI_DBG_ERR("[error when register busy handler] %s\n", sqlite3_errmsg(*db_handle));
 		}
 
-		db_util_close(*db_handle);
+		sqlite3_close(*db_handle);
 		*db_handle = NULL;
 
 		return MS_MEDIA_ERR_DB_CONNECT_FAIL;
@@ -400,14 +402,14 @@ static int _media_db_update_directly(sqlite3 *db_handle, const char *sql_str)
 	return ret;
 }
 
-int media_db_connect(MediaDBHandle **handle, uid_t uid)
+int media_db_connect(MediaDBHandle **handle, uid_t uid, bool needWrite)
 {
 	int ret = MS_MEDIA_ERR_NONE;
 	sqlite3 * db_handle = NULL;
 
 	MSAPI_DBG_FUNC();
 
-	ret = __media_db_connect_db_with_handle(&db_handle,uid);
+	ret = __media_db_connect_db_with_handle(&db_handle,uid, needWrite);
 	MSAPI_RETV_IF(ret != MS_MEDIA_ERR_NONE, ret);
 
 	*handle = db_handle;
