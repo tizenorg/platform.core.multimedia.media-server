@@ -490,7 +490,7 @@ gboolean ms_read_db_tcp_socket(GIOChannel *src, GIOCondition condition, gpointer
 	MS_SAFE_FREE(creds.smack);
 	MS_SAFE_FREE(creds.uid);
 
-	if(media_db_connect(&db_handle, recv_msg.uid) != MS_MEDIA_ERR_NONE) {
+	if(media_db_connect(&db_handle, recv_msg.uid, TRUE) != MS_MEDIA_ERR_NONE) {
 		MS_DBG_ERR("Failed to connect DB");
 		goto ERROR;
 	}
@@ -553,7 +553,7 @@ void _ms_process_tcp_message(gpointer data,  gpointer user_data)
 
 		/* Connect Media DB*/
 		if(db_handle == NULL) {
-			if(media_db_connect(&db_handle, recv_msg.uid) != MS_MEDIA_ERR_NONE) {
+			if(media_db_connect(&db_handle, recv_msg.uid, TRUE) != MS_MEDIA_ERR_NONE) {
 				MS_DBG_ERR("Failed to connect DB");
 				send_msg = MS_MEDIA_ERR_DB_CONNECT_FAIL;
 				goto ERROR;
