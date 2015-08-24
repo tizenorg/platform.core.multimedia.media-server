@@ -130,7 +130,7 @@ static int __media_db_connect_db_with_handle(sqlite3 **db_handle,uid_t uid, bool
 			MSAPI_DBG_ERR("[error when register busy handler] %s\n", sqlite3_errmsg(*db_handle));
 		}
 
-		sqlite3_close(*db_handle);
+		db_util_close(*db_handle);
 		*db_handle = NULL;
 
 		return MS_MEDIA_ERR_DB_CONNECT_FAIL;
