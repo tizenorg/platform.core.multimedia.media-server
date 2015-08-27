@@ -40,7 +40,7 @@ static __thread char **sql_list = NULL;
 static __thread int g_list_idx = 0;
 
 static int __media_db_busy_handler(void *pData, int count);
-static int __media_db_connect_db_with_handle(sqlite3 **db_handle, uid_t uid, bool needWrite);
+static int __media_db_connect_db_with_handle(sqlite3 **db_handle, uid_t uid, bool need_write);
 static int __media_db_disconnect_db_with_handle(sqlite3 *db_handle);
 
 static void __media_db_destroy_sql_list()
@@ -100,12 +100,12 @@ static char* __media_get_media_DB(uid_t uid)
 	return result_psswd;
 }
 
-static int __media_db_connect_db_with_handle(sqlite3 **db_handle,uid_t uid, bool needWrite)
+static int __media_db_connect_db_with_handle(sqlite3 **db_handle,uid_t uid, bool need_write)
 {
 	int ret = SQLITE_OK;
 
 	/*Connect DB*/
-	if (needWrite) {
+	if (need_write) {
 		ret = db_util_open_with_options(__media_get_media_DB(uid), db_handle, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE, NULL);
 	} else {
 		ret = db_util_open_with_options(__media_get_media_DB(uid), db_handle, SQLITE_OPEN_READONLY, NULL);
@@ -402,14 +402,14 @@ static int _media_db_update_directly(sqlite3 *db_handle, const char *sql_str)
 	return ret;
 }
 
-int media_db_connect(MediaDBHandle **handle, uid_t uid, bool needWrite)
+int media_db_connect(MediaDBHandle **handle, uid_t uid, bool need_write)
 {
 	int ret = MS_MEDIA_ERR_NONE;
 	sqlite3 * db_handle = NULL;
 
 	MSAPI_DBG_FUNC();
 
-	ret = __media_db_connect_db_with_handle(&db_handle,uid, needWrite);
+	ret = __media_db_connect_db_with_handle(&db_handle,uid, need_write);
 	MSAPI_RETV_IF(ret != MS_MEDIA_ERR_NONE, ret);
 
 	*handle = db_handle;
