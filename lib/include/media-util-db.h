@@ -30,7 +30,7 @@ extern "C" {
 
 typedef void MediaDBHandle;		/**< Handle */
 
-int media_db_connect(MediaDBHandle **handle, uid_t uid, bool needWrite);
+int media_db_connect(MediaDBHandle **handle, uid_t uid, bool need_write);
 
 int media_db_disconnect(MediaDBHandle *handle);
 

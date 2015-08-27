@@ -259,7 +259,7 @@ int ms_cynara_check(const ms_peer_credentials *creds, const char *privilege)
 	result = cynara_check(_cynara, creds->smack, session, creds->uid, privilege);
 	G_UNLOCK(cynara_mutex);
 
-	if (result < 0)
+	if (result != CYNARA_API_ACCESS_ALLOWED)
 		ms_cynara_dbg_err("cynara_check", result);
 
 	MS_SAFE_FREE(session);
@@ -269,16 +269,16 @@ int ms_cynara_check(const ms_peer_credentials *creds, const char *privilege)
 int ms_cynara_enable_credentials_passing(int fd)
 {
 	const int optval = 1;
-	int r;
+	int err;
 
-	r = setsockopt(fd, SOL_SOCKET, SO_PASSSEC, &optval, sizeof(optval));
-	if (r != 0) {
+	err = setsockopt(fd, SOL_SOCKET, SO_PASSSEC, &optval, sizeof(optval));
+	if (err != 0) {
 		MSAPI_DBG_ERR("Failed to set SO_PASSSEC socket option");
 		return MS_MEDIA_ERR_SOCKET_INTERNAL;
 	}
 
-	r = setsockopt(fd, SOL_SOCKET, SO_PASSCRED, &optval, sizeof(optval));
-	if (r != 0) {
+	err = setsockopt(fd, SOL_SOCKET, SO_PASSCRED, &optval, sizeof(optval));
+	if (err != 0) {
 		MSAPI_DBG_ERR("Failed to set SO_PASSCRED socket option");
 		return MS_MEDIA_ERR_SOCKET_INTERNAL;
 	}
