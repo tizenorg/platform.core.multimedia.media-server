@@ -5,7 +5,7 @@ Description=Media server user
 Type=idle
 CPUAccounting=true
 CPUQuota=10%
-ExecStart=/usr/bin/sh -c "/usr/bin/mediadb-update check_db;/usr/bin/mediadb-update -r `/usr/bin/tzplatform-get TZ_USER_CONTENT | /usr/bin/sed -e 's/^.*=//g'`;/usr/bin/mkdir -p `/usr/bin/tzplatform-get TZ_USER_DATA | /usr/bin/sed -e 's/^.*=//g'`/file-manager-service/.thumb/phone;/usr/bin/mkdir -p `/usr/bin/tzplatform-get TZ_USER_DATA | /usr/bin/sed -e 's/^.*=//g'`/file-manager-service/.thumb/mmc"
+ExecStart=/usr/bin/sh -c "/usr/bin/mediadb-update check_db;/usr/bin/mkdir -p `/usr/bin/tzplatform-get TZ_USER_SHARE | /usr/bin/sed -e 's/^.*=//g'`/media/.thumb/phone;/usr/bin/mkdir -p `/usr/bin/tzplatform-get TZ_USER_SHARE | /usr/bin/sed -e 's/^.*=//g'`/media/.thumb/mmc;/usr/bin/mkdir -p `/usr/bin/tzplatform-get TZ_USER_DATA | /usr/bin/sed -e 's/^.*=//g'`/file-manager-service;/usr/bin/mediadb-update -r `/usr/bin/tzplatform-get TZ_USER_CONTENT | /usr/bin/sed -e 's/^.*=//g'`"
 
 [Install]
 WantedBy=default.target
