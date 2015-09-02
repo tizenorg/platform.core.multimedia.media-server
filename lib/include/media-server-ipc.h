@@ -59,6 +59,8 @@ typedef enum{
 	MS_MSG_SCANNER_BULK_RESULT,			/**< Request bulk insert */
 	MS_MSG_STORAGE_META,				/**< Request updating meta data */
 	MS_MSG_DIRECTORY_SCANNING_CANCEL,	/**< Request cancel directory scan*/
+	MS_MSG_STORAGE_SCANNER_COMPLETE,	/**< Storage Scanner complete */
+	MS_MSG_DIRECTORY_SCANNER_COMPLETE,	/**< Directory Scanner complete */
 	MS_MSG_MAX							/**< Invalid msg type */
 }ms_msg_type_e;
 
@@ -73,6 +75,8 @@ typedef struct
 	char *sock_path;
 }ms_sock_info_s;
 
+#define MS_UUID_SIZE 37 /* size of uuid + NULL */
+
 typedef struct
 {
 	ms_msg_type_e msg_type;
@@ -80,6 +84,7 @@ typedef struct
 	uid_t uid;
 	int result;
 	size_t msg_size; /*this is size of message below and this does not include the terminationg null byte ('\0'). */
+	char storage_id[MS_UUID_SIZE];
 	char msg[MAX_MSG_SIZE];
 }ms_comm_msg_s;
 

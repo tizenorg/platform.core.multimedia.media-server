@@ -206,7 +206,7 @@ int ms_ipc_create_server_socket(ms_protocol_e protocol, ms_msg_port_type_e port,
 	strncpy(serv_addr.sun_path, MEDIA_IPC_PATH[serv_port], strlen(MEDIA_IPC_PATH[serv_port]));
 
 	/* Bind to the local address */
-	for (i = 0; i < 20; i ++) {
+	for (i = 0; i < 100; i ++) {
 		if (bind(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) == 0) {
 			bind_success = true;
 			break;
@@ -283,7 +283,13 @@ int ms_ipc_send_msg_to_server_tcp(int sockfd, ms_msg_port_type_e port, ms_comm_m
 	if (connect(sockfd, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
 		MSAPI_DBG_STRERROR("connect error");
 		close(sockfd);
-		return MS_MEDIA_ERR_SOCKET_CONN;
+
+		res = MS_MEDIA_ERR_SOCKET_CONN;
+
+		if (errno == EACCES || errno == EPERM)
+			res = MS_MEDIA_ERR_PERMISSION_DENIED;
+
+		return res;
 	}
 
 	if (write(sockfd, send_msg, sizeof(*(send_msg))) != sizeof(*(send_msg))) {
@@ -401,13 +407,13 @@ int ms_ipc_wait_block_message(int sockfd, void *recv_msg, unsigned int msg_size,
 			block_size = remain_size;
 		}
 		if ((recv_msg_size = recvfrom(sockfd, block_buf, block_size, 0, (struct sockaddr *)recv_addr, &addr_len)) < 0) {
-			MSAPI_DBG_ERR("recvfrom failed [%s]", strerror(errno));
+			MSAPI_DBG_STRERROR("recvfrom failed");
 			if (errno == EWOULDBLOCK) {
 				MSAPI_DBG_ERR("recvfrom Timeout.");
 				MS_SAFE_FREE(block_buf);
 				return MS_MEDIA_ERR_SOCKET_RECEIVE_TIMEOUT;
 			} else {
-				MSAPI_DBG_ERR("recvfrom error [%s]", strerror(errno));
+				MSAPI_DBG_STRERROR("recvfrom error");
 				MS_SAFE_FREE(block_buf);
 				return MS_MEDIA_ERR_SOCKET_RECEIVE;
 			}

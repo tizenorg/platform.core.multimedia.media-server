@@ -18,11 +18,11 @@
  * limitations under the License.
  *
  */
-
 #define _GNU_SOURCE
 #include <arpa/inet.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/socket.h>
 #include <fcntl.h>
 #include <sys/un.h>
 #include <errno.h>
@@ -35,8 +35,9 @@
 #include "media-util-internal.h"
 #include "media-server-ipc.h"
 #include "media-common-utils.h"
+#include "media-common-db-svc.h"
+#include "media-common-system.h"
 #include "media-server-dbg.h"
-#include "media-server-db-svc.h"
 #include "media-server-scanner.h"
 #include "media-server-socket.h"
 
@@ -138,48 +139,6 @@ static int __ms_delete_owner(ms_req_owner_data *owner_data)
 	}
 
 	return MS_MEDIA_ERR_NONE;
-}
-
-static char* __ms_get_path(uid_t uid)
-{
-	char *result_psswd = NULL;
-	struct group *grpinfo = NULL;
-	int err = 0;
-
-	if(uid == getuid())
-	{
-		result_psswd = strdup(MEDIA_ROOT_PATH_INTERNAL);
-		grpinfo = getgrnam("users");
-		if(grpinfo == NULL) {
-			MS_DBG_ERR("getgrnam(users) returns NULL !");
-			return NULL;
-		}
-    }
-	else
-	{
-		struct passwd *userinfo = getpwuid(uid);
-		if(userinfo == NULL) {
-			MS_DBG_ERR("getpwuid(%d) returns NULL !", uid);
-			return NULL;
-		}
-		grpinfo = getgrnam("users");
-		if(grpinfo == NULL) {
-			MS_DBG_ERR("getgrnam(users) returns NULL !");
-			return NULL;
-		}
-		// Compare git_t type and not group name
-		if (grpinfo->gr_gid != userinfo->pw_gid) {
-			MS_DBG_ERR("UID [%d] does not belong to 'users' group!", uid);
-			return NULL;
-		}
-		err = asprintf(&result_psswd, "%s/%s", userinfo->pw_dir, MEDIA_CONTENT_PATH);
-		if(err < 0) {
-			MS_DBG_ERR("asprintf failed![%d]", err);
-			return NULL;
-		}
-	}
-
-	return result_psswd;
 }
 
 static int __ms_send_result_to_client(int pid, ms_comm_msg_s *recv_msg)
@@ -388,12 +347,13 @@ int ms_send_scan_request(ms_comm_msg_s *send_msg, int client_sock)
 	return res;
 }
 
-int ms_send_storage_scan_request(ms_storage_type_t storage_type, ms_dir_scan_type_t scan_type)
+int ms_send_storage_scan_request(const char *root_path, const char *storage_id, ms_dir_scan_type_t scan_type, uid_t uid)
 {
 	int ret = MS_MEDIA_ERR_NONE;
 	ms_comm_msg_s scan_msg = {
 		.msg_type = MS_MSG_STORAGE_INVALID,
 		.pid = 0, /* pid 0 means media-server */
+		.uid = 0,
 		.result = -1,
 		.msg_size = 0,
 		.msg = {0},
@@ -421,21 +381,20 @@ int ms_send_storage_scan_request(ms_storage_type_t storage_type, ms_dir_scan_typ
 	}
 
 	/* msg_size & msg */
-	switch (storage_type) {
-		case MS_STORAGE_INTERNAL:
-			scan_msg.msg_size = strlen(__ms_get_path(tzplatform_getuid(TZ_USER_NAME)));
-			strncpy(scan_msg.msg, __ms_get_path(tzplatform_getuid(TZ_USER_NAME)), scan_msg.msg_size );
-			break;
-		case MS_STORAGE_EXTERNAL:
-			scan_msg.msg_size = strlen(MEDIA_ROOT_PATH_SDCARD);
-			strncpy(scan_msg.msg, MEDIA_ROOT_PATH_SDCARD, scan_msg.msg_size );
-			break;
-		default :
-			ret = MS_MEDIA_ERR_INVALID_PARAMETER;
-			MS_DBG_ERR("ms_send_storage_scan_request invalid parameter");
-			goto ERROR;
-			break;
+	if (root_path != NULL) {
+		scan_msg.msg_size = strlen(root_path);
+		strncpy(scan_msg.msg, root_path, scan_msg.msg_size );
 	}
+
+	if (storage_id != NULL) {
+		strncpy(scan_msg.storage_id, storage_id, MS_UUID_SIZE-1);
+	}
+
+	if(uid == 0) {
+		ms_sys_get_uid(&uid);
+	}
+
+	scan_msg.uid = uid;
 
 	ret = ms_send_scan_request(&scan_msg, -1);
 
@@ -608,7 +567,7 @@ void _ms_process_tcp_message(gpointer data,  gpointer user_data)
 	/* Disconnect DB*/
 	media_db_disconnect(db_handle);
 	MS_DBG_ERR("END");
-	if (g_atomic_int_dec_and_test(&cur_running_task) == FALSE) 
+	if (g_atomic_int_dec_and_test(&cur_running_task) == FALSE)
 		MS_DBG_ERR("g_atomic_int_dec_and_test failed");
 
 	return;
@@ -629,7 +588,7 @@ ERROR:
 	/* Disconnect DB*/
 	media_db_disconnect(db_handle);
 	MS_DBG_ERR("END");
-	if (g_atomic_int_dec_and_test(&cur_running_task) == FALSE) 
+	if (g_atomic_int_dec_and_test(&cur_running_task) == FALSE)
 		MS_DBG_ERR("g_atomic_int_dec_and_test failed");
 
 	return;
@@ -774,4 +733,58 @@ int ms_remove_request_owner(int pid, const char *req_path)
 
 	return MS_MEDIA_ERR_NONE;
 }
+
+int ms_send_storage_otg_scan_request(const char *path, const char *device_uuid, ms_dir_scan_type_t scan_type)
+{
+	int ret = MS_MEDIA_ERR_NONE;
+
+	if (path == NULL) {
+		MS_DBG_ERR("Invalid path");
+		return MS_MEDIA_ERR_INVALID_PARAMETER;
+	}
+
+	if (device_uuid == NULL) {
+		MS_DBG_ERR("Invalid device_uuid");
+		return MS_MEDIA_ERR_INVALID_PARAMETER;
+	}
+
+	ms_comm_msg_s scan_msg = {
+		.msg_type = MS_MSG_STORAGE_INVALID,
+		.pid = 0, /* pid 0 means media-server */
+		.result = -1,
+		.msg_size = 0,
+		.storage_id = {0},
+		.msg = {0},
+	};
+
+	/* msg_type */
+	switch (scan_type) {
+		case MS_SCAN_PART:
+			scan_msg.msg_type = MS_MSG_STORAGE_PARTIAL;
+			break;
+		case MS_SCAN_ALL:
+			scan_msg.msg_type = MS_MSG_STORAGE_ALL;
+			break;
+		case MS_SCAN_INVALID:
+			scan_msg.msg_type = MS_MSG_STORAGE_INVALID;
+			break;
+		default :
+			ret = MS_MEDIA_ERR_INVALID_PARAMETER;
+			MS_DBG_ERR("ms_send_storage_scan_request invalid parameter");
+			goto ERROR;
+			break;
+	}
+
+	/* msg_size & msg */
+	scan_msg.msg_size = strlen(path);
+	strncpy(scan_msg.msg, path, scan_msg.msg_size );
+	strncpy(scan_msg.storage_id, device_uuid, MS_UUID_SIZE-1);
+
+	ret = ms_send_scan_request(&scan_msg, -1);
+
+ERROR:
+
+	return ret;
+}
+
 

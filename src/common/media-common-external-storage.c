@@ -18,6 +18,13 @@
  * limitations under the License.
  *
  */
+#define _GNU_SOURCE
+#include <fcntl.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <sys/syscall.h>
+
 #include <locale.h>
 #include <libintl.h>
 #include <sys/stat.h>
@@ -25,115 +32,40 @@
 #include <malloc.h>
 #include <vconf.h>
 #include <errno.h>
+#include <glib.h>
+#include <stdlib.h>
+#include <gio/gio.h>
+
 #include <notification.h>
 
 #include "media-util.h"
 #include "media-server-ipc.h"
 #include "media-common-dbg.h"
 #include "media-common-utils.h"
+#include "media-common-db-svc.h"
 #include "media-common-external-storage.h"
 
 #include <pwd.h>
 #include <tzplatform_config.h>
 
 #define MMC_INFO_SIZE 256
-#define PATH_IMAGES tzplatform_mkpath(TZ_SYS_STORAGE,"sdcard/Images")
-#define PATH_VIDEOS tzplatform_mkpath(TZ_SYS_STORAGE,"sdcard/Videos")
-#define PATH_SOUNDS tzplatform_mkpath(TZ_SYS_STORAGE,"sdcard/Sounds")
-#define PATH_DOWNLOADS tzplatform_mkpath(TZ_SYS_STORAGE,"sdcard/Downloads")
-#define PATH_CAMERA tzplatform_mkpath(TZ_SYS_STORAGE,"sdcard/Camera")
 
-char default_path[][MS_FILE_NAME_LEN_MAX + 1] = {
-		{"/opt/storage/sdcard/Images"},
-		{"/opt/storage/sdcard/Videos"},
-		{"/opt/storage/sdcard/Sounds"},
-		{"/opt/storage/sdcard/Downloads"},
-		{"/opt/storage/sdcard/Camera"}
-};
+#define DEVICED_BUS_NAME       "org.tizen.system.deviced"
+#define DEVICED_OBJECT_PATH    "/Org/Tizen/System/DeviceD"
+#define DEVICED_INTERFACE_NAME DEVICED_BUS_NAME
 
-#define DIR_NUM       ((int)(sizeof(default_path)/sizeof(default_path[0])))
+#define DEVICED_PATH_BLOCK                  DEVICED_OBJECT_PATH"/Block"
+#define DEVICED_PATH_BLOCK_DEVICES          DEVICED_PATH_BLOCK"/Devices"
+#define DEVICED_PATH_BLOCK_MANAGER          DEVICED_PATH_BLOCK"/Manager"
+#define DEVICED_INTERFACE_BLOCK             DEVICED_INTERFACE_NAME".Block"
+#define DEVICED_INTERFACE_BLOCK_MANAGER     DEVICED_INTERFACE_NAME".BlockManager"
 
-void ms_init_default_path(void){
+#define BLOCK_OBJECT_ADDED      "ObjectAdded"
+#define BLOCK_OBJECT_REMOVED    "ObjectRemoved"
+#define BLOCK_DEVICE_CHANGED    "DeviceChanged"
 
-	strcpy (default_path[0], PATH_IMAGES);
-	strcpy (default_path[1], PATH_VIDEOS);
-	strcpy (default_path[2], PATH_SOUNDS);
-	strcpy (default_path[3], PATH_DOWNLOADS);
-	strcpy (default_path[4], PATH_CAMERA);
-}
-
-void ms_make_default_path_mmc(void)
-{
-	int i = 0;
-	int ret = 0;
-	DIR *dp = NULL;
- 	ms_init_default_path();
-	for (i = 0; i < DIR_NUM; ++i) {
-		dp = opendir(default_path[i]);
-		if (dp == NULL) {
-			ret = mkdir(default_path[i], 0777);
-			if (ret < 0) {
-				MS_DBG_ERR("make fail");
-			}
-			/*this fuction for emulator*/
-			/*at the first time, the directroies are made permission 755*/
-			ret = chmod(default_path[i], 0777);
-			if (ret != 0) {
-				MS_DBG_STRERROR("chmod failed");
-			}
-			ret = chown(default_path[i], tzplatform_getuid(TZ_USER_NAME), tzplatform_getgid(TZ_USER_NAME));
-			if (ret != 0) {
-				MS_DBG_STRERROR("chown failed");
-			}
-		} else {
-			closedir(dp);
-		}
-	}
-}
-
-int _ms_update_mmc_info(const char *cid)
-{
-	bool res;
-
-	if (cid == NULL) {
-		MS_DBG_ERR("Parameters are invalid");
-		return MS_MEDIA_ERR_INVALID_PARAMETER;
-	}
-
-	res = ms_config_set_str(MS_MMC_INFO_KEY, cid);
-	if (!res) {
-		MS_DBG_ERR("fail to get MS_MMC_INFO_KEY");
-		return MS_MEDIA_ERR_VCONF_SET_FAIL;
-	}
-
-	return MS_MEDIA_ERR_NONE;
-}
-
-bool _ms_check_mmc_info(const char *cid)
-{
-	char pre_mmc_info[MMC_INFO_SIZE] = { 0 };
-	bool res = false;
-
-	if (cid == NULL) {
-		MS_DBG_ERR("Parameters are invalid");
-		return false;
-	}
-
-	res = ms_config_get_str(MS_MMC_INFO_KEY, pre_mmc_info);
-	if (!res) {
-		MS_DBG_ERR("fail to get MS_MMC_INFO_KEY");
-		return false;
-	}
-
-	MS_DBG("Last MMC info	= %s", pre_mmc_info);
-	MS_DBG("Current MMC info = %s", cid);
-
-	if (strcmp(pre_mmc_info, cid) == 0) {
-		return true;
-	}
-
-	return false;
-}
+GDBusConnection *g_stg_bus;
+int g_stg_added_handler;
 
 static int __get_contents(const char *filename, char *buf)
 {
@@ -153,111 +85,20 @@ static int __get_contents(const char *filename, char *buf)
 }
 
 /*need optimize*/
-int _ms_get_mmc_info(char *cid)
+int ms_get_mmc_id(char **cid)
 {
-	int i;
-	int j;
-	int len;
-	int err = -1;
-	bool getdata = false;
-	bool bHasColon = false;
-	char path[MS_FILE_PATH_LEN_MAX] = { 0 };
-	char mmcpath[MS_FILE_PATH_LEN_MAX] = { 0 };
+	const char *path = "/sys/block/mmcblk1/device/cid";
+	char mmc_cid[MMC_INFO_SIZE] = {0, };
+	memset(mmc_cid, 0x00, sizeof(mmc_cid));
 
-	DIR *dp;
-	struct dirent ent;
-	struct dirent *res = NULL;
-
-	/* mmcblk0 and mmcblk1 is reserved for movinand */
-	for (j = 1; j < 3; j++) {
-		len = snprintf(mmcpath, MS_FILE_PATH_LEN_MAX, "/sys/class/mmc_host/mmc%d/", j);
-		if (len < 0) {
-			MS_DBG_ERR("FAIL : snprintf");
-			return MS_MEDIA_ERR_INTERNAL;
-		}
-		else {
-			mmcpath[len] = '\0';
-		}
-
-		dp = opendir(mmcpath);
-		if (dp == NULL) {
-			MS_DBG_ERR("dp is NULL");
-			return MS_MEDIA_ERR_DIR_OPEN_FAIL;
-		}
-
-		while (!readdir_r(dp, &ent, &res)) {
-			 /*end of read dir*/
-			if (res == NULL)
-				break;
-
-			bHasColon = false;
-			if (ent.d_name[0] == '.')
-				continue;
-
-			if (ent.d_type == DT_DIR) {
-				/*ent->d_name is including ':' */
-				for (i = 0; i < strlen(ent.d_name); i++) {
-					if (ent.d_name[i] == ':') {
-						bHasColon = true;
-						break;
-					}
-				}
-
-				if (bHasColon) {
-					/*check serial */
-					err = ms_strappend(path, sizeof(path), "%s%s/cid", mmcpath, ent.d_name);
-					if (err < 0) {
-						MS_DBG_ERR("ms_strappend error : %d", err);
-						continue;
-					}
-
-					if (__get_contents(path, cid) != MS_MEDIA_ERR_NONE)
-						break;
-					else
-						getdata = true;
-				}
-			}
-		}
-		closedir(dp);
-
-		if (getdata == true) {
-			break;
-		}
+	if (__get_contents(path, mmc_cid) != MS_MEDIA_ERR_NONE) {
+		MS_DBG_ERR("_get_contents failed");
+		*cid = NULL;
+	} else {
+		*cid = strndup(mmc_cid, strlen(mmc_cid) - 1);		//last is carriage return
 	}
 
 	return MS_MEDIA_ERR_NONE;
-}
-
-ms_dir_scan_type_t ms_get_mmc_state(void)
-{
-	char cid[MMC_INFO_SIZE] = { 0 };
-	ms_dir_scan_type_t ret = MS_SCAN_ALL;
-
-	/*get new info */
-	_ms_get_mmc_info(cid);
-
-	/*check it's same mmc */
-	if (_ms_check_mmc_info(cid)) {
-		ret = MS_SCAN_PART;
-	}
-
-	return ret;
-}
-
-int ms_update_mmc_info(void)
-{
-	int err;
-	char cid[MMC_INFO_SIZE] = { 0 };
-
-	err = _ms_get_mmc_info(cid);
-
-	err = _ms_update_mmc_info(cid);
-
-	/*Active flush */
-	if (!malloc_trim(0))
-		MS_DBG_ERR("malloc_trim is failed");
-
-	return err;
 }
 
 #define _GETSYSTEMSTR(ID)	dgettext("sys_string", (ID))
@@ -293,6 +134,141 @@ int ms_present_mmc_status(ms_sdcard_status_type_t status)
 
 	if(ret != NOTIFICATION_ERROR_NONE)
 		return MS_MEDIA_ERR_INTERNAL;
+	return MS_MEDIA_ERR_NONE;
+}
+
+#define DEVICE_INFO_FILE ".device_info_"
+
+struct linux_dirent {
+	int           d_ino;
+	long           d_off;
+	unsigned short d_reclen;
+	char           d_name[];
+};
+
+#define BUF_SIZE 1024
+
+int __ms_check_mount_path(const char *mount_path)
+{
+	DIR *dp = NULL;
+
+	/*check mount path*/
+	dp = opendir(mount_path);
+	if (dp == NULL) {
+		MS_DBG_ERR("Mount path is not exist");
+		return MS_MEDIA_ERR_INVALID_PATH;
+	}
+
+	closedir(dp);
+
+	return MS_MEDIA_ERR_NONE;
+}
+
+int ms_read_device_info(const char *root_path, char **device_uuid)
+{
+	int ret = MS_MEDIA_ERR_NONE;
+	int len = 0;
+
+	int fd = -1;
+	int nread = 0;
+	char buf[BUF_SIZE] = {0,};
+	struct linux_dirent *d;
+	int bpos = 0;
+	char d_type;
+	bool find_uuid = FALSE;
+
+	ret = __ms_check_mount_path(root_path);
+	if (ret != MS_MEDIA_ERR_NONE) {
+		MS_DBG_ERR("ms_strappend falied");
+		goto ERROR;
+	}
+
+	fd = open(root_path, O_RDONLY | O_DIRECTORY);
+	if (fd == -1) {
+		MS_DBG_ERR("open failed [%s]", root_path);
+		MS_DBG_STRERROR();
+		ret = MS_MEDIA_ERR_INVALID_PATH;
+		goto ERROR;
+	}
+
+	for ( ; ; ) {
+		nread = syscall(SYS_getdents64, fd, buf, BUF_SIZE);
+		if (nread == -1) {
+			MS_DBG_ERR("getdents");
+			MS_DBG_STRERROR();
+			ret = MS_MEDIA_ERR_INTERNAL;
+			goto ERROR;
+		}
+
+		if (nread == 0)
+			break;
+
+		for (bpos = 0; bpos < nread;) {
+			d = (struct linux_dirent *) (buf + bpos);
+			d_type = *(buf + bpos + d->d_reclen - 1);
+
+			if (d_type == DT_REG && (strncmp(d->d_name, DEVICE_INFO_FILE, strlen(DEVICE_INFO_FILE)) == 0)) {
+				MS_DBG_ERR("FIND DEV INFO : %s", d->d_name);
+				bpos += d->d_reclen;
+				find_uuid = TRUE;
+				goto FIND_UUID;
+			}
+
+			bpos += d->d_reclen;
+		}
+	}
+
+FIND_UUID:
+	if (find_uuid) {
+		len = strlen(d->d_name + strlen(DEVICE_INFO_FILE));
+		if (len > 0) {
+			*device_uuid = strndup(d->d_name + strlen(DEVICE_INFO_FILE), MS_UUID_SIZE -1);
+			MS_DBG_ERR("[%s][DEV ID: %s]", root_path, *device_uuid);
+		}
+	} else {
+		ret = MS_MEDIA_ERR_FILE_NOT_EXIST;
+		MS_DBG_ERR("[%s]DEV INFO NOT EXIST", root_path);
+		goto ERROR;
+	}
+
+	if (fd > -1) {
+		close(fd);
+		fd = -1;
+	}
+
+	return MS_MEDIA_ERR_NONE;
+
+ERROR:
+
+	*device_uuid = NULL;
+	if (fd > -1) {
+		close(fd);
+		fd = -1;
+	}
+	return ret;
+}
+
+int ms_write_device_info(const char *root_path, char *device_uuid)
+{
+	FILE * fp = NULL;
+	int len = 0;
+	char path[MS_FILE_PATH_LEN_MAX] = {0,};
+
+	len = snprintf(path, MS_FILE_PATH_LEN_MAX -1 , "%s/%s%s", root_path, DEVICE_INFO_FILE,device_uuid);
+	if (len < 0) {
+		return MS_MEDIA_ERR_INVALID_PARAMETER;
+	}
+
+	path[len] = '\0';
+
+	fp = fopen(path, "wt");
+	if (fp == NULL) {
+		MS_DBG_ERR("fp is NULL. file name : %s", path);
+		return MS_MEDIA_ERR_FILE_OPEN_FAIL;
+	}
+
+	fclose(fp);
+
 	return MS_MEDIA_ERR_NONE;
 }
 

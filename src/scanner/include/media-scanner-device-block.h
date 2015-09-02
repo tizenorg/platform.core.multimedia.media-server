@@ -19,19 +19,11 @@
  *
  */
 
-#ifndef _MEDIA_SCANNER_DBG_H_
-#define _MEDIA_SCANNER_DBG_H_
-#include <sys/syscall.h>
-#include <dlog.h>
-#include <errno.h>
+#ifndef _MEDIA_SCANNER_DEVICE_BLOCK_H_
+#define _MEDIA_SCANNER_DEVICE_BLOCK_H_
 
-#include "media-common-dbg.h"
+#include "media-common-system.h"
 
-#ifdef LOG_TAG
-#undef LOG_TAG
+void msc_device_block_changed_cb(const char *mount_path, int block_type, ms_stg_status_e mount_status, void *user_data);
+
 #endif
-
-#define LOG_TAG "MEDIA_SCANNER"
-
-#endif /*_MEDIA_SCANNER_DBG_H_*/
-

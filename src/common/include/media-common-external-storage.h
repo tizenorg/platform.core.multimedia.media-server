@@ -23,12 +23,14 @@
 
 #include "media-common-types.h"
 
-void ms_init_default_path(void);
-void ms_make_default_path_mmc(void);
-int ms_update_mmc_info(void);
-void ms_mmc_removed_handler(void);
+#ifndef DISABLE_NOTIFICATION
 int ms_present_mmc_status(ms_sdcard_status_type_t status);
-void ms_mmc_vconf_cb(void *data);
-ms_dir_scan_type_t ms_get_mmc_state(void);
+#endif
+
+int ms_get_mmc_id(char **cid);
+int ms_get_stg_changed_event(void);
+
+int ms_read_device_info(const char *root_path, char **device_uuid);
+int ms_write_device_info(const char *root_path, char *device_uuid);
 
 #endif /*_MEDIA_SERVER_EXTERNAL_STORAGE_H_*/

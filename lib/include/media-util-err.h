@@ -83,6 +83,7 @@
 #define MS_MEDIA_ERR_INVALID_IPC_MESSAGE			-905  /* received message is not valid */
 #define MS_MEDIA_ERR_DATA_TAINTED				-906  /* received data is tainted */
 #define MS_MEDIA_ERR_SEND_NOTI_FAIL				-907  /* sending notification is failed */
+#define MS_MEDIA_ERR_USB_UNMOUNTED				-908 /* USB unmounted */
 
 #define MS_MEDIA_ERR_MAX							-999
 
