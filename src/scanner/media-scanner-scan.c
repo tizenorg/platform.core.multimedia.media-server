@@ -33,12 +33,10 @@
 #include "media-server-ipc.h"
 #include "media-common-utils.h"
 #include "media-common-external-storage.h"
+#include "media-common-db-svc.h"
 #include "media-scanner-dbg.h"
-#include "media-scanner-db-svc.h"
 #include "media-scanner-socket.h"
 #include "media-scanner-scan.h"
-
-#define GLOBAL_USER	0 //#define 	tzplatform_getenv(TZ_GLOBAL) //TODO
 
 typedef struct msc_scan_data {
 	char *name;
@@ -50,7 +48,6 @@ bool power_off;
 GAsyncQueue * storage_queue;
 GAsyncQueue *scan_queue;
 GAsyncQueue *reg_queue;
-int insert_count;
 GMutex scan_req_mutex;
 GMutex blocked_mutex;
 char *g_cancel_path;
@@ -68,9 +65,10 @@ extern struct timeval g_mmc_end_time;
 static int __msc_set_power_mode(ms_db_status_type_t status);
 static int __msc_set_db_status(ms_db_status_type_t status, ms_storage_type_t storage_type);
 static int __msc_check_stop_status(ms_storage_type_t storage_type);
-static int __msc_dir_scan(void **handle, const char*start_path, ms_storage_type_t storage_type, int scan_type, uid_t uid);
-static int __msc_db_update(void **handle, const ms_comm_msg_s * scan_data);
+static int __msc_dir_scan(void **handle, const char *storage_id, const char*start_path, ms_storage_type_t storage_type, int scan_type, uid_t uid);
+static int __msc_db_update(void **handle, const char *storage_id, const ms_comm_msg_s * scan_data);
 static int __msc_check_file_path(const char *file_path, uid_t uid);
+static bool __msc_check_folder_path(const char *folder_path);
 static int __msc_make_file_list(char *file_path, GArray **path_array, uid_t uid);
 static int __msc_batch_insert(ms_msg_type_e current_msg, int pid, GArray *path_array, uid_t uid);
 static int __msc_pop_register_request(GArray *register_array, ms_comm_msg_s **register_data);
@@ -80,7 +78,10 @@ static bool __msc_is_valid_path(const char *path, uid_t uid);
 static void __msc_check_dir_path(char *dir_path);
 static void __msc_insert_register_request(GArray *register_array, ms_comm_msg_s *insert_data);
 static void __msc_bacth_commit_enable(void* handle, bool ins_status, bool valid_status, bool noti_enable, int pid);
-static void __msc_bacth_commit_disable(void* handle, bool ins_status, bool valid_status, uid_t uid);
+static void __msc_bacth_commit_disable(void* handle, bool ins_status, bool valid_status, const char *path, uid_t uid);
+static int __msc_set_storage_scan_status(ms_storage_scan_status_e status);
+//static int __msc_get_storage_scan_status(ms_storage_scan_status_e *status, uid_t uid);
+//static bool __msc_storage_mount_status(const char* start_path);
 static char* __msc_get_path(uid_t uid);
 
 static char* __msc_get_path(uid_t uid)
@@ -92,7 +93,7 @@ static char* __msc_get_path(uid_t uid)
 		result_psswd = strdup(MEDIA_ROOT_PATH_INTERNAL);
 		grpinfo = getgrnam("users");
 		if(grpinfo == NULL) {
-			MSC_DBG_ERR("getgrnam(users) returns NULL !");
+			MS_DBG_ERR("getgrnam(users) returns NULL !");
 			return NULL;
 		}
     }
@@ -100,17 +101,17 @@ static char* __msc_get_path(uid_t uid)
 	{
 		struct passwd *userinfo = getpwuid(uid);
 		if(userinfo == NULL) {
-			MSC_DBG_ERR("getpwuid(%d) returns NULL !", uid);
+			MS_DBG_ERR("getpwuid(%d) returns NULL !", uid);
 			return NULL;
 		}
 		grpinfo = getgrnam("users");
 		if(grpinfo == NULL) {
-			MSC_DBG_ERR("getgrnam(users) returns NULL !");
+			MS_DBG_ERR("getgrnam(users) returns NULL !");
 			return NULL;
 		}
 		// Compare git_t type and not group name
 		if (grpinfo->gr_gid != userinfo->pw_gid) {
-			MSC_DBG_ERR("UID [%d] does not belong to 'users' group!", uid);
+			MS_DBG_ERR("UID [%d] does not belong to 'users' group!", uid);
 			return NULL;
 		}
 		asprintf(&result_psswd, "%s/%s", userinfo->pw_dir, MEDIA_CONTENT_PATH);
@@ -136,7 +137,7 @@ static int __msc_set_power_mode(ms_db_status_type_t status)
 			res = MS_MEDIA_ERR_INTERNAL;
 		break;
 	default:
-		MSC_DBG_ERR("Unacceptable type : %d", status);
+		MS_DBG_ERR("Unacceptable type : %d", status);
 		break;
 	}
 
@@ -151,32 +152,32 @@ static int __msc_set_db_status(ms_db_status_type_t status, ms_storage_type_t sto
 	if (status == MS_DB_UPDATING) {
 		if (!ms_config_set_int(VCONFKEY_FILEMANAGER_DB_STATUS, VCONFKEY_FILEMANAGER_DB_UPDATING)) {
 			res = MS_MEDIA_ERR_VCONF_SET_FAIL;
-			MSC_DBG_ERR("ms_config_set_int failed");
+			MS_DBG_ERR("ms_config_set_int failed");
 		}
 
 		if (storage_type == MS_STORAGE_EXTERNAL) {
 			if (!ms_config_set_int(VCONFKEY_FILEMANAGER_MMC_STATUS, VCONFKEY_FILEMANAGER_MMC_LOADING)) {
 				res = MS_MEDIA_ERR_VCONF_SET_FAIL;
-				MSC_DBG_ERR("ms_config_set_int failed");
+				MS_DBG_ERR("ms_config_set_int failed");
 			}
 		}
 	} else if (status == MS_DB_UPDATED) {
 		if(!ms_config_set_int(VCONFKEY_FILEMANAGER_DB_STATUS,  VCONFKEY_FILEMANAGER_DB_UPDATED)) {
 			res = MS_MEDIA_ERR_VCONF_SET_FAIL;
-			MSC_DBG_ERR("ms_config_set_int failed");
+			MS_DBG_ERR("ms_config_set_int failed");
 		}
 
 		if (storage_type == MS_STORAGE_EXTERNAL) {
 			if (!ms_config_set_int(VCONFKEY_FILEMANAGER_MMC_STATUS, VCONFKEY_FILEMANAGER_MMC_LOADED)) {
 				res = MS_MEDIA_ERR_VCONF_SET_FAIL;
-				MSC_DBG_ERR("ms_config_set_int failed");
+				MS_DBG_ERR("ms_config_set_int failed");
 			}
 		}
 	}
 
 	err = __msc_set_power_mode(status);
 	if (err != MS_MEDIA_ERR_NONE) {
-		MSC_DBG_ERR("__msc_set_power_mode fail");
+		MS_DBG_ERR("__msc_set_power_mode fail");
 		res = err;
 	}
 
@@ -188,17 +189,17 @@ static bool __msc_check_scan_ignore(char * path)
 	DIR *dp = NULL;
 	struct dirent entry;
 	struct dirent *result;
-	char *ignore_path = ".scan_ignore";
+	const char *ignore_path = ".scan_ignore";
 
 	if(strstr(path, "/."))
 	{
-		MSC_DBG_ERR("hidden path");
-		return true;;
+		MS_DBG_ERR("hidden path");
+		return true;
 	}
 
 	dp = opendir(path);
 	if (dp == NULL) {
-		MSC_DBG_ERR("%s folder opendir fails", path);
+		MS_DBG_ERR("%s folder opendir fails", path);
 		return true;
 	}
 
@@ -254,14 +255,14 @@ static int __msc_check_stop_status(ms_storage_type_t storage_type)
 
 	/*check poweroff status*/
 	if (power_off) {
-		MSC_DBG_ERR("Power off");
+		MS_DBG_ERR("Power off");
 		ret = MS_MEDIA_ERR_SCANNER_FORCE_STOP;
 	}
 
 	/*check SD card in out */
 #if 0
-	if ((mmc_state != VCONFKEY_SYSMAN_MMC_MOUNTED) && (storage_type == MS_STORAGE_EXTERNAL)) {
-	    	MSC_DBG_ERR("Directory scanning is stopped");
+	if ((mmc_state != MS_STG_INSERTED) && (storage_type == MS_STORAGE_EXTERNAL)) {
+	    	MS_DBG_ERR("Directory scanning is stopped");
 		ret = MS_MEDIA_ERR_SCANNER_FORCE_STOP;
 	}
 #endif
@@ -278,7 +279,23 @@ static void __msc_check_dir_path(char *dir_path)
 		dir_path[len -1] = '\0';
 }
 
-static int __msc_dir_scan(void **handle, const char*start_path, ms_storage_type_t storage_type, int scan_type, uid_t uid)
+static bool __msc_check_mount_storage(const char* start_path)
+{
+	bool ret = FALSE;
+	DIR *dp = NULL;
+
+	dp = opendir(start_path);
+
+	if (dp != NULL) {
+		ret = TRUE;
+		closedir(dp);
+		MS_DBG_ERR("STORAGE IS MOUNTED[%s]", start_path);
+	}
+
+	return ret;
+}
+
+static int __msc_dir_scan(void **handle, const char *storage_id, const char*start_path, ms_storage_type_t storage_type, int scan_type, uid_t uid)
 {
 	DIR *dp = NULL;
 	GArray *dir_array = NULL;
@@ -288,18 +305,42 @@ static int __msc_dir_scan(void **handle, const char*start_path, ms_storage_type_
 	char *new_path = NULL;
 	char *current_path = NULL;
 	char path[MS_FILE_PATH_LEN_MAX] = { 0 };
-	int (*scan_function)(void **, const char*, uid_t) = NULL;
+	bool is_recursive = true;
+	char *new_start_path = NULL;
+	int (*scan_function)(void **, const char*, const char*, uid_t) = NULL;
 
 	/* make new array for storing directory */
 	dir_array = g_array_new (FALSE, FALSE, sizeof (char*));
 	if (dir_array == NULL){
-		MSC_DBG_ERR("g_array_new failed");
+		MS_DBG_ERR("g_array_new failed");
 		return MS_MEDIA_ERR_OUT_OF_MEMORY;
 	}
+
 	/* add first direcotiry to directory array */
+	new_start_path = strdup(start_path);
+	if (new_start_path == NULL) {
+		MS_DBG_ERR("g_array_new failed");
+		g_array_free(dir_array, FALSE);
+		return MS_MEDIA_ERR_OUT_OF_MEMORY;
+	}
+
 	g_array_append_val (dir_array, start_path);
 
-	scan_function = (scan_type == MS_MSG_STORAGE_ALL) ? msc_insert_item_batch : msc_validate_item;
+	MS_DBG_ERR("[No-Error] start path [%s]", new_start_path);
+
+	scan_function = (scan_type == MS_MSG_STORAGE_ALL) ? ms_insert_item_batch : ms_validate_item;
+	is_recursive = (scan_type == MS_MSG_DIRECTORY_SCANNING_NON_RECURSIVE) ? false : true;
+
+	/* folder validity set 0 under the start_path in folder table*/
+	if (scan_type == MS_MSG_DIRECTORY_SCANNING_NON_RECURSIVE || scan_type == MS_MSG_DIRECTORY_SCANNING) {
+		if(ms_set_folder_validity(handle, storage_id, new_start_path, MS_INVALID, is_recursive, uid) != MS_MEDIA_ERR_NONE) {
+			MS_DBG_ERR("set_folder_validity failed [%d] ", scan_type);
+		}
+	}
+
+	if(__msc_check_folder_path(new_start_path)) {
+		ms_insert_folder(handle, storage_id, new_start_path, uid);
+	}
 
 	/*start db update. the number of element in the array , db update is complete.*/
 	while (dir_array->len != 0) {
@@ -311,13 +352,15 @@ static int __msc_dir_scan(void **handle, const char*start_path, ms_storage_type_
 		/* get the current path from directory array */
 		current_path = g_array_index(dir_array , char*, 0);
 		g_array_remove_index (dir_array, 0);
-//		MSC_DBG_SLOG("%d", dir_array->len);
+//		MS_DBG_SLOG("%d", dir_array->len);
 
 		if (__msc_check_scan_ignore(current_path)) {
-			MSC_DBG_ERR("%s is ignore", current_path);
+			MS_DBG_ERR("%s is ignore", current_path);
 			MS_SAFE_FREE(current_path);
 			continue;
 		}
+
+		ms_insert_folder_start(handle);
 
 		dp = opendir(current_path);
 		if (dp != NULL) {
@@ -334,54 +377,80 @@ static int __msc_dir_scan(void **handle, const char*start_path, ms_storage_type_
 				if (entry.d_name[0] == '.')
 					continue;
 
+				 if (ms_strappend(path, sizeof(path), "%s/%s", current_path, entry.d_name) != MS_MEDIA_ERR_NONE) {
+				 	MS_DBG_ERR("ms_strappend failed");
+					continue;
+				}
+
 				if (entry.d_type & DT_REG) {
-					 if (ms_strappend(path, sizeof(path), "%s/%s", current_path, entry.d_name) != MS_MEDIA_ERR_NONE) {
-					 	MSC_DBG_ERR("ms_strappend failed");
-						continue;
-					}
 					/* insert into media DB */
-					if (scan_function(handle,path,uid) != MS_MEDIA_ERR_NONE) {
-						MSC_DBG_ERR("failed to update db : %d", scan_type);
+					if (scan_function(handle,storage_id, path, uid) != MS_MEDIA_ERR_NONE) {
+						MS_DBG_ERR("failed to update db : %d", scan_type);
 						continue;
 					}
 				} else if (entry.d_type & DT_DIR) {
 					if  (scan_type != MS_MSG_DIRECTORY_SCANNING_NON_RECURSIVE) {
 						/* this request is recursive scanning */
-						 if (ms_strappend(path, sizeof(path), "%s/%s", current_path, entry.d_name) != MS_MEDIA_ERR_NONE) {
-						 	MSC_DBG_ERR("ms_strappend failed");
-							continue;
-						}
 						/* add new directory to dir_array */
 						new_path = strdup(path);
-						g_array_append_val (dir_array, new_path);
+						if (new_path != NULL) {
+							g_array_append_val (dir_array, new_path);
+
+							if(ms_insert_folder(handle, storage_id, new_path, uid) != MS_MEDIA_ERR_NONE) {
+								MS_DBG_ERR("insert folder failed");
+							}
+						} else {
+							MS_DBG_ERR("strdup failed");
+							continue;
+						}
 					} else {
 						/* this request is recursive scanning */
 						/* don't add new directory to dir_array */
+						if(ms_insert_folder(handle, storage_id, path, uid) != MS_MEDIA_ERR_NONE) {
+							MS_DBG_ERR("insert folder failed");
+							continue;
+						}
 					}
 				}
 			}
 			/* update modified time of directory */
-			if (scan_type == MS_MSG_STORAGE_PARTIAL
-				&& storage_type == MS_STORAGE_INTERNAL)
-				msc_update_folder_time(handle, current_path, uid);
+			if (scan_type == MS_MSG_STORAGE_PARTIAL && storage_type == MS_STORAGE_INTERNAL)
+				ms_update_folder_time(handle, INTERNAL_STORAGE_ID, current_path, uid);
 		} else {
-			MSC_DBG_ERR("%s folder opendir fails", current_path);
+			MS_DBG_ERR("%s folder opendir fails", current_path);
 		}
 		if (dp) closedir(dp);
 		dp = NULL;
+
+		ms_insert_folder_end(handle, uid);
+
 		MS_SAFE_FREE(current_path);
 	}		/*db update while */
+
+		/*remove invalid folder in folder table.*/
+	if (scan_type == MS_MSG_STORAGE_ALL || scan_type == MS_MSG_STORAGE_PARTIAL) {
+		if (__msc_check_mount_storage(new_start_path)) {
+			if(ms_delete_invalid_folder(handle, storage_id, uid) != MS_MEDIA_ERR_NONE) {
+				MS_DBG_ERR("delete invalid folder failed");
+				ret =  MS_MEDIA_ERR_DB_DELETE_FAIL;
+			}
+		} else {
+			MS_DBG_ERR("start path is unmounted");
+		}
+	}
 STOP_SCAN:
 	if (dp) closedir(dp);
 
+	MS_SAFE_FREE(new_start_path);
+
 	__msc_clear_file_list(dir_array);
 
-	if (ret != MS_MEDIA_ERR_NONE) MSC_DBG_INFO("ret : %d", ret);
+	if (ret != MS_MEDIA_ERR_NONE) MS_DBG_INFO("ret : %d", ret);
 
 	return ret;
 }
 
-static int __msc_db_update(void **handle, const ms_comm_msg_s * scan_data)
+static int __msc_db_update(void **handle, const char *storage_id, const ms_comm_msg_s * scan_data)
 {
 	int scan_type;
 	int err = MS_MEDIA_ERR_NONE;
@@ -394,19 +463,22 @@ static int __msc_db_update(void **handle, const ms_comm_msg_s * scan_data)
 
 	/*if scan type is not MS_SCAN_NONE, check data in db. */
 	if (scan_type != MS_MSG_STORAGE_INVALID) {
-		MSC_DBG_INFO("INSERT");
+		MS_DBG_INFO("INSERT");
 
-		err = __msc_dir_scan(handle, start_path, storage_type, scan_type, scan_data->uid);
+		err = __msc_dir_scan(handle, storage_id, start_path, storage_type, scan_type, scan_data->uid);
 		if (err != MS_MEDIA_ERR_NONE) {
-			MSC_DBG_ERR("error : %d", err);
+			MS_DBG_ERR("error : %d", err);
 		}
 	} else if (scan_type == MS_MSG_STORAGE_INVALID) {
-		MSC_DBG_INFO("INVALID");
-
-		err = msc_set_folder_validity(handle, start_path, false, true, scan_data->uid);
+		MS_DBG_INFO("INVALID");
+		/*In this case, update just validation record*/
+		/*update just valid type*/
+		err = ms_validaty_change_all_items(handle, storage_id, storage_type, false, scan_data->uid);
 		if (err != MS_MEDIA_ERR_NONE) {
-			MSC_DBG_ERR("error : %d", err);
+			MS_DBG_ERR("error : %d", err);
 		}
+
+		ms_set_folder_validity(handle, MMC_STORAGE_ID, start_path, 0, TRUE, scan_data->uid);
 
 		MS_SAFE_FREE(start_path);
 	}
@@ -424,26 +496,47 @@ gboolean msc_directory_scan_thread(void *data)
 	void **handle = NULL;
 	int scan_type;
 	char *noti_path = NULL;
+	char *storage_id = NULL;
 
 	while (1) {
 		scan_data = g_async_queue_pop(scan_queue);
 		if (scan_data->pid == POWEROFF) {
-			MSC_DBG_ERR("power off");
+			MS_DBG_ERR("power off");
 			goto _POWEROFF;
 		}
 
-		MSC_DBG_INFO("DIRECTORY SCAN START [%s]", scan_data->msg);
+		MS_DBG_ERR("DIRECTORY SCAN START [%s %d]", scan_data->msg, scan_data->msg_type);
 
 		/*connect to media db, if conneting is failed, db updating is stopped*/
-		err = msc_connect_db(&handle, scan_data->uid);
+		err = ms_connect_db(&handle, scan_data->uid);
 		if (err != MS_MEDIA_ERR_NONE)
 			continue;
 
 		scan_type = scan_data->msg_type;
 
+		if (strlen(scan_data->storage_id) > 0)
+			storage_id = strdup(scan_data->storage_id);
+		else
+			storage_id = strdup("media");
+
+		//storage_id = strdup(scan_data->storage_id);
+		if (storage_id == NULL) {
+			MS_DBG_ERR("storage_id NULL");
+			ret = MS_MEDIA_ERR_INVALID_PARAMETER;
+			goto NEXT;
+		}
+
+		MS_DBG("path : [%s], storage_id : [%s]", scan_data->msg, storage_id);
+
+		if (strlen(storage_id) == 0) {
+			MS_DBG_ERR("storage_id length is 0. There is no information of your request [%s]", scan_data->msg);
+			ret = MS_MEDIA_ERR_INVALID_PARAMETER;
+			goto NEXT;
+		}
+
 		if (scan_type != MS_MSG_DIRECTORY_SCANNING
 			&& scan_type != MS_MSG_DIRECTORY_SCANNING_NON_RECURSIVE) {
-			MSC_DBG_ERR("Invalid request");
+			MS_DBG_ERR("Invalid request");
 			ret = MS_MEDIA_ERR_INVALID_PARAMETER;
 			goto NEXT;
 		}
@@ -452,48 +545,53 @@ gboolean msc_directory_scan_thread(void *data)
 
 		/*change validity before scanning*/
 		if (scan_type == MS_MSG_DIRECTORY_SCANNING)
-			err = msc_set_folder_validity(handle, scan_data->msg, MS_INVALID, MS_RECURSIVE,scan_data->uid);
+			err = ms_set_folder_item_validity(handle, storage_id, scan_data->msg, MS_INVALID, MS_RECURSIVE, scan_data->uid);
 		else
-			err = msc_set_folder_validity(handle, scan_data->msg, MS_INVALID, MS_NON_RECURSIVE,scan_data->uid);
+			err = ms_set_folder_item_validity(handle, storage_id, scan_data->msg, MS_INVALID, MS_NON_RECURSIVE, scan_data->uid);
 		if (err != MS_MEDIA_ERR_NONE)
-			MSC_DBG_ERR("error : %d", err);
+			MS_DBG_ERR("error : %d", err);
 
 		/*call for bundle commit*/
-		__msc_bacth_commit_enable(handle, TRUE, TRUE, MS_NOTI_DISABLE, 0);
+		__msc_bacth_commit_enable(handle, TRUE, TRUE, MS_NOTI_SWITCH_OFF, 0);
 
 		/*insert data into media db */
-		ret = __msc_db_update(handle, scan_data);
+		ret = __msc_db_update(handle, storage_id, scan_data);
 
 		/*call for bundle commit*/
-		__msc_bacth_commit_disable(handle, TRUE, TRUE,scan_data->uid);
+		__msc_bacth_commit_disable(handle, TRUE, TRUE, scan_data->msg, scan_data->uid);
 
 		if (ret == MS_MEDIA_ERR_NONE) {
-			MSC_DBG_INFO("working normally");
+			MS_DBG_INFO("working normally");
 			int count = 0;
+			bool is_recursive = true;
+			int insert_count = ms_get_insert_count();
 
 			noti_path = strndup(scan_data->msg, scan_data->msg_size);
-			msc_count_delete_items_in_folder(handle, noti_path, &count);
+			ms_count_delete_items_in_folder(handle, storage_id, noti_path, &count);
 
-			MSC_DBG_SLOG("delete count %d", count);
-			MSC_DBG_SLOG("insert count %d", insert_count);
+			MS_DBG_SLOG("delete count %d", count);
+			MS_DBG_SLOG("insert count %d", insert_count);
 
-			msc_delete_invalid_items_in_folder(handle, scan_data->msg,scan_data->uid);
+			if (scan_type == MS_MSG_DIRECTORY_SCANNING_NON_RECURSIVE)
+				is_recursive = false;
+
+			ms_delete_invalid_items_in_folder(handle, storage_id, scan_data->msg, is_recursive, scan_data->uid);
 
 			if ( !(count == 0 && insert_count == 0)) {
-				msc_send_dir_update_noti(handle, noti_path);
+				ms_send_dir_update_noti(handle, storage_id, noti_path);
 			}
 			MS_SAFE_FREE(noti_path);
 		}
 
-		insert_count = 0;
+		ms_reset_insert_count();
 
 		if (power_off) {
-			MSC_DBG_WAN("power off");
+			MS_DBG_WARN("power off");
 			goto _POWEROFF;
 		}
 
 		/*disconnect from media db*/
-		if (handle) msc_disconnect_db(&handle);
+		if (handle) ms_disconnect_db(&handle);
 NEXT:
 		/*Active flush */
 		malloc_trim(0);
@@ -501,13 +599,14 @@ NEXT:
 		msc_send_result(ret, scan_data);
 
 		MS_SAFE_FREE(scan_data);
+		MS_SAFE_FREE(storage_id);
 
-		MSC_DBG_INFO("DIRECTORY SCAN END [%d]", ret);
+		MS_DBG_INFO("DIRECTORY SCAN END [%d]", ret);
 	}			/*thread while*/
 
 _POWEROFF:
 	MS_SAFE_FREE(scan_data);
-	if (handle) msc_disconnect_db(&handle);
+	if (handle) ms_disconnect_db(&handle);
 
 	return false;
 }
@@ -515,9 +614,9 @@ _POWEROFF:
 /* this thread process only the request of media-server */
 static int _check_folder_from_list(char *folder_path, int item_num, GArray *dir_array)
 {
-	int i;
+	int i = 0;
 	int array_len = dir_array->len;
-	msc_dir_info_s* dir_info = NULL;
+	ms_dir_info_s* dir_info = NULL;
 	struct stat buf;
 	time_t mtime;
 	bool find_flag = false;
@@ -529,7 +628,7 @@ static int _check_folder_from_list(char *folder_path, int item_num, GArray *dir_
 	}
 
 	for (i = 0; i < array_len; i++) {
-		dir_info = g_array_index (dir_array, msc_dir_info_s*, i);
+		dir_info = g_array_index (dir_array, ms_dir_info_s*, i);
 		if (strcmp(folder_path, dir_info->dir_path) == 0) {
 			/* if modified time is same, the folder does not need updating */
 			if ((mtime == dir_info->modified_time) && (item_num == dir_info->item_num)) {
@@ -545,16 +644,15 @@ static int _check_folder_from_list(char *folder_path, int item_num, GArray *dir_
 		}
 	}
 
-	/* this folder does not exist in media DB, so this folder has to insert to DB */
-	if ((find_flag == false) &&
-		(item_num > 0)) {
+	/* this folder does not exist in media DB, so this folder has to be inserted to DB */
+	if (find_flag == false) {
 		dir_info = NULL;
-		dir_info = malloc(sizeof(msc_dir_info_s));
+		dir_info = malloc(sizeof(ms_dir_info_s));
 		if (dir_info == NULL) {
-			MSC_DBG_ERR("MALLOC failed");
+			MS_DBG_ERR("MALLOC failed");
 			return MS_MEDIA_ERR_OUT_OF_MEMORY;
 		}
-		memset(dir_info, 0, sizeof(msc_dir_info_s));
+		memset(dir_info, 0, sizeof(ms_dir_info_s));
 		dir_info->dir_path = strdup(folder_path);
 		dir_info->modified_time = -1;
 		g_array_append_val(dir_array, dir_info);
@@ -563,7 +661,7 @@ static int _check_folder_from_list(char *folder_path, int item_num, GArray *dir_
 	return MS_MEDIA_ERR_NONE;
 }
 
-static int __msc_compare_with_db(void **handle, const char*update_path, int scan_type, GArray **dir_array)
+static int __msc_compare_with_db(void **handle, const char *storage_id, const char*update_path, int scan_type, GArray **dir_array)
 {
 	DIR *dp = NULL;
 	GArray *read_dir_array = NULL;
@@ -576,19 +674,20 @@ static int __msc_compare_with_db(void **handle, const char*update_path, int scan
 	char * start_path = strdup(update_path);
 	int item_num = 0;
 
+	MS_DBG_FENTER();
+
 	/*get directories list from media db*/
-	ret = msc_get_folder_list(handle, start_path, dir_array);
+	ret = ms_get_folder_list(handle, storage_id, start_path, dir_array);
 	if (ret != MS_MEDIA_ERR_NONE) {
 		MS_SAFE_FREE(start_path);
-		MSC_DBG_ERR("msc_get_folder_list is failed", ret);
+		MS_DBG_ERR("ms_get_folder_list is failed", ret);
 		return ret;
 	}
-	
-	MSC_DBG_ERR(" ");
+
 	/* make new array for storing directory */
 	read_dir_array = g_array_new (FALSE, FALSE, sizeof (char*));
 	if (read_dir_array == NULL){
-		MSC_DBG_ERR("g_array_new failed");
+		MS_DBG_ERR("g_array_new failed");
 		return MS_MEDIA_ERR_OUT_OF_MEMORY;
 	}
 	/* add first direcotiry to directory array */
@@ -602,7 +701,7 @@ static int __msc_compare_with_db(void **handle, const char*update_path, int scan
 //		MSC_DBG_ERR("%s", current_path);
 
 		if (__msc_check_scan_ignore(current_path)) {
-			MSC_DBG_ERR("%s is ignore", current_path);
+			MS_DBG_ERR("%s is ignore", current_path);
 			MS_SAFE_FREE(current_path);
 			continue;
 		}
@@ -619,7 +718,7 @@ static int __msc_compare_with_db(void **handle, const char*update_path, int scan
 
 				 if (entry.d_type & DT_DIR) {
 					 if (ms_strappend(path, sizeof(path), "%s/%s", current_path, entry.d_name) != MS_MEDIA_ERR_NONE) {
-					 	MSC_DBG_ERR("ms_strappend failed");
+					 	MS_DBG_ERR("ms_strappend failed");
 						continue;
 					}
 					/* add new directory to dir_array */
@@ -634,7 +733,7 @@ static int __msc_compare_with_db(void **handle, const char*update_path, int scan
 			_check_folder_from_list(current_path, item_num, *dir_array);
 			item_num = 0;
 		} else {
-			MSC_DBG_ERR("%s folder opendir fails", current_path);
+			MS_DBG_ERR("%s folder opendir fails", current_path);
 		}
 		if (dp) closedir(dp);
 		dp = NULL;
@@ -643,43 +742,43 @@ static int __msc_compare_with_db(void **handle, const char*update_path, int scan
 
 	__msc_clear_file_list(read_dir_array);
 
-	MSC_DBG_INFO("ret : %d", ret);
-	MSC_DBG_INFO("update count : %d", (*dir_array)->len);
+	MS_DBG_INFO("ret : %d", ret);
+	MS_DBG_INFO("update count : %d", (*dir_array)->len);
 
 	return ret;
 }
 
-static int _msc_db_update_partial(void **handle, ms_storage_type_t storage_type, GArray *dir_array, uid_t uid)
+static int _msc_db_update_partial(void **handle, const char *storage_id, ms_storage_type_t storage_type, GArray *dir_array, uid_t uid)
 {
-	int i;
+	unsigned int i;
 	int err = MS_MEDIA_ERR_NONE;
-	msc_dir_info_s* dir_info = NULL;
+	ms_dir_info_s* dir_info = NULL;
 	char *update_path = NULL;
 
 	for (i = 0; i < dir_array->len; i ++) {
-		dir_info = g_array_index (dir_array, msc_dir_info_s*, i);
+		dir_info = g_array_index (dir_array, ms_dir_info_s*, i);
 		update_path = strdup(dir_info->dir_path);
 
-//		MSC_DBG_SLOG("update_path : %s, %d", update_path, dir_info->modified_time);
+//		MS_DBG_SLOG("update_path : %s, %d", update_path, dir_info->modified_time);
 		if (dir_info->modified_time != -1) {
-			err = msc_set_folder_validity(handle, update_path, MS_INVALID, MS_NON_RECURSIVE, uid);
+			err = ms_set_folder_item_validity(handle, storage_id, update_path, MS_INVALID, MS_NON_RECURSIVE, uid);
 			if (err != MS_MEDIA_ERR_NONE) {
-				MSC_DBG_SLOG("update_path : %s, %d", update_path, dir_info->modified_time);
-				MSC_DBG_ERR("error : %d", err);
+				MS_DBG_SLOG("update_path : %s, %d", update_path, dir_info->modified_time);
+				MS_DBG_ERR("error : %d", err);
 			}
 		}
 
-		__msc_dir_scan(handle, update_path, storage_type, MS_MSG_DIRECTORY_SCANNING_NON_RECURSIVE, uid);
+		__msc_dir_scan(handle, storage_id, update_path, storage_type, MS_MSG_DIRECTORY_SCANNING_NON_RECURSIVE, uid);
 
 //		if (dir_info->modified_time != -1) {
-//			msc_update_folder_time(handle, tmp_path);
+//			ms_update_folder_time(handle, tmp_path);
 //		}
 	}
 
 	/*delete all node*/
 	while(dir_array->len != 0) {
-		msc_dir_info_s *data = NULL;
-		data = g_array_index(dir_array , msc_dir_info_s*, 0);
+		ms_dir_info_s *data = NULL;
+		data = g_array_index(dir_array , ms_dir_info_s*, 0);
 		g_array_remove_index (dir_array, 0);
 		MS_SAFE_FREE(data->dir_path);
 		MS_SAFE_FREE(data);
@@ -701,112 +800,137 @@ gboolean msc_storage_scan_thread(void *data)
 	bool valid_status = TRUE;
 	char *update_path = NULL;
 	GArray *dir_array = NULL;
+	char *storage_id = NULL;
 
 	while (1) {
+		__msc_set_storage_scan_status(MS_STORAGE_SCAN_PREPARE);
 		scan_data = g_async_queue_pop(storage_queue);
 		if (scan_data->pid == POWEROFF) {
-			MSC_DBG_WAN("power off");
+			MS_DBG_WARN("power off");
 			goto _POWEROFF;
 		}
 
-		MSC_DBG_INFO("STORAGE SCAN START [%s]", scan_data->msg);
+		__msc_set_storage_scan_status(MS_STORAGE_SCAN_PROCESSING);
+		MS_DBG_ERR("[No-Error] STORAGE SCAN START [%s][%s]", scan_data->msg, scan_data->storage_id);
 
 		scan_type = scan_data->msg_type;
 		if (scan_type != MS_MSG_STORAGE_ALL
 			&& scan_type != MS_MSG_STORAGE_PARTIAL
 			&& scan_type != MS_MSG_STORAGE_INVALID) {
-			MSC_DBG_ERR("Invalid request");
+			MS_DBG_ERR("Invalid request[%d]", scan_type);
 			ret = MS_MEDIA_ERR_INVALID_PARAMETER;
 			goto NEXT;
 		}
 
 		/*connect to media db, if conneting is failed, db updating is stopped*/
-		err = msc_connect_db(&handle,scan_data->uid);
+		err = ms_connect_db(&handle, scan_data->uid);
 		if (err != MS_MEDIA_ERR_NONE)
 			continue;
 
 		storage_type = ms_get_storage_type_by_full(scan_data->msg, scan_data->uid);
 		update_path = strndup(scan_data->msg, scan_data->msg_size);
 
+		if (strlen(scan_data->storage_id) > 0)
+			storage_id = strdup(scan_data->storage_id);
+		else
+			storage_id = strdup("media");
+
+		ms_set_storage_scan_status(handle, storage_id, MEDIA_SCAN_PROCESSING, scan_data->uid);
+
 		/*start db updating */
 		__msc_set_db_status(MS_DB_UPDATING, storage_type);
 
 		valid_status = (scan_type == MS_MSG_STORAGE_PARTIAL) ? TRUE : FALSE;
-		__msc_bacth_commit_enable(handle, TRUE, valid_status, MS_NOTI_DISABLE, 0);
+		__msc_bacth_commit_enable(handle, TRUE, valid_status, MS_NOTI_SWITCH_OFF, 0);
 
 #ifdef FMS_PERF
 		ms_check_start_time(&g_mmc_start_time);
 #endif
 
 		if (scan_type == MS_MSG_STORAGE_PARTIAL && storage_type == MS_STORAGE_INTERNAL) {
-			msc_validaty_change_all_items(handle, storage_type, true, scan_data->uid);
+			ms_validaty_change_all_items(handle, storage_id, storage_type, true, scan_data->uid);
 
 			/* find and compare modified time */
-			ret = __msc_compare_with_db(handle, update_path, scan_data->msg_type, &dir_array);
+			ret = __msc_compare_with_db(handle, storage_id, update_path, scan_data->msg_type, &dir_array);
 			if (ret != MS_MEDIA_ERR_NONE) {
-				MSC_DBG_ERR("__msc_compare_with_db is falied");
+				MS_DBG_ERR("__msc_compare_with_db is falied");
 				goto NEXT;
 			}
 
 			if (dir_array->len != 0) {
-				MSC_DBG_INFO("DB UPDATING IS NEEDED");
+				MS_DBG_INFO("DB UPDATING IS NEEDED");
 
-				ret = _msc_db_update_partial(handle, storage_type, dir_array, scan_data->uid);
+				ret = _msc_db_update_partial(handle, storage_id, storage_type, dir_array, scan_data->uid);
 			} else {
-				MSC_DBG_INFO("THERE IS NO UPDATE");
+				MS_DBG_INFO("THERE IS NO UPDATE");
 			}
 		} else {
 			if (scan_type == MS_MSG_STORAGE_ALL) {
 				/*  Delete all data before full scanning */
-				if (!msc_delete_invalid_items(handle, storage_type, scan_data->uid)) {
-					MSC_DBG_ERR("msc_delete_all_record fails");
+				if (!ms_delete_all_items(handle, storage_id, storage_type, scan_data->uid)) {
+					MS_DBG_ERR("msc_delete_all_record fails");
 				}
 
 				if (storage_type == MS_STORAGE_EXTERNAL) {
-					ms_update_mmc_info();
+					/*storage info updated in media-server*/
+					/*ms_update_mmc_info();*/
 				}
 			} else if (scan_type == MS_MSG_STORAGE_PARTIAL) {
-				msc_validaty_change_all_items(handle, storage_type, false, scan_data->uid);
+				ms_validaty_change_all_items(handle, storage_id, storage_type, false, scan_data->uid);
 			}
 
-			ret = __msc_db_update(handle, scan_data);
+			ret = __msc_db_update(handle, storage_id, scan_data);
 		}
 
 		/*call for bundle commit*/
-		__msc_bacth_commit_disable(handle, TRUE, valid_status,scan_data->uid);
+		__msc_bacth_commit_disable(handle, TRUE, valid_status, scan_data->msg, scan_data->uid);
 
-		if (scan_type == MS_MSG_STORAGE_PARTIAL) {
+		if (scan_type == MS_MSG_STORAGE_PARTIAL && ret == MS_MEDIA_ERR_NONE) {
 			int del_count = 0;
 
 			/*check delete count*/
-			MSC_DBG_INFO("update path : %s", update_path);
-			msc_count_delete_items_in_folder(handle, update_path, &del_count);
+			MS_DBG_INFO("update path : %s", update_path);
+			ms_count_delete_items_in_folder(handle, storage_id, update_path, &del_count);
 
 			/*if there is no delete content, do not call delete API*/
-			if (del_count != 0)
-				msc_delete_invalid_items(handle, storage_type, scan_data->uid);
+			if (del_count != 0) {
+				MS_DBG_ERR("storage thread delete count [%d]", del_count);
+				ms_delete_invalid_items(handle, storage_id, storage_type, scan_data->uid);
+			}
 		}
 
 		/* send notification */
-		msc_send_dir_update_noti(handle, update_path);
-		MS_SAFE_FREE(update_path);
+		ms_send_dir_update_noti(handle,  storage_id, update_path);
 
 #ifdef FMS_PERF
 		ms_check_end_time(&g_mmc_end_time);
 		ms_check_time_diff(&g_mmc_start_time, &g_mmc_end_time);
 #endif
 
+		if (ret == MS_MEDIA_ERR_SCANNER_FORCE_STOP) {
+			ms_set_storage_scan_status(handle, storage_id, MEDIA_SCAN_STOP, scan_data->uid);
+			__msc_set_storage_scan_status(MS_STORAGE_SCAN_STOP);
+			/*set vconf key mmc loading for indicator */
+			__msc_set_db_status(MS_DB_STOPPED, storage_type);
+		} else {
+			ms_set_storage_scan_status(handle, storage_id, MEDIA_SCAN_COMPLETE, scan_data->uid);
+			__msc_set_storage_scan_status(MS_STORAGE_SCAN_COMPLETE);
+			/*set vconf key mmc loading for indicator */
+			__msc_set_db_status(MS_DB_UPDATED, storage_type);
+		}
+
 NEXT:
-		/*set vconf key mmc loading for indicator */
-		__msc_set_db_status(MS_DB_UPDATED, storage_type);
+
+		MS_SAFE_FREE(update_path);
+		MS_SAFE_FREE(storage_id);
 
 		if (power_off) {
-			MSC_DBG_ERR("[No-error] power off");
+			MS_DBG_ERR("[No-Error] power off");
 			goto _POWEROFF;
 		}
 
 		/*disconnect from media db*/
-		if (handle)	msc_disconnect_db(&handle);
+		if (handle) ms_disconnect_db(&handle);
 
 		/*Active flush */
 		malloc_trim(0);
@@ -815,19 +939,19 @@ NEXT:
 
 		MS_SAFE_FREE(scan_data);
 
-		MSC_DBG_INFO("STORAGE SCAN END[%d]", ret);
+		MS_DBG_ERR("STORAGE SCAN END[%d]", ret);
 	}			/*thread while*/
 
 _POWEROFF:
 	MS_SAFE_FREE(scan_data);
-	if (handle) msc_disconnect_db(&handle);
+	if (handle) ms_disconnect_db(&handle);
 
 	return false;
 }
 
 static void __msc_insert_register_request(GArray *register_array, ms_comm_msg_s *insert_data)
 {
-	MSC_DBG_SLOG("path : %s", insert_data->msg);
+	MS_DBG_SLOG("path : %s", insert_data->msg);
 
 	if (insert_data->pid == POWEROFF) {
 		g_array_prepend_val(register_array, insert_data);
@@ -870,14 +994,15 @@ static int __msc_check_file_path(const char *file_path, uid_t uid)
 	/* check location of file */
 	/* file must exists under "/opt/usr/media" or "/opt/storage/sdcard" */
 	if(!__msc_is_valid_path(file_path, uid)) {
-		MSC_DBG_ERR("Invalid path : %s", file_path);
+		MS_DBG_ERR("Invalid path : %s", file_path);
 		return MS_MEDIA_ERR_INVALID_PATH;
 	}
 
 	/* check the file exits actually */
 	exist = open(file_path, O_RDONLY);
 	if(exist < 0) {
-		MSC_DBG_ERR("error [%s, %s]", file_path, strerror(errno));
+		MS_DBG_STRERROR("Open failed");
+		MS_DBG_ERR("error path [%s]", file_path);
 		return MS_MEDIA_ERR_INVALID_PATH;
 	}
 	close(exist);
@@ -888,15 +1013,29 @@ static int __msc_check_file_path(const char *file_path, uid_t uid)
 	if(stat(file_path, &file_st) == 0) {
 		if(!S_ISREG(file_st.st_mode)) {
 			/* In this case, it is not a regula file */
-			MSC_DBG_ERR("this path is not a file");
+			MS_DBG_ERR("this path is not a file");
 			return MS_MEDIA_ERR_INVALID_PATH;
 		}
 	} else {
-		MSC_DBG_ERR("stat failed [%s]", strerror(errno));
+		MS_DBG_STRERROR("stat failed");
 		return MS_MEDIA_ERR_INVALID_PATH;
 	}
 
 	return MS_MEDIA_ERR_NONE;
+}
+
+static bool __msc_check_folder_path(const char *folder_path)
+{
+	DIR *dp = NULL;
+
+	dp = opendir(folder_path);
+	if (dp == NULL) {
+		MS_DBG_ERR("Deleted folder path");
+		return false;
+	}
+	closedir(dp);
+
+	return true;
 }
 
 static int __msc_clear_file_list(GArray *path_array)
@@ -923,13 +1062,13 @@ static int __msc_check_ignore_dir(const char *full_path, uid_t uid)
 
 	ret = __msc_check_file_path(full_path, uid);
 	if (ret != MS_MEDIA_ERR_NONE) {
-		MSC_DBG_ERR("invalid path : %s", full_path);
+		MS_DBG_ERR("invalid path : %s", full_path);
 		return MS_MEDIA_ERR_INVALID_PATH;
 	}
 
 	dir_path = g_path_get_dirname(full_path);
 	if (strcmp(dir_path, ".") == 0) {
-		MSC_DBG_ERR("getting directory path is failed : %s", full_path);
+		MS_DBG_ERR("getting directory path is failed : %s", full_path);
 		MS_SAFE_FREE(dir_path);
 		return MS_MEDIA_ERR_INVALID_PATH;
 	}
@@ -951,7 +1090,7 @@ static int __msc_check_ignore_dir(const char *full_path, uid_t uid)
 				int seek_len = leaf_path -dir_path;
 				dir_path[seek_len] = '\0';
 		} else {
-			MSC_DBG_ERR("Fail to find leaf path");
+			MS_DBG_ERR("Fail to find leaf path");
 			ret = MS_MEDIA_ERR_INVALID_PATH;
 			break;
 		}
@@ -974,7 +1113,7 @@ static int __msc_make_file_list(char *file_path, GArray **path_array, uid_t uid)
 	/* load the file list from file */
 	fp = fopen(file_path, "rt");
 	if (fp == NULL) {
-		MSC_DBG_STRERROR("fopen failed");
+		MS_DBG_STRERROR("fopen failed");
 		res = MS_MEDIA_ERR_FILE_OPEN_FAIL;
 		goto FREE_RESOURCE;
 	}
@@ -983,7 +1122,7 @@ static int __msc_make_file_list(char *file_path, GArray **path_array, uid_t uid)
 	/* This is an array for storing the path of insert datas*/
 	*path_array = g_array_new (FALSE, FALSE, sizeof (char *));
 	if (*path_array == NULL) {
-		MSC_DBG_ERR("g_array_new failed");
+		MS_DBG_ERR("g_array_new failed");
 		res = MS_MEDIA_ERR_OUT_OF_MEMORY;
 		goto FREE_RESOURCE;
 	}
@@ -996,13 +1135,13 @@ static int __msc_make_file_list(char *file_path, GArray **path_array, uid_t uid)
 		/* check valid path */
 		ret = __msc_check_ignore_dir(path, uid);
 		if (ret != MS_MEDIA_ERR_NONE) {
-			MSC_DBG_ERR("invalide path : %s", path);
+			MS_DBG_ERR("invalide path : %s", path);
 			MS_SAFE_FREE(path);
 			continue;
 		}
 		/* insert getted path to the list */
 		if (g_array_append_val(*path_array, path)  == NULL) {
-			MSC_DBG_ERR("g_array_append_val failed");
+			MS_DBG_ERR("g_array_append_val failed");
 			res = MS_MEDIA_ERR_OUT_OF_MEMORY;
 			goto FREE_RESOURCE;
 		}
@@ -1026,45 +1165,53 @@ FREE_RESOURCE:
 static int __msc_batch_insert(ms_msg_type_e current_msg, int pid, GArray *path_array, uid_t uid)
 {
 	int err;
-	int i;
+	unsigned int i;
 	void **handle = NULL;
 	char *insert_path = NULL;
-	int (*insert_function)(void **, const char*, uid_t) = NULL;
+	int (*insert_function)(void **, const char*, const char*, uid_t) = NULL;
+	char storage_id[MS_UUID_SIZE] = {0,};
 
-	insert_function = (current_msg == MS_MSG_BULK_INSERT) ? msc_insert_item_batch : msc_insert_burst_item;
+	insert_function = (current_msg == MS_MSG_BULK_INSERT) ? ms_insert_item_batch : ms_insert_burst_item;
 
 	/* connect to media db, if conneting is failed, db updating is stopped */
-	err = msc_connect_db(&handle, uid);
+	err = ms_connect_db(&handle, uid);
 	if (err != MS_MEDIA_ERR_NONE)
 		return MS_MEDIA_ERR_DB_CONNECT_FAIL;
 
 	/*start db updating */
 	/*call for bundle commit*/
-	__msc_bacth_commit_enable(handle, TRUE, FALSE, MS_NOTI_ENABLE, pid);
+	__msc_bacth_commit_enable(handle, TRUE, FALSE, MS_NOTI_SWITCH_ON, pid);
 
-	MSC_DBG_ERR("BULK REGISTER START");
+	MS_DBG_ERR("BULK REGISTER START[%d]", pid);
 
 	/* get the inserting file path from array  and insert to db */
 	for (i = 0; i < path_array->len; i++) {
 
 		insert_path =  g_array_index(path_array, char*, i);
 
+		/* get storage list */
+		memset(storage_id, 0x0, MS_UUID_SIZE);
+		if (ms_get_storage_id(handle, insert_path, storage_id) < 0) {
+			MS_DBG_ERR("There is no storage id in media db");
+			continue;
+		}
+
 		/* insert to db */
-		err = insert_function(handle, insert_path, uid);
+		err = insert_function(handle, storage_id, insert_path, uid);
 
 		if (power_off) {
-			MSC_DBG_ERR("power off");
+			MS_DBG_ERR("power off");
 			/*call for bundle commit*/
-			msc_register_end(handle, uid);
+			ms_register_end(handle, NULL, uid);
 			break;
 		}
 	}
 
 	/*call for bundle commit*/
-	__msc_bacth_commit_disable(handle, TRUE, FALSE, uid);
+	__msc_bacth_commit_disable(handle, TRUE, FALSE, NULL, uid);
 
 	/*disconnect form media db*/
-	if (handle) msc_disconnect_db(&handle);
+	if (handle) ms_disconnect_db(&handle);
 
 	return MS_MEDIA_ERR_NONE;
 }
@@ -1095,7 +1242,7 @@ static int __msc_pop_register_request(GArray *register_array, ms_comm_msg_s **re
 	}
 
 	if(((*register_data)->msg_size <= 0) ||((*register_data)->msg_size > MS_FILE_PATH_LEN_MAX)) {
-		MSC_DBG_ERR("message size[%d] is wrong", (*register_data)->msg_size);
+		MS_DBG_ERR("message size[%d] is wrong", (*register_data)->msg_size);
 		return MS_MEDIA_ERR_INVALID_IPC_MESSAGE;
 	}
 
@@ -1116,19 +1263,19 @@ gboolean msc_register_thread(void *data)
 	/*create array for processing overlay data*/
 	register_array = g_array_new (FALSE, FALSE, sizeof (ms_comm_msg_s *));
 	if (register_array == NULL) {
-		MSC_DBG_ERR("g_array_new error");
+		MS_DBG_ERR("g_array_new error");
 		return false;
 	}
 
 	while (1) {
 		ret = __msc_pop_register_request(register_array, &register_data);
 		if (register_data->pid == POWEROFF) {
-			MSC_DBG_ERR("power off");
+			MS_DBG_ERR("power off");
 			goto _POWEROFF;
 		}
 
 		if (ret != MS_MEDIA_ERR_NONE) {
-			MSC_DBG_ERR("__msc_pop_register_request failed [%d]", ret);
+			MS_DBG_ERR("__msc_pop_register_request failed [%d]", ret);
 			goto FREE_RESOURCE;
 		}
 
@@ -1138,19 +1285,19 @@ gboolean msc_register_thread(void *data)
 
 		if ((current_msg != MS_MSG_BULK_INSERT) &&
 			(current_msg != MS_MSG_BURSTSHOT_INSERT)) {
-			MSC_DBG_ERR("wrong message type");
+			MS_DBG_ERR("wrong message type");
 			goto FREE_RESOURCE;
 		}
 
 		file_path = strndup(register_data->msg, register_data->msg_size);
 		if (file_path == NULL) {
-			MSC_DBG_ERR("file_path is NULL");
+			MS_DBG_ERR("file_path is NULL");
 			goto FREE_RESOURCE;
 		}
 
 		ret = __msc_make_file_list(file_path, &path_array, register_data->uid);
 		if (ret != MS_MEDIA_ERR_NONE) {
-			MSC_DBG_ERR("__msc_make_file_list failed [%d]", ret);
+			MS_DBG_ERR("__msc_make_file_list failed [%d]", ret);
 			goto FREE_RESOURCE;
 		}
 
@@ -1163,7 +1310,7 @@ FREE_RESOURCE:
 		/* If register_files operation is stopped, there is no necessrty for sending result. */
 		msc_send_result(ret, register_data);
 
-		MSC_DBG_ERR("BULK REGISTER END [%d |%s]", ret, register_data->msg);
+		MS_DBG_ERR("BULK REGISTER END [%d |%s]", ret, register_data->msg);
 
 		__msc_clear_file_list(path_array);
 
@@ -1193,17 +1340,17 @@ _POWEROFF:
 static void __msc_bacth_commit_enable(void* handle, bool ins_status, bool valid_status, bool noti_enable, int pid)
 {
 	/*call for bundle commit*/
-	if (ins_status) msc_register_start(handle, noti_enable, pid);
-	if (valid_status) msc_validate_start(handle);
+	if (ins_status) ms_register_start(handle, noti_enable, pid);
+	if (valid_status) ms_validate_start(handle);
 
 	return;
 }
 
-static void __msc_bacth_commit_disable(void* handle, bool ins_status, bool valid_status, uid_t uid)
+static void __msc_bacth_commit_disable(void* handle, bool ins_status, bool valid_status, const char *path, uid_t uid)
 {
 	/*call for bundle commit*/
-	if (ins_status) msc_register_end(handle, uid);
-	if (valid_status) msc_validate_end(handle, uid);
+	if (ins_status) ms_register_end(handle, path, uid);
+	if (valid_status) ms_validate_end(handle, uid);
 
 	return;
 }
@@ -1211,7 +1358,7 @@ static void __msc_bacth_commit_disable(void* handle, bool ins_status, bool valid
 int msc_set_cancel_path(const char *cancel_path)
 {
 	if (g_cancel_path != NULL) {
-		MSC_DBG_ERR("g_cancel_path is not NULL");
+		MS_DBG_ERR("g_cancel_path is not NULL");
 		free(g_cancel_path);
 		g_cancel_path = NULL;
 	}
@@ -1231,12 +1378,12 @@ static int __msc_dir_scan_meta_update(void **handle, const char*start_path, ms_s
 	char *new_path = NULL;
 	char *current_path = NULL;
 	char path[MS_FILE_PATH_LEN_MAX] = { 0 };
-	int (*scan_function)(void **, const char*, uid_t) = msc_update_meta_batch;
+	int (*scan_function)(void **, const char*, uid_t) = ms_update_meta_batch;
 
 	/* make new array for storing directory */
 	dir_array = g_array_new (FALSE, FALSE, sizeof (char*));
 	if (dir_array == NULL){
-		MSC_DBG_ERR("g_array_new failed");
+		MS_DBG_ERR("g_array_new failed");
 		return MS_MEDIA_ERR_OUT_OF_MEMORY;
 	}
 	/* add first direcotiry to directory array */
@@ -1253,10 +1400,10 @@ static int __msc_dir_scan_meta_update(void **handle, const char*start_path, ms_s
 		/* get the current path from directory array */
 		current_path = g_array_index(dir_array , char*, 0);
 		g_array_remove_index (dir_array, 0);
-//		MSC_DBG_SLOG("%d", dir_array->len);
+//		MS_DBG_SLOG("%d", dir_array->len);
 
 		if (__msc_check_scan_ignore(current_path)) {
-			MSC_DBG_ERR("%s is ignore", current_path);
+			MS_DBG_ERR("%s is ignore", current_path);
 			MS_SAFE_FREE(current_path);
 			continue;
 		}
@@ -1277,21 +1424,21 @@ static int __msc_dir_scan_meta_update(void **handle, const char*start_path, ms_s
 					continue;
 
 				if (entry.d_type & DT_REG) {
-					MSC_DBG_ERR("");
 					 if (ms_strappend(path, sizeof(path), "%s/%s", current_path, entry.d_name) != MS_MEDIA_ERR_NONE) {
-					 	MSC_DBG_ERR("ms_strappend failed");
+					 	MS_DBG_ERR("ms_strappend failed");
 						continue;
 					}
+
 					/* insert into media DB */
-					MSC_DBG_ERR("%s", path);
+					MS_DBG_ERR("%s", path);
 					if (scan_function(handle,path, uid) != MS_MEDIA_ERR_NONE) {
-						MSC_DBG_ERR("failed to update db");
+						MS_DBG_ERR("failed to update db");
 						continue;
 					}
 				} else if (entry.d_type & DT_DIR) {
 					/* this request is recursive scanning */
 					 if (ms_strappend(path, sizeof(path), "%s/%s", current_path, entry.d_name) != MS_MEDIA_ERR_NONE) {
-					 	MSC_DBG_ERR("ms_strappend failed");
+					 	MS_DBG_ERR("ms_strappend failed");
 						continue;
 					}
 					/* add new directory to dir_array */
@@ -1300,8 +1447,9 @@ static int __msc_dir_scan_meta_update(void **handle, const char*start_path, ms_s
 				}
 			}
 		} else {
-			MSC_DBG_ERR("%s folder opendir fails", current_path);
+			MS_DBG_ERR("%s folder opendir fails", current_path);
 		}
+
 		if (dp) closedir(dp);
 		dp = NULL;
 		MS_SAFE_FREE(current_path);
@@ -1311,7 +1459,7 @@ STOP_SCAN:
 
 	__msc_clear_file_list(dir_array);
 
-	if (ret != MS_MEDIA_ERR_NONE) MSC_DBG_INFO("ret : %d", ret);
+	if (ret != MS_MEDIA_ERR_NONE) MS_DBG_INFO("ret : %d", ret);
 
 	return ret;
 }
@@ -1326,15 +1474,15 @@ gboolean msc_metadata_update(void *data)
 	char *start_path = NULL;
 	ms_storage_type_t storage_type = MS_STORAGE_INTERNAL;
 
-	MSC_DBG_INFO("META UPDATE START");
+	MS_DBG_INFO("META UPDATE START");
 
 	/*connect to media db, if conneting is failed, db updating is stopped*/
-	err = msc_connect_db(&handle, scan_data->uid);
+	err = ms_connect_db(&handle, scan_data->uid);
 	if (err != MS_MEDIA_ERR_NONE)
 		return false;
 
 	/*call for bundle commit*/
-	msc_update_start(handle);
+	ms_update_start(handle);
 
 	/*insert data into media db */
 
@@ -1342,26 +1490,29 @@ gboolean msc_metadata_update(void *data)
 	ret = __msc_dir_scan_meta_update(handle, start_path, storage_type, scan_data->uid);
 
 	/* send notification */
-	msc_send_dir_update_noti(handle, __msc_get_path(scan_data->uid));
+	ms_send_dir_update_noti(handle, INTERNAL_STORAGE_ID, __msc_get_path(scan_data->uid));
 
-	if (mmc_state == VCONFKEY_SYSMAN_MMC_MOUNTED) {
+	if (mmc_state == MS_STG_INSERTED) {
 		storage_type = MS_STORAGE_EXTERNAL;
 		start_path = strdup(MEDIA_ROOT_PATH_SDCARD);
 		ret = __msc_dir_scan_meta_update(handle, start_path, storage_type, scan_data->uid);
 		/* send notification */
-		msc_send_dir_update_noti(handle, MEDIA_ROOT_PATH_SDCARD);
+		ms_send_dir_update_noti(handle, MMC_STORAGE_ID, MEDIA_ROOT_PATH_SDCARD);
 	}
 
+	/*FIX ME*/
+	/*__msc_dir_scan_meta_update For Each USB Storage*/
+
 	/*call for bundle commit*/
-	msc_update_end(handle, scan_data->uid);
+	ms_update_end(handle, scan_data->uid);
 
 	if (power_off) {
-		MSC_DBG_WAN("power off");
+		MS_DBG_WARN("power off");
 		goto _POWEROFF;
 	}
 
 	/*disconnect form media db*/
-	if (handle) msc_disconnect_db(&handle);
+	if (handle) ms_disconnect_db(&handle);
 
 	/*Active flush */
 	malloc_trim(0);
@@ -1370,12 +1521,12 @@ gboolean msc_metadata_update(void *data)
 
 	MS_SAFE_FREE(scan_data);
 
-	MSC_DBG_INFO("META UPDATE END [%d]", ret);
+	MS_DBG_INFO("META UPDATE END [%d]", ret);
 
 
 _POWEROFF:
 	MS_SAFE_FREE(scan_data);
-	if (handle) msc_disconnect_db(&handle);
+	if (handle) ms_disconnect_db(&handle);
 
 	return false;
 }
@@ -1385,3 +1536,142 @@ void msc_metadata_update_thread(ms_comm_msg_s *recv_msg)
 {
 	 g_thread_new("update_thread", (GThreadFunc)msc_metadata_update, recv_msg);
 }
+
+static int __msc_set_storage_scan_status(ms_storage_scan_status_e status)
+{
+	int res = MS_MEDIA_ERR_NONE;
+#if 0
+	if (!ms_config_set_int(MS_SCANNER_STATUS, status)) {
+		res = MS_MEDIA_ERR_VCONF_SET_FAIL;
+		MS_DBG_ERR("ms_config_set_int failed");
+	}
+#else
+	stg_scan_status = status;
+#endif
+	return res;
+}
+
+int msc_init_scanner(void)
+{
+	if (!scan_queue) scan_queue = g_async_queue_new();
+	if (!reg_queue) reg_queue = g_async_queue_new();
+	if (!storage_queue) storage_queue = g_async_queue_new();
+
+	/*Init mutex variable*/
+	g_mutex_init(&scan_req_mutex);
+
+	return MS_MEDIA_ERR_NONE;
+}
+
+int msc_deinit_scanner(void)
+{
+	if (scan_queue) g_async_queue_unref(scan_queue);
+	if (reg_queue) g_async_queue_unref(reg_queue);
+	if (storage_queue) g_async_queue_unref(storage_queue);
+
+	/*Clear db mutex variable*/
+	g_mutex_clear(&scan_req_mutex);
+
+	return MS_MEDIA_ERR_NONE;
+}
+
+int msc_set_mmc_status(ms_stg_status_e status)
+{
+	mmc_state = status;
+
+	return MS_MEDIA_ERR_NONE;
+}
+
+int msc_push_scan_request(ms_scan_type_e scan_type, ms_comm_msg_s *recv_msg)
+{
+	int ret = MS_MEDIA_ERR_NONE;
+
+	switch(scan_type) {
+		case MS_SCAN_STORAGE:
+			g_async_queue_push(storage_queue, GINT_TO_POINTER(recv_msg));
+			break;
+		case MS_SCAN_DIRECTORY:
+			g_async_queue_push(scan_queue, GINT_TO_POINTER(recv_msg));
+			break;
+		case MS_SCAN_REGISTER:
+			g_async_queue_push(reg_queue, GINT_TO_POINTER(recv_msg));
+			break;
+		default:
+			MS_DBG_ERR("invalid parameter");
+			ret = MS_MEDIA_ERR_INVALID_PARAMETER;
+			break;
+	}
+
+	return ret;
+}
+
+int msc_send_power_off_request(void)
+{
+	ms_comm_msg_s *data;
+
+	power_off = true;
+
+	if (scan_queue) {
+		/*notify to scannig thread*/
+		MS_MALLOC(data, sizeof(ms_comm_msg_s));
+		data->pid = POWEROFF;
+		msc_push_scan_request(MS_SCAN_DIRECTORY, data);
+	}
+
+	if (reg_queue) {
+		/*notify to register thread*/
+		MS_MALLOC(data, sizeof(ms_comm_msg_s));
+		data->pid = POWEROFF;
+		msc_push_scan_request(MS_SCAN_REGISTER, data);
+	}
+
+	if (storage_queue) {
+		/*notify to register thread*/
+		MS_MALLOC(data, sizeof(ms_comm_msg_s));
+		data->pid = POWEROFF;
+		msc_push_scan_request(MS_SCAN_STORAGE, data);
+	}
+
+	return MS_MEDIA_ERR_NONE;
+}
+
+int msc_remove_dir_scan_request(ms_comm_msg_s *recv_msg)
+{
+	char *cancel_path = recv_msg->msg;
+	int pid = recv_msg->pid;
+	int i = 0;
+	int len = g_async_queue_length(scan_queue);
+	ms_comm_msg_s *msg = NULL;
+	GAsyncQueue *temp_scan_queue = NULL;
+
+	MS_DBG_ERR("scan_req_mutex is LOCKED");
+	g_mutex_lock(&scan_req_mutex);
+
+	if (len == 0) {
+		MS_DBG_ERR("Request is not stacked");
+		goto END_REMOVE_REQUEST;
+	}
+
+	msc_set_cancel_path(recv_msg->msg);
+
+	temp_scan_queue = g_async_queue_new();
+
+	for (i = 0; i <len; i++) {
+		/*create new queue to compare request*/
+		msg = g_async_queue_pop(scan_queue);
+		if ((strcmp(msg->msg, cancel_path) == 0) && (pid == msg->pid)) {
+			MS_SAFE_FREE(msg);
+		} else {
+			g_async_queue_push(temp_scan_queue, GINT_TO_POINTER(msg));
+		}
+	}
+	g_async_queue_unref (scan_queue);
+	scan_queue = temp_scan_queue;
+
+END_REMOVE_REQUEST:
+	g_mutex_unlock(&scan_req_mutex);
+	MS_DBG_ERR("scan_req_mutex is UNLOCKED");
+
+	return MS_MEDIA_ERR_NONE;
+}
+

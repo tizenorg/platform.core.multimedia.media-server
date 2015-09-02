@@ -35,7 +35,7 @@ int ms_strappend(char *res, const int size, const char *pattern, const char *str
 int ms_strcopy(char *res, const int size, const char *pattern, const char *str1);
 bool ms_config_get_int(const char *key, int *value);
 bool ms_config_set_int(const char *key, int value);
-bool ms_config_get_str(const char *key, char *value);
+bool ms_config_get_str(const char *key, char **value);
 bool ms_config_set_str(const char *key, const char *value);
 bool ms_config_get_bool(const char *key, int *value);
 #ifdef FMS_PERF
@@ -43,7 +43,6 @@ void ms_check_start_time(struct timeval *start_time);
 void ms_check_end_time(struct timeval *end_time);
 void ms_check_time_diff(struct timeval *start_time, struct timeval *end_time);
 #endif/*FMS_PERF */
-
 
 #endif/*_MEDIA_SERVER_UTILS_H__*/
 

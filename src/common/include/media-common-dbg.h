@@ -37,9 +37,13 @@
 			LOGE(fmt" : STANDARD ERROR [%s]", strerror_r(errno, buf, BUF_LENGTH)); \
 		} while (0)
 
-#define MS_DBG_SLOG(fmt, args...)	SECURE_LOGD(fmt "\n", ##args);
+#define MS_DBG_SLOG(fmt, args...) do{ if (true) { \
+		SECURE_LOGD(fmt "\n" , ##args); \
+		}} while(false)
 
-#define MS_DBG(fmt, args...)        LOGD(fmt "\n", ##args);
+#define MS_DBG(fmt, args...) do{ if (true) { \
+		LOGD(fmt "\n" , ##args); \
+		}} while(false)
 
 #define MS_DBG_INFO(fmt, args...) do{ if (true) { \
 		LOGI(fmt "\n" , ##args); \
@@ -51,6 +55,14 @@
 
 #define MS_DBG_ERR(fmt, args...) do{ if (true) { \
 		LOGE(fmt "\n", ##args); \
+		}} while(false)
+
+#define MS_DBG_FENTER() do{ if (true) { \
+		LOGD("<ENTER> \n"); \
+		}} while(false)
+
+#define MS_DBG_FLEAVE() do{ if (true) { \
+		LOGD("<LEAVE> \n"); \
 		}} while(false)
 
 #endif /*_MEDIA_COMMON_DBG_H_*/

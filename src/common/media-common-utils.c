@@ -25,10 +25,14 @@
 #include <aul/aul.h>
 #include <grp.h>
 #include <pwd.h>
+#include <dbus/dbus-glib.h>
+#include <dbus/dbus.h>
+#include <dbus/dbus-glib-lowlevel.h>
 
 #include "media-util.h"
 #include "media-server-ipc.h"
 #include "media-common-dbg.h"
+#include "media-common-system.h"
 #include "media-common-utils.h"
 
 #ifdef FMS_PERF
@@ -39,23 +43,19 @@ struct timeval g_mmc_end_time;
 #endif
 
 #define MS_DRM_CONTENT_TYPE_LENGTH 100
-#define GLOBAL_USER	0 //#define 	tzplatform_getenv(TZ_GLOBAL) //TODO
 
 #ifdef FMS_PERF
-void
-ms_check_start_time(struct timeval *start_time)
+void ms_check_start_time(struct timeval *start_time)
 {
 	gettimeofday(start_time, NULL);
 }
 
-void
-ms_check_end_time(struct timeval *end_time)
+void ms_check_end_time(struct timeval *end_time)
 {
 	gettimeofday(end_time, NULL);
 }
 
-void
-ms_check_time_diff(struct timeval *start_time, struct timeval *end_time)
+void ms_check_time_diff(struct timeval *start_time, struct timeval *end_time)
 {
 	struct timeval time;
 	long difftime;
@@ -68,17 +68,28 @@ ms_check_time_diff(struct timeval *start_time, struct timeval *end_time)
 }
 #endif
 
-bool
-ms_is_mmc_inserted(void)
+bool ms_is_mmc_inserted(void)
 {
-	int data = -1;
-	ms_config_get_int(VCONFKEY_SYSMAN_MMC_STATUS, &data);
-	if (data != VCONFKEY_SYSMAN_MMC_MOUNTED) {
-		return false;
+	bool ret = FALSE;
+	ms_stg_type_e stg_type = MS_STG_TYPE_MMC;
+	GArray *dev_list = NULL;
+
+	ret = ms_sys_get_device_list(stg_type, &dev_list);
+	if (ret == MS_MEDIA_ERR_NONE) {
+		if (dev_list != NULL) {
+			MS_DBG_ERR("MMC FOUND[%d]", dev_list->len);
+			ms_sys_release_device_list(&dev_list);
+			ret = TRUE;
+		} else {
+			MS_DBG_ERR("MMC NOT FOUND");
+		}
 	} else {
-		return true;
+		MS_DBG_ERR("ms_sys_get_device_list failed");
 	}
+
+	return ret;
 }
+
 static char* __media_get_path(uid_t uid)
 {
 	char *result_psswd = NULL;
@@ -122,8 +133,7 @@ static char* __media_get_path(uid_t uid)
 	return result_psswd;
 }
 
-ms_storage_type_t
-ms_get_storage_type_by_full(const char *path, uid_t uid)
+ms_storage_type_t ms_get_storage_type_by_full(const char *path, uid_t uid)
 {
 	int length_path;
 	char * user_path = NULL;
@@ -144,8 +154,7 @@ ms_get_storage_type_by_full(const char *path, uid_t uid)
     }
 }
 
-int
-ms_strappend(char *res, const int size, const char *pattern,
+int ms_strappend(char *res, const int size, const char *pattern,
 	     const char *str1, const char *str2)
 {
 	int len = 0;
@@ -154,7 +163,7 @@ ms_strappend(char *res, const int size, const char *pattern,
 	if (!res ||!pattern || !str1 ||!str2 )
 		return MS_MEDIA_ERR_INVALID_PARAMETER;
 
-	if (real_size < (strlen(str1) + strlen(str2)))
+	if (real_size < (int)(strlen(str1) + strlen(str2)))
 		return MS_MEDIA_ERR_INVALID_PARAMETER;
 
 	len = snprintf(res, real_size, pattern, str1, str2);
@@ -167,8 +176,7 @@ ms_strappend(char *res, const int size, const char *pattern,
 	return MS_MEDIA_ERR_NONE;
 }
 
-int
-ms_strcopy(char *res, const int size, const char *pattern, const char *str1)
+int ms_strcopy(char *res, const int size, const char *pattern, const char *str1)
 {
 	int len = 0;
 	int real_size = size;
@@ -178,7 +186,7 @@ ms_strcopy(char *res, const int size, const char *pattern, const char *str1)
 		return MS_MEDIA_ERR_INVALID_PARAMETER;
 	}
 
-	if (real_size < strlen(str1)) {
+	if (real_size < (int)(strlen(str1))) {
 		MS_DBG_ERR("size is wrong");
 		return MS_MEDIA_ERR_INVALID_PARAMETER;
 	}
@@ -194,8 +202,7 @@ ms_strcopy(char *res, const int size, const char *pattern, const char *str1)
 	return MS_MEDIA_ERR_NONE;
 }
 
-bool
-ms_config_get_int(const char *key, int *value)
+bool ms_config_get_int(const char *key, int *value)
 {
 	int err;
 
@@ -215,8 +222,7 @@ ms_config_get_int(const char *key, int *value)
 	return false;
 }
 
-bool
-ms_config_set_int(const char *key, int value)
+bool ms_config_set_int(const char *key, int value)
 {
 	int err;
 
@@ -236,27 +242,26 @@ ms_config_set_int(const char *key, int value)
 	return false;
 }
 
-bool
-ms_config_get_str(const char *key, char *value)
+bool ms_config_get_str(const char *key, char **value)
 {
-	char *res;
-	if (!key || !value) {
+	char *res = NULL;
+
+	if (key == NULL || value == NULL) {
 		MS_DBG_ERR("Arguments key or value is NULL");
 		return false;
 	}
 
 	res = vconf_get_str(key);
-	if (res) {
-		strncpy(value, res, strlen(res) + 1);
-		free(res);
+	if (MS_STRING_VALID(res)) {
+		*value = strdup(res);
+		MS_SAFE_FREE(res);
 		return true;
 	}
 
 	return false;
 }
 
-bool
-ms_config_set_str(const char *key, const char *value)
+bool ms_config_set_str(const char *key, const char *value)
 {
 	int err;
 
@@ -274,8 +279,7 @@ ms_config_set_str(const char *key, const char *value)
 	return false;
 }
 
-bool
-ms_config_get_bool(const char *key, int *value)
+bool ms_config_get_bool(const char *key, int *value)
 {
 	int err;
 

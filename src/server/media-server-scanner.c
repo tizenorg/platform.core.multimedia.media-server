@@ -151,8 +151,9 @@ void ms_cleanup_scanner(void)
 
 static void _ms_add_timeout(guint interval, GSourceFunc func, gpointer data)
 {
-	MS_DBG("");
-	GSource *src;
+	GSource *src = NULL;
+
+	MS_DBG_FENTER();
 
 	src = g_timeout_source_new_seconds(interval);
 	g_source_set_callback(src, func, data, NULL);
@@ -186,7 +187,7 @@ int ms_scanner_start(void)
 
 		err = unlink(MS_SCANNER_FIFO_PATH_RES);
 		if (err !=0) {
-			MS_DBG_STRERROR("unlink failed");
+			MS_DBG_STRERROR("[No-Error] unlink failed");
 		}
 		err = mkfifo(MS_SCANNER_FIFO_PATH_RES, MS_SCANNER_FIFO_MODE);
 		if (err !=0) {
@@ -214,7 +215,8 @@ int ms_scanner_start(void)
 			GIOChannel *res_channel = NULL;
 			GMainContext *res_context = NULL;
 
-			MS_DBG_ERR("SCANNER is ready");
+			MS_DBG_ERR("[No-Error] SCANNER is ready");
+
 			scanner_ready = true;
 			child_pid = pid;
 			/* attach result receiving socket to mainloop */
@@ -246,8 +248,9 @@ int ms_scanner_start(void)
 		/* attach socket receive message callback */
 	} else if(pid == 0) {
 		/* child process */
-		MS_DBG_ERR("CHILD PROCESS");
-		MS_DBG("EXECUTE MEDIA SCANNER");
+		MS_DBG_ERR("[No-Error] CHILD PROCESS");
+		MS_DBG("[No-Error] EXECUTE MEDIA SCANNER");
+
 		execl(MEDIA_SERVER_PATH, "media-scanner", NULL);
 		g_mutex_unlock(&scanner_mutex);
 	}
@@ -262,6 +265,13 @@ bool ms_get_scanner_status(void)
 
 void ms_reset_scanner_status(void)
 {
+	gboolean ret = FALSE;
+
+	ret = g_mutex_trylock(&scanner_mutex);
+	if (ret == FALSE) {
+		MS_DBG_ERR("scanner_mutex is already locked");
+	}
+
 	child_pid = 0;
 	scanner_ready = false;
 
