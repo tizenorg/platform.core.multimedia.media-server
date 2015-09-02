@@ -181,11 +181,11 @@ gboolean _read_socket(GIOChannel *src, GIOCondition condition, gpointer data)
 	req_result.pid = recv_msg.pid;
 	req_result.result = recv_msg.result;
 	if (recv_msg.msg_type ==MS_MSG_SCANNER_RESULT) {
-		req_result.complete_path = strndup(recv_msg.msg, MAX_FILEPATH_LEN);
+		req_result.complete_path = strndup(recv_msg.msg, recv_msg.msg_size);
 		req_result.request_type = MEDIA_DIRECTORY_SCAN;
 		MSAPI_DBG("complete_path :%d", req_result.complete_path);
 	} else if (recv_msg.msg_type == MS_MSG_SCANNER_BULK_RESULT) {
-		req_result.complete_path = strndup(recv_msg.msg, MAX_FILEPATH_LEN);
+		req_result.complete_path = strndup(recv_msg.msg, recv_msg.msg_size);
 		req_result.request_type = MEDIA_FILES_REGISTER;
 	}
 
@@ -354,7 +354,7 @@ static int _attach_callback(const char *req_path, int *sockfd, char* sock_path, 
 	return MS_MEDIA_ERR_NONE;
 }
 
-static int __media_db_request_update_async(ms_msg_type_e msg_type, const char *request_msg, scan_complete_cb user_callback, void *user_data, uid_t uid)
+static int __media_db_request_update_async(ms_msg_type_e msg_type, const char *storage_id, const char *request_msg, scan_complete_cb user_callback, void *user_data, uid_t uid)
 {
 	int ret = MS_MEDIA_ERR_NONE;
 	int request_msg_size = 0;
@@ -370,7 +370,7 @@ static int __media_db_request_update_async(ms_msg_type_e msg_type, const char *r
 		return MS_MEDIA_ERR_INVALID_PARAMETER;
 	}
 
-	MSAPI_DBG("REQUEST DIRECTORY SCANNING");
+	MSAPI_DBG("REQUEST DIRECTORY SCANNING[%s]", request_msg);
 
 	request_msg_size = strlen(request_msg);
 	if(request_msg_size >= MAX_MSG_SIZE)
@@ -387,6 +387,9 @@ static int __media_db_request_update_async(ms_msg_type_e msg_type, const char *r
 	send_msg.msg_size = request_msg_size;
 	send_msg.uid = uid;
 	strncpy(send_msg.msg, request_msg, request_msg_size);
+	if (storage_id != NULL) {
+		strncpy(send_msg.storage_id, storage_id, MS_UUID_SIZE -1);
+	}
 
 	/*Create Socket*/
 	ret = ms_ipc_create_client_socket(MS_PROTOCOL_TCP, 0, &sock_info);
@@ -460,7 +463,7 @@ static int __media_db_request_update_cancel(ms_msg_type_e msg_type, const char *
 	return ret;
 }
 
-int media_directory_scanning_async(const char *directory_path, bool recursive_on, scan_complete_cb user_callback, void *user_data, uid_t uid)
+int media_directory_scanning_async(const char *directory_path, const char *storage_id, bool recursive_on, scan_complete_cb user_callback, void *user_data, uid_t uid)
 {
 	int ret = MS_MEDIA_ERR_NONE;
 
@@ -469,9 +472,9 @@ int media_directory_scanning_async(const char *directory_path, bool recursive_on
 		return ret;
 
 	if (recursive_on == TRUE)
-		ret = __media_db_request_update_async(MS_MSG_DIRECTORY_SCANNING, directory_path, user_callback, user_data, uid);
+		ret = __media_db_request_update_async(MS_MSG_DIRECTORY_SCANNING, storage_id, directory_path, user_callback, user_data, uid);
 	else
-		ret = __media_db_request_update_async(MS_MSG_DIRECTORY_SCANNING_NON_RECURSIVE, directory_path, user_callback, user_data, uid);
+		ret = __media_db_request_update_async(MS_MSG_DIRECTORY_SCANNING_NON_RECURSIVE, storage_id, directory_path, user_callback, user_data, uid);
 
 	return ret;
 }
@@ -489,12 +492,11 @@ int media_directory_scanning_cancel(const char *directory_path, uid_t uid)
 	return ret;
 }
 
-
 int media_files_register(const char *list_path, insert_complete_cb user_callback, void *user_data, uid_t uid)
 {
 	int ret = MS_MEDIA_ERR_NONE;
 
-	ret = __media_db_request_update_async(MS_MSG_BULK_INSERT, list_path, user_callback, user_data, uid);
+	ret = __media_db_request_update_async(MS_MSG_BULK_INSERT, NULL, list_path, user_callback, user_data, uid);
 
 	MSAPI_DBG("client receive: %d", ret);
 
@@ -505,7 +507,7 @@ int media_burstshot_register(const char *list_path, insert_complete_cb user_call
 {
 	int ret = MS_MEDIA_ERR_NONE;
 
-	ret = __media_db_request_update_async(MS_MSG_BURSTSHOT_INSERT, list_path, user_callback, user_data, uid);
+	ret = __media_db_request_update_async(MS_MSG_BURSTSHOT_INSERT, NULL, list_path, user_callback, user_data, uid);
 
 	MSAPI_DBG("client receive: %d", ret);
 

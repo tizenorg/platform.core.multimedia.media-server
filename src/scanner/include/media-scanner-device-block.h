@@ -18,21 +18,12 @@
  * limitations under the License.
  *
  */
-#ifndef _MEDIA_SERVER_EXTERNAL_STORAGE_H_
-#define _MEDIA_SERVER_EXTERNAL_STORAGE_H_
 
-#include "media-common-types.h"
+#ifndef _MEDIA_SCANNER_DEVICE_BLOCK_H_
+#define _MEDIA_SCANNER_DEVICE_BLOCK_H_
 
-void ms_make_default_path_mmc(const char *storage_path);
+#include "media-common-system.h"
 
-#ifndef DISABLE_NOTIFICATION
-int ms_present_mmc_status(ms_sdcard_status_type_t status);
+void msc_device_block_changed_cb(const char *mount_path, int block_type, ms_stg_status_e mount_status, void *user_data);
+
 #endif
-
-int ms_get_mmc_id(char **cid);
-int ms_get_stg_changed_event(void);
-
-int ms_read_device_info(const char *root_path, char **device_uuid);
-int ms_write_device_info(const char *root_path, char *device_uuid);
-
-#endif /*_MEDIA_SERVER_EXTERNAL_STORAGE_H_*/

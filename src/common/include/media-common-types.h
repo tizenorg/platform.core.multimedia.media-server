@@ -38,17 +38,16 @@
 #define MS_NON_RECURSIVE 0
 
 /*This macro is used to save and check information of inserted memory card*/
-#define MS_MMC_INFO_KEY "db/private/mediaserver/mmc_info"
+//#define MS_MMC_INFO_KEY "db/private/mediaserver/mmc_info"
 
 /*Use for Poweroff sequence*/
-#define POWEROFF_NOTI_NAME "power_off_start" /*poeroff noti from system-server*/
-#define POWEROFF_DIR_PATH tzplatform_mkpath(TZ_SYS_DATA,"data-media/_POWER_OFF") /*This path uses for stopping Inotify thread and Socket thread*/
-#define POWEROFF_DIR_NAME "_POWER_OFF" /*This path uses for stopping Inotify thread and Socket thread*/
 #define POWEROFF -1 /*This number uses for stopping Scannig thread*/
 
 #define MS_SAFE_FREE(src)      { if(src) {free(src); src = NULL;} }
 #define MS_MALLOC(src, size)	{ if (size > SIZE_MAX || size <= 0) {src = NULL;} \
 							else { src = malloc(size); if(src) memset(src, 0x0, size);} }
+#define MS_STRING_VALID(str)	\
+								((str != NULL && strlen(str) > 0) ? TRUE : FALSE)
 
 /*System default folder definition*/
 #define FAT_FILENAME_LEN_MAX          255	/* not inc null */
@@ -61,8 +60,9 @@
 #define MS_SOCK_NOT_ALLOCATE -1
 
 typedef enum {
-	MS_STORAGE_INTERNAL,    /**< Stored only in phone */
-	MS_STORAGE_EXTERNAL,	     /**< Stored only in MMC */
+	MS_STORAGE_INTERNAL = 0,	/**< The device's internal storage */
+	MS_STORAGE_EXTERNAL = 1,	/**< The device's external storage */
+	MS_STORAGE_EXTERNAL_USB = 2,	/**< The external USB storage (Since 2.4) */
 } ms_storage_type_t;
 
 typedef enum {
@@ -79,7 +79,8 @@ typedef enum {
 
 typedef enum {
 	MS_DB_UPDATING = 0,
-	MS_DB_UPDATED = 1
+	MS_DB_UPDATED = 1,
+	MS_DB_STOPPED = 2
 } ms_db_status_type_t;
 
 typedef struct ms_dir_scan_info {
@@ -101,5 +102,30 @@ typedef struct {
 	char *path;
 	int pid;
 } ms_register_data_t;
+
+
+/*use for MS_SCANNER_STATUS */
+typedef enum {
+	MS_STORAGE_SCAN_NONE, 			/**< Media Scanner not detect storage yet*/
+	MS_STORAGE_SCAN_PREPARE,			/**< Media Scanner detect storage but not scanning yet*/
+	MS_STORAGE_SCAN_PROCESSING,		/**< Media Scanner Start Scanning storage*/
+	MS_STORAGE_SCAN_STOP, 			/**< Stop scanning storage*/
+	MS_STORAGE_SCAN_DONE, 			/**< Scanning Done but need to extract metadata*/
+	MS_STORAGE_SCAN_META_PROCESSING,	/**< Scanning Done and start to extract metadata*/
+	MS_STORAGE_SCAN_META_STOP,		/**< Stop extract metadata*/
+	MS_STORAGE_SCAN_COMPLETE, 		/**< Complete scanning*/
+}ms_storage_scan_status_e;
+
+typedef enum{
+	MEDIA_SCAN_PREPARE		= 0,	/**< Prepare scanning*/
+	MEDIA_SCAN_PROCESSING	= 1,	/**< Process scanning*/
+	MEDIA_SCAN_STOP			= 2,	/**< Stop scanning*/
+	MEDIA_SCAN_COMPLETE		= 3,	/**< Complete scanning*/
+	MEDIA_SCAN_MAX			= 4,	/**< Invalid status*/
+	MEDIA_EXTRACT_PREPARE		= 5,	/**< Prepare extract*/
+	MEDIA_EXTRACT_PROCESSING	= 6,	/**< Process extract*/
+	MEDIA_EXTRACT_STOP			= 7,	/**< Stop extract*/
+	MEDIA_EXTRACT_COMPLETE		= 8		/**< Complete extract*/
+}media_scan_status_e;
 
 #endif /*_MEDIA_SERVER_TYPES_H_*/
