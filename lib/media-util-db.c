@@ -61,7 +61,7 @@ static int __media_db_busy_handler(void *pData, int count)
 
 	MSAPI_DBG("media_db_busy_handler called : %d", count);
 
-	return 100 - count;
+	return 200 - count;
 }
 
 static char* __media_get_media_DB(uid_t uid)
@@ -374,26 +374,39 @@ static int __media_db_request_batch_update(ms_msg_type_e msg_type, const char *r
 	return ret;
 }
 
+#define RETRY_CNT 9
+#define SLEEP_TIME 1000 * 1000
 static int _media_db_update_directly(sqlite3 *db_handle, const char *sql_str)
 {
 	int ret = MS_MEDIA_ERR_NONE;
 	char *zErrMsg = NULL;
+	int retry_count = 0;
 
 //	MSAPI_DBG_SLOG("SQL = [%s]", sql_str);
 
+EXEC_RETRY:
 	ret = sqlite3_exec(db_handle, sql_str, NULL, NULL, &zErrMsg);
 
 	if (SQLITE_OK != ret) {
 		MSAPI_DBG_ERR("DB Update Fail SQL:%s", sql_str);
 		MSAPI_DBG_ERR("ERROR [%s]", zErrMsg);
-		if (ret == SQLITE_BUSY)
+		if (ret == SQLITE_BUSY) {
 			ret = MS_MEDIA_ERR_DB_BUSY_FAIL;
-		else if (ret == SQLITE_CONSTRAINT)
+		} else if (ret == SQLITE_CONSTRAINT) {
 			ret = MS_MEDIA_ERR_DB_CONSTRAINT_FAIL;
-		else if (ret == SQLITE_FULL)
+		} else if (ret == SQLITE_FULL) {
 			ret = MS_MEDIA_ERR_DB_FULL_FAIL;
-		else
+		} else if (ret == SQLITE_LOCKED) {
+			if (retry_count < RETRY_CNT) {
+				MSAPI_DBG_ERR("Locked retry[%d]", retry_count);
+				retry_count++;
+				usleep(SLEEP_TIME);
+				goto EXEC_RETRY;
+			}
 			ret = MS_MEDIA_ERR_DB_UPDATE_FAIL;
+		} else {
+			ret = MS_MEDIA_ERR_DB_UPDATE_FAIL;
+		}
 	}
 
 	if (zErrMsg)
