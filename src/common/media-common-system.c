@@ -370,8 +370,6 @@ static int __ms_dbus_get_uid(const char *dest, const char *path, const char *int
 
 	int val_int;
 	char *val_str;
-	bool val_bool;
-
 
 	conn = dbus_bus_get(DBUS_BUS_SYSTEM, NULL);
 	if (!conn) {
