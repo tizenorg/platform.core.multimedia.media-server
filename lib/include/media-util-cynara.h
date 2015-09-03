@@ -27,6 +27,8 @@
 
 
 #define MEDIA_STORAGE_PRIVILEGE    "http://tizen.org/privilege/mediastorage"
+#define EXTERNAL_STORAGE_PRIVILEGE    "http://tizen.org/privilege/externalstorage"
+
 #define CONTENT_WRITE_PRIVILEGE    "http://tizen.org/privilege/content.write"
 
 typedef struct {

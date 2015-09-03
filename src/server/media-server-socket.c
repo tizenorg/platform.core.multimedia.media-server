@@ -219,9 +219,16 @@ gboolean ms_read_socket(gpointer user_data)
 		goto ERROR;
 	}
 
-	if (ms_cynara_check(&creds, MEDIA_STORAGE_PRIVILEGE) != MS_MEDIA_ERR_NONE) {
-		res = ret;
-		goto ERROR;
+	if(strncmp(recv_msg.msg, MEDIA_ROOT_PATH_EXTERNAL, strlen(MEDIA_ROOT_PATH_EXTERNAL)) == 0) {
+		if (ms_cynara_check(&creds, EXTERNAL_STORAGE_PRIVILEGE) != MS_MEDIA_ERR_NONE) {
+			res = ret;
+			goto ERROR;
+		}
+	} else {
+		if (ms_cynara_check(&creds, MEDIA_STORAGE_PRIVILEGE) != MS_MEDIA_ERR_NONE) {
+			res = ret;
+			goto ERROR;
+		}
 	}
 
 	MS_SAFE_FREE(creds.smack);
