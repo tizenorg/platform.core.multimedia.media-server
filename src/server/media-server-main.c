@@ -157,7 +157,7 @@ void _ms_change_lang_vconf_cb(keynode_t *key, void* data)
 	}
 
 	if (need_update == TRUE) {
-		ms_send_storage_scan_request(NULL, INTERNAL_STORAGE_ID, MS_SCAN_META, NULL);	/*FIX ME*/
+		ms_send_storage_scan_request(NULL, INTERNAL_STORAGE_ID, MS_SCAN_META, 0);	/*FIX ME*/
 	} else {
 		MS_DBG_WARN("language is changed but do not update meta data");
 	}
@@ -350,7 +350,7 @@ static void __ms_add_signal_handler(void)
 
 static void __ms_check_mediadb(void)
 {
-	ms_send_storage_scan_request(MEDIA_ROOT_PATH_INTERNAL, INTERNAL_STORAGE_ID, MS_SCAN_PART, NULL);
+	ms_send_storage_scan_request(MEDIA_ROOT_PATH_INTERNAL, INTERNAL_STORAGE_ID, MS_SCAN_PART, 0);
 
 	/* update external storage */
 	__ms_check_mmc_status();

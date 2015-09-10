@@ -35,7 +35,6 @@
 #include "media-util.h"
 
 #define BUFSIZE 4096
-#define GLOBAL_USER	0 //#define 	tzplatform_getenv(TZ_GLOBAL) //TODO
 static __thread char **sql_list = NULL;
 static __thread int g_list_idx = 0;
 

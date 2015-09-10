@@ -55,8 +55,6 @@ typedef struct media_scan_data{
 
 GArray *req_list;
 
-#define GLOBAL_USER	0 //#define 	tzplatform_getenv(TZ_GLOBAL) //TODO
-
 static char* __media_get_path(uid_t uid)
 {
 	char *result_psswd = NULL;
@@ -108,10 +106,10 @@ static bool _is_valid_path(const char *path, uid_t uid)
 		return true;
 	} else if (strncmp(path, MEDIA_ROOT_PATH_SDCARD, strlen(MEDIA_ROOT_PATH_SDCARD)) == 0) {
 		return true;
+	} else if (strncmp(path, MEDIA_ROOT_PATH_USB, strlen(MEDIA_ROOT_PATH_USB)) == 0) {
+		return true;
 	} else
 		return false;
-
-       return true;
 }
 
 static int _check_dir_path(const char *dir_path, uid_t uid)
