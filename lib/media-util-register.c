@@ -59,24 +59,21 @@ static char* __media_get_path(uid_t uid)
 {
 	char *result_psswd = NULL;
 	struct group *grpinfo = NULL;
-	if(uid == getuid())
-	{
-		result_psswd = strdup(MEDIA_ROOT_PATH_INTERNAL);
+	if (uid == getuid()) {
+		result_psswd = strndup(MEDIA_ROOT_PATH_INTERNAL, strlen(MEDIA_ROOT_PATH_INTERNAL));
 		grpinfo = getgrnam("users");
-		if(grpinfo == NULL) {
+		if (grpinfo == NULL) {
 			MSAPI_DBG_ERR("getgrnam(users) returns NULL !");
 			return NULL;
 		}
-	}
-	else
-	{
+	} else {
 		struct passwd *userinfo = getpwuid(uid);
-		if(userinfo == NULL) {
+		if (userinfo == NULL) {
 			MSAPI_DBG_ERR("getpwuid(%d) returns NULL !", uid);
 			return NULL;
 		}
 		grpinfo = getgrnam("users");
-		if(grpinfo == NULL) {
+		if (grpinfo == NULL) {
 			MSAPI_DBG_ERR("getgrnam(users) returns NULL !");
 			return NULL;
 		}
@@ -85,7 +82,7 @@ static char* __media_get_path(uid_t uid)
 			MSAPI_DBG_ERR("UID [%d] does not belong to 'users' group!", uid);
 			return NULL;
 		}
-		asprintf(&result_psswd, "%s", userinfo->pw_dir);
+		result_psswd = strndup(userinfo->pw_dir, strlen(userinfo->pw_dir));
 	}
 
 	return result_psswd;

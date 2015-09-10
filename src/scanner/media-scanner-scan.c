@@ -86,26 +86,24 @@ static char* __msc_get_path(uid_t uid);
 
 static char* __msc_get_path(uid_t uid)
 {
+	int result_size = 0;
 	char *result_psswd = NULL;
 	struct group *grpinfo = NULL;
-	if(uid == getuid())
-	{
-		result_psswd = strdup(MEDIA_ROOT_PATH_INTERNAL);
+	if (uid == getuid()) {
+		result_psswd = strndup(MEDIA_ROOT_PATH_INTERNAL, strlen(MEDIA_ROOT_PATH_INTERNAL));
 		grpinfo = getgrnam("users");
 		if(grpinfo == NULL) {
 			MS_DBG_ERR("getgrnam(users) returns NULL !");
 			return NULL;
 		}
-    }
-	else
-	{
+	} else {
 		struct passwd *userinfo = getpwuid(uid);
-		if(userinfo == NULL) {
+		if (userinfo == NULL) {
 			MS_DBG_ERR("getpwuid(%d) returns NULL !", uid);
 			return NULL;
 		}
 		grpinfo = getgrnam("users");
-		if(grpinfo == NULL) {
+		if (grpinfo == NULL) {
 			MS_DBG_ERR("getgrnam(users) returns NULL !");
 			return NULL;
 		}
@@ -114,7 +112,10 @@ static char* __msc_get_path(uid_t uid)
 			MS_DBG_ERR("UID [%d] does not belong to 'users' group!", uid);
 			return NULL;
 		}
-		asprintf(&result_psswd, "%s/%s", userinfo->pw_dir, MEDIA_CONTENT_PATH);
+		result_size = strlen(userinfo->pw_dir) + strlen(MEDIA_CONTENT_PATH) + 2;
+
+		MS_MALLOC(result_psswd, result_size);
+		snprintf(result_psswd, result_size, "%s/%s", userinfo->pw_dir, MEDIA_CONTENT_PATH);
 	}
 
 	return result_psswd;
