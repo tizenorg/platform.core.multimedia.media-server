@@ -96,25 +96,22 @@ static char* __media_get_path(uid_t uid)
 	struct group *grpinfo = NULL;
 	int err = 0;
 
-	if(uid == getuid())
-	{
-		result_psswd = strdup(MEDIA_ROOT_PATH_INTERNAL);
+	if (uid == getuid()) {
+		result_psswd = strndup(MEDIA_ROOT_PATH_INTERNAL, strlen(MEDIA_ROOT_PATH_INTERNAL));
 		grpinfo = getgrnam("users");
-		if(grpinfo == NULL) {
+		if (grpinfo == NULL) {
 			MS_DBG_ERR("getgrnam(users) returns NULL !");
 			MS_SAFE_FREE(result_psswd);
 			return NULL;
 		}
-	}
-	else
-	{
+	} else {
 		struct passwd *userinfo = getpwuid(uid);
-		if(userinfo == NULL) {
+		if (userinfo == NULL) {
 			MS_DBG_ERR("getpwuid(%d) returns NULL !", uid);
 			return NULL;
 		}
 		grpinfo = getgrnam("users");
-		if(grpinfo == NULL) {
+		if (grpinfo == NULL) {
 			MS_DBG_ERR("getgrnam(users) returns NULL !");
 			return NULL;
 		}
@@ -123,11 +120,7 @@ static char* __media_get_path(uid_t uid)
 			MS_DBG_ERR("UID [%d] does not belong to 'users' group!", uid);
 			return NULL;
 		}
-		err = asprintf(&result_psswd, "%s", userinfo->pw_dir);
-		if(err < 0) {
-			MS_DBG_ERR("asprintf failed [%d]", err);
-			return NULL;
-		}
+		result_psswd = strndup(userinfo->pw_dir, strlen(userinfo->pw_dir));
 	}
 
 	return result_psswd;
@@ -136,22 +129,31 @@ static char* __media_get_path(uid_t uid)
 ms_storage_type_t ms_get_storage_type_by_full(const char *path, uid_t uid)
 {
 	int length_path;
+	int ret = MS_MEDIA_ERR_NONE;
 	char * user_path = NULL;
 
 	if (path == NULL)
-		return false;
+		return MS_MEDIA_ERR_INVALID_PATH;
 
 	user_path = __media_get_path(uid);
+	if (user_path == NULL)
+		return MS_MEDIA_ERR_OUT_OF_MEMORY;
+
 	length_path = strlen(user_path);
 
 	if (strncmp(path, user_path, length_path) == 0) {
-		return MS_STORAGE_INTERNAL;
+		ret = MS_STORAGE_INTERNAL;
 	} else if (strncmp(path, MEDIA_ROOT_PATH_SDCARD, strlen(MEDIA_ROOT_PATH_SDCARD)) == 0) {
-		return MS_STORAGE_EXTERNAL;
+		ret = MS_STORAGE_EXTERNAL;
+	} else if (strncmp(path, MEDIA_ROOT_PATH_USB, strlen(MEDIA_ROOT_PATH_USB)) == 0) {
+		ret = MS_STORAGE_EXTERNAL_USB;
 	} else {
-		free(user_path);
-		return MS_MEDIA_ERR_INVALID_PATH;
-    }
+		ret = MS_MEDIA_ERR_INVALID_PATH;
+	}
+
+	MS_SAFE_FREE(user_path);
+
+	return ret;
 }
 
 int ms_strappend(char *res, const int size, const char *pattern,
