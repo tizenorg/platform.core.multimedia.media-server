@@ -18,18 +18,65 @@
  * limitations under the License.
  *
  */
+
+#include <vconf.h>
+
 #include "media-util.h"
 
+#include "media-common-utils.h"
 #include "media-common-db-svc.h"
 #include "media-common-external-storage.h"
 
 #include "media-util-err.h"
-#include "media-scanner-dbg.h"
-#include "media-scanner-scan.h"
-#include "media-scanner-device-block.h"
+#include "media-scanner-dbg-v2.h"
+#include "media-scanner-scan-v2.h"
+#include "media-scanner-extract-v2.h"
+#include "media-scanner-device-block-v2.h"
 
 static void __msc_usb_remove_event(const char *mount_path)
 {
+	MS_DBG_ERR("===========================================================");
+	MS_DBG_ERR("USB REMOVED, mountpath : %s", mount_path);
+	MS_DBG_ERR("===========================================================");
+	int update_status  = -1;
+	int remain_request = 0;
+	bool status = FALSE;
+
+	if(!ms_config_get_int(VCONFKEY_FILEMANAGER_DB_STATUS, &update_status)) {
+		MS_DBG_ERR("ms_config_get_int[VCONFKEY_FILEMANAGER_DB_STATUS]");
+	}
+
+	if (msc_get_remain_scan_request(MS_SCAN_STORAGE, &remain_request) == MS_MEDIA_ERR_NONE) {
+		if (!(remain_request == 0 && update_status == VCONFKEY_FILEMANAGER_DB_UPDATED)) {
+			msc_set_blocked_path(mount_path);
+		}
+		remain_request = 0;
+	}
+
+
+	if (msc_get_dir_scan_status(&status) == MS_MEDIA_ERR_NONE) {
+		if (status == TRUE) {
+			MS_DBG_ERR("Doing directory scanning. Set cancel path");
+			msc_set_cancel_path(mount_path);
+		}
+		status = FALSE;
+	}
+
+	if (msc_get_remain_extract_request(MS_EXTRACT_STORAGE, &remain_request) == MS_MEDIA_ERR_NONE) {
+		if (!(remain_request == 0 && update_status == VCONFKEY_FILEMANAGER_DB_UPDATED)) {
+			msc_set_extract_blocked_path(mount_path);
+		}
+		remain_request = 0;
+	}
+
+	if (msc_get_dir_scan_status(&status) == MS_MEDIA_ERR_NONE) {
+		if (status == true) {
+			MS_DBG_ERR("Doing directory extracting. Set cancel path");
+			msc_set_extract_cancel_path(mount_path);
+		}
+		status = FALSE;
+	}
+
 	return;
 }
 

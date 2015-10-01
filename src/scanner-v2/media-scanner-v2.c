@@ -20,24 +20,26 @@
  */
 
 #include <dirent.h>
-#include <vconf.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <pmapi.h>
 
 #include "media-common-utils.h"
 #include "media-common-external-storage.h"
-#include "media-common-db-svc.h"
 #include "media-common-system.h"
+#include "media-common-db-svc.h"
 
 #include "media-util.h"
-#include "media-scanner-dbg.h"
-#include "media-scanner-device-block.h"
-#include "media-scanner-scan.h"
-#include "media-scanner-socket.h"
+#include "media-scanner-dbg-v2.h"
+#include "media-scanner-common-v2.h"
+#include "media-scanner-device-block-v2.h"
+#include "media-scanner-scan-v2.h"
+#include "media-scanner-socket-v2.h"
+#include "media-scanner-extract-v2.h"
 
-static GMainLoop *scanner_mainloop = NULL;
+static GMainLoop *scanner_mainloop2 = NULL;
 
 static void __msc_power_off_cb(ms_power_info_s *power_info, void* data);
 static void __msc_add_event_receiver(void *data);
@@ -48,14 +50,18 @@ int main(int argc, char **argv)
 	GThread *storage_scan_thread = NULL;
 	GThread *scan_thread = NULL;
 	GThread *register_thread = NULL;
+	GThread *storage_extract_thread = NULL;
+	GThread *folder_extract_thread = NULL;
 	GSource *source = NULL;
 	GIOChannel *channel = NULL;
 	GMainContext *context = NULL;
+	bool power_off_status = FALSE;
 
 	int err = -1;
 	int fd = -1;
 
-	/*set power off callback function*/
+	MS_DBG_ERR("[No-Error] ========== Scanner start ========");
+
 	__msc_add_event_receiver(NULL);
 
 	/*load functions from plusin(s)*/
@@ -66,14 +72,16 @@ int main(int argc, char **argv)
 	}
 
 	/*Init main loop*/
-	scanner_mainloop = g_main_loop_new(NULL, FALSE);
+	scanner_mainloop2 = g_main_loop_new(NULL, FALSE);
 
 	msc_init_scanner();
+	msc_init_extract_thread();
+	msc_init_scan_thread();
 
 	/* Create pipe */
 	err = unlink(MS_SCANNER_FIFO_PATH_REQ);
 	if (err !=0) {
-		MS_DBG_STRERROR("unlink failed");
+		MS_DBG_STRERROR("[No-Error] unlink failed");
 	}
 
 	err = mkfifo(MS_SCANNER_FIFO_PATH_REQ, MS_SCANNER_FIFO_MODE);
@@ -88,7 +96,7 @@ int main(int argc, char **argv)
 		return MS_MEDIA_ERR_FILE_OPEN_FAIL;
 	}
 
-	context = g_main_loop_get_context(scanner_mainloop);
+	context = g_main_loop_get_context(scanner_mainloop2);
 
 	/* Create new channel to watch pipe */
 	channel = g_io_channel_unix_new(fd);
@@ -103,28 +111,36 @@ int main(int argc, char **argv)
 	storage_scan_thread = g_thread_new("storage_scan_thread", (GThreadFunc)msc_storage_scan_thread, NULL);
 	scan_thread = g_thread_new("scanner_thread", (GThreadFunc)msc_directory_scan_thread, NULL);
 	register_thread = g_thread_new("register_thread", (GThreadFunc)msc_register_thread, NULL);
+	storage_extract_thread = g_thread_new("storage_extract_thread", (GThreadFunc)msc_storage_extract_thread, NULL);
+	folder_extract_thread = g_thread_new("folder_extract_thread", (GThreadFunc)msc_folder_extract_thread, NULL);
 
 	if (ms_is_mmc_inserted()) {
 		msc_set_mmc_status(MS_STG_INSERTED);
 	}
 
-	MS_DBG_INFO("scanner is ready");
-
 	msc_send_ready();
+	MS_DBG_ERR("[No-Error] ========== Scanner is ready ========");
 
-	MS_DBG_ERR("*****************************************");
-	MS_DBG_ERR("*** Scanner is running ***");
-	MS_DBG_ERR("*****************************************");
+	MS_DBG_ERR("[No-Error] ========== Scanner is running  ========");
 
-	g_main_loop_run(scanner_mainloop);
+	g_main_loop_run(scanner_mainloop2);
 
 	g_thread_join (scan_thread);
 	g_thread_join (register_thread);
 	g_thread_join (storage_scan_thread);
+	g_thread_join (storage_extract_thread);
+	g_thread_join (folder_extract_thread);
 
 	g_io_channel_shutdown(channel, FALSE, NULL);
 	g_io_channel_unref(channel);
 
+	msc_get_power_status(&power_off_status);
+	if (power_off_status) {
+		pm_unlock_state(LCD_OFF, STAY_CUR_STATE);
+	}
+
+	msc_deinit_extract_thread();
+	msc_deinit_scan_thread();
 	msc_deinit_scanner();
 
 	/*close pipe*/
@@ -136,16 +152,18 @@ int main(int argc, char **argv)
 	__msc_remove_event_receiver();
 
 EXIT:
-	MS_DBG_INFO("SCANNER IS END");
+	MS_DBG_ERR("[No-Error] ========== Scanner end  ========");
 
 	return 0;
 }
 
+
 static void __msc_power_off_cb(ms_power_info_s *power_info, void* data)
 {
-	msc_send_power_off_request();
+	msc_stop_scan_thread();
+	msc_stop_extract_thread();
 
-	if (g_main_loop_is_running(scanner_mainloop)) g_main_loop_quit(scanner_mainloop);
+	if (g_main_loop_is_running(scanner_mainloop2)) g_main_loop_quit(scanner_mainloop2);
 }
 
 static void __msc_add_event_receiver(void *data)

@@ -1,9 +1,9 @@
 /*
- * media-thumbnail-server
+ *  Media Server
  *
  * Copyright (c) 2000 - 2011 Samsung Electronics Co., Ltd. All rights reserved.
  *
- * Contact: Hyunjun Ko <zzoon.ko@samsung.com>
+ * Contact: Yong Yeon Kim <yy9875.kim@samsung.com>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,23 +19,19 @@
  *
  */
 
-#include <glib.h>
-#include <sys/un.h>
-#include <arpa/inet.h>
-#include <iniparser.h>
-#include "media-common-types.h"
-#include "media-server-ipc.h"
+#ifndef _MEDIA_SCANNER_DBG_V2_H_
+#define _MEDIA_SCANNER_DBG_V2_H_
+#include <sys/syscall.h>
+#include <dlog.h>
+#include <errno.h>
 
-#ifndef _MEDIA_SERVER_THUMB_H_
-#define _MEDIA_SERVER_THUMB_H_
+#include "media-common-dbg.h"
 
-#define MAX_THUMB_REQUEST 100
+#ifdef LOG_TAG
+#undef LOG_TAG
+#endif
 
-GMainLoop * ms_get_thumb_thread_mainloop(void);
-int ms_thumb_get_server_pid();
-void ms_thumb_reset_server_status();
-gpointer ms_thumb_agent_start_thread(gpointer data);
-int ms_thumb_get_config();
+#define LOG_TAG "MEDIA_SCANNER_V2"
 
-#endif /*_MEDIA_SERVER_THUMB_H_*/
+#endif /*_MEDIA_SCANNER_DBG_V2_H_*/
 

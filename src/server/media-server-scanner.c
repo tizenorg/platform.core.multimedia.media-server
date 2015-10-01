@@ -26,6 +26,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <iniparser.h>
 
 #include "media-util.h"
 #include "media-server-ipc.h"
@@ -40,6 +41,7 @@
 #define MS_NO_REMAIN_TASK 0
 
 #define MEDIA_SERVER_PATH tzplatform_mkpath(TZ_SYS_BIN,"media-scanner")
+#define MEDIA_SERVER_PATH_V2 tzplatform_mkpath(TZ_SYS_BIN,"media-scanner-v2")
 
 extern GMainLoop *mainloop;
 extern GArray *owner_list;
@@ -126,6 +128,25 @@ static gboolean _ms_stop_scanner (gpointer user_data)
 	g_source_destroy(g_main_context_find_source_by_id(g_main_loop_get_context (mainloop), receive_id));
 
 	return FALSE;
+}
+
+static int _ms_get_ini_config(const char *key)
+{
+	dictionary *dict = NULL;
+	int value = 0;
+
+	dict = iniparser_load(MS_INI_DEFAULT_PATH);
+	if(!dict) {
+		MS_DBG_ERR("%s load failed", MS_INI_DEFAULT_PATH);
+		return 0;
+	}
+
+	value = iniparser_getint(dict, key, 0);
+	MS_DBG("Key = [%s], Value = [%d]", key, value);
+
+	iniparser_freedict(dict);
+
+	return value;
 }
 
 void ms_cleanup_scanner(void)
@@ -251,7 +272,11 @@ int ms_scanner_start(void)
 		MS_DBG_ERR("[No-Error] CHILD PROCESS");
 		MS_DBG("[No-Error] EXECUTE MEDIA SCANNER");
 
-		execl(MEDIA_SERVER_PATH, "media-scanner", NULL);
+		if(_ms_get_ini_config("media-content-config:scanner_type") == 1)
+			execl(MEDIA_SERVER_PATH_V2, "media-scanner-v2", NULL);
+		else
+			execl(MEDIA_SERVER_PATH, "media-scanner", NULL);
+
 		g_mutex_unlock(&scanner_mutex);
 	}
 

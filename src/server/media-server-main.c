@@ -56,7 +56,7 @@ static int __ms_check_usb_status(void);
 
 static char *priv_lang = NULL;
 
-void _power_off_cb(void* data)
+void _power_off_cb(ms_power_info_s *power_info, void* data)
 {
 	MS_DBG_ERR("POWER OFF");
 

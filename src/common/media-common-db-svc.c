@@ -39,6 +39,7 @@ static void ***func_array;
 static int lib_num;
 static void **func_handle = NULL; /*dlopen handel*/
 static int insert_count;
+static int delete_count;
 
 enum func_list {
 	eCONNECT,
@@ -86,6 +87,10 @@ enum func_list {
 	eUPDATE_ITEM_META,
 	eUPDATE_ITEM_BEGIN,
 	eUPDATE_ITEM_END,
+	eDELETE_INVALID_FOLDER_BY_PATH,
+	eCHECK_FOLDER_EXIST,
+	eCOUNT_SUBFOLDER,
+	eGET_FOLDER_ID,
 	eFUNC_MAX
 };
 
@@ -185,6 +190,10 @@ int ms_load_functions(void)
 		"update_item_meta",
 		"update_item_begin",
 		"update_item_end",
+		"delete_invalid_folder_by_path",
+		"check_folder_exist",
+		"count_subfolder",
+		"get_folder_id",
 		};
 	/*init array for adding name of so*/
 	so_array = g_array_new(FALSE, FALSE, sizeof(char*));
@@ -301,9 +310,19 @@ int ms_get_insert_count()
 	return insert_count;
 }
 
+int ms_get_delete_count()
+{
+	return delete_count;
+}
+
 void ms_reset_insert_count()
 {
 	insert_count = 0;
+}
+
+void ms_reset_delete_count()
+{
+	delete_count = 0;
 }
 
 int ms_connect_db(void ***handle, uid_t uid)
@@ -316,11 +335,6 @@ int ms_connect_db(void ***handle, uid_t uid)
 	g_mutex_lock(&db_mutex);
 
 	MS_MALLOC(*handle, sizeof (void*) * lib_num);
-	if (*handle == NULL) {
-		MS_DBG_ERR("malloc failed");
-		g_mutex_unlock(&db_mutex);
-		return MS_MEDIA_ERR_OUT_OF_MEMORY;
-	}
 
 	for (lib_index = 0; lib_index < lib_num; lib_index++) {
 		ret = ((CONNECT)func_array[lib_index][eCONNECT])(&((*handle)[lib_index]), uid, &err_msg); /*dlopen*/
@@ -668,14 +682,14 @@ int ms_delete_invalid_items_in_folder(void **handle, const char* storage_id, con
 	return MS_MEDIA_ERR_NONE;
 }
 
-int ms_send_dir_update_noti(void **handle, const char* storage_id, const char*path)
+int ms_send_dir_update_noti(void **handle, const char* storage_id, const char*path, const char*folder_id, ms_noti_type_e noti_type, int pid)
 {
 	int lib_index;
 	int ret;
 	char *err_msg = NULL;
 
 	for (lib_index = 0; lib_index < lib_num; lib_index++) {
-		ret = ((SEND_DIR_UPDATE_NOTI)func_array[lib_index][eSEND_DIR_UPDATE_NOTI])(handle[lib_index], storage_id, path, &err_msg); /*dlopen*/
+		ret = ((SEND_DIR_UPDATE_NOTI)func_array[lib_index][eSEND_DIR_UPDATE_NOTI])(handle[lib_index], storage_id, path, folder_id, (int)noti_type, pid, &err_msg); /*dlopen*/
 		if (ret != 0) {
 			MS_DBG_ERR("error : %s [%s]", g_array_index(so_array, char*, lib_index), err_msg);
 			MS_SAFE_FREE(err_msg);
@@ -700,6 +714,8 @@ int ms_count_delete_items_in_folder(void **handle, const char *storage_id, const
 			return MS_MEDIA_ERR_INTERNAL;
 		}
 	}
+
+	delete_count = *count;
 
 	return MS_MEDIA_ERR_NONE;
 }
@@ -1144,6 +1160,95 @@ int ms_update_meta_batch(void **handle, const char *path, uid_t uid)
 	return res;
 }
 
+int ms_delete_invalid_folder_by_path(void **handle, const char *storage_id, const char *folder_path, uid_t uid, int *delete_count)
+{
+	int lib_index;
+	int res = MS_MEDIA_ERR_NONE;
+	int ret;
+	char *err_msg = NULL;
+
+	for (lib_index = 0; lib_index < lib_num; lib_index++) {
+		ret = ((DELETE_INVALID_FOLDER_BY_PATH)func_array[lib_index][eDELETE_INVALID_FOLDER_BY_PATH])(handle[lib_index], storage_id, folder_path, uid, delete_count, &err_msg); /*dlopen*/
+		if (ret != 0) {
+			MS_DBG_ERR("error : %s [%s] %s", g_array_index(so_array, char*, lib_index), err_msg, storage_id);
+			MS_SAFE_FREE(err_msg);
+			res = MS_MEDIA_ERR_DB_INSERT_FAIL;
+		}
+	}
+
+	return res;
+}
+
+int ms_check_folder_exist(void **handle, const char *storage_id, const char *folder_path)
+{
+	int lib_index;
+	int res = MS_MEDIA_ERR_NONE;
+	int ret;
+	char *err_msg = NULL;
+
+	for (lib_index = 0; lib_index < lib_num; lib_index++) {
+		ret = ((CHECK_FOLDER_EXIST)func_array[lib_index][eCHECK_FOLDER_EXIST])(handle[lib_index], storage_id, folder_path, &err_msg); /*dlopen*/
+		if (ret != 0) {
+			MS_DBG_ERR("error : %s [%s] %s", g_array_index(so_array, char*, lib_index), err_msg, storage_id);
+			MS_SAFE_FREE(err_msg);
+			res = MS_MEDIA_ERR_DB_INSERT_FAIL;
+		}
+	}
+
+	return res;
+}
+
+int ms_check_subfolder_count(void **handle, const char *storage_id, const char *folder_path, int *count)
+{
+	int lib_index;
+	int res = MS_MEDIA_ERR_NONE;
+	int ret;
+	int cnt = 0;
+	char *err_msg = NULL;
+
+	for (lib_index = 0; lib_index < lib_num; lib_index++) {
+		ret = ((COUNT_SUBFOLDER)func_array[lib_index][eCOUNT_SUBFOLDER])(handle[lib_index], storage_id, folder_path, &cnt, &err_msg); /*dlopen*/
+		if (ret != 0) {
+			MS_DBG_ERR("error : %s [%s] %s", g_array_index(so_array, char*, lib_index), err_msg, storage_id);
+			MS_SAFE_FREE(err_msg);
+			res = MS_MEDIA_ERR_DB_INSERT_FAIL;
+		}
+	}
+
+	*count = cnt;
+
+	return res;
+}
+
+int ms_get_folder_id(void **handle, const char *storage_id, const char *path, char **folder_id)
+{
+	int lib_index;
+	int res = MS_MEDIA_ERR_NONE;
+	int ret;
+	char *err_msg = NULL;
+	char folder_uuid[MS_UUID_SIZE] = {0,};
+
+	MS_DBG_FENTER();
+
+	for (lib_index = 0; lib_index < lib_num; lib_index++) {
+		ret = ((GET_FOLDER_ID)func_array[lib_index][eGET_FOLDER_ID])(handle[lib_index], storage_id, path, folder_uuid, &err_msg); /*dlopen*/
+		if (ret != 0) {
+			MS_DBG_ERR("error : %s [%s]", g_array_index(so_array, char*, lib_index), err_msg);
+			MS_SAFE_FREE(err_msg);
+			res = MS_MEDIA_ERR_DB_UPDATE_FAIL;
+		}
+	}
+
+	if (strlen(folder_uuid) == (MS_UUID_SIZE-1)) {
+		*folder_id = strdup(folder_uuid);
+	} else {
+		*folder_id = NULL;
+	}
+
+	MS_DBG("folder_id [%s]", folder_id);
+
+	return res;
+}
 
 /****************************************************************************************************
 FOR BULK COMMIT

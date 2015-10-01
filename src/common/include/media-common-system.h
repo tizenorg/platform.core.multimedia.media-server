@@ -42,17 +42,19 @@ typedef struct ms_block_info_s{
 	int block_type;
 } ms_block_info_s;
 
-typedef void (*block_changed_cb)(const char *mount_path, int block_type, ms_stg_status_e mount_status, void *user_data);
+typedef void (*block_changed_cb)(ms_block_info_s *block_info, void *user_data);
 int ms_sys_set_device_block_event_cb(block_changed_cb usr_callback, void *usr_data);
 int ms_sys_unset_device_block_event_cb(void);
 int ms_sys_get_device_list(ms_stg_type_e stg_type, GArray **dev_list);
 int ms_sys_release_device_list(GArray **dev_list);
 
-typedef void (*power_off_cb)(void *user_data);
+typedef struct ms_power_info_s{
+	int option;
+} ms_power_info_s;
+
+typedef void (*power_off_cb)(ms_power_info_s *power_info, void *user_data);
 int ms_sys_set_poweroff_cb(power_off_cb user_callback, void *user_data);
 int ms_sys_unset_poweroff_cb(void);
-
 int ms_sys_get_uid(uid_t *uid);
-
 
 #endif

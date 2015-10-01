@@ -27,6 +27,6 @@ int ms_mmc_insert_handler(const char *mount_path);
 int ms_mmc_remove_handler(const char *mount_path);
 int ms_usb_insert_handler(const char *mount_path);
 int ms_usb_remove_handler(const char *mount_path);
-void ms_device_block_changed_cb(const char *mount_path, int block_type, ms_stg_status_e mount_status, void *user_data);
+void ms_device_block_changed_cb(ms_block_info_s *block_info, void *user_data);
 
 #endif

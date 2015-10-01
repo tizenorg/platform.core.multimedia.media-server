@@ -245,6 +245,7 @@ gboolean ms_read_socket(gpointer user_data)
 		||req_num == MS_MSG_DIRECTORY_SCANNING_NON_RECURSIVE
 		|| req_num == MS_MSG_BURSTSHOT_INSERT
 		|| req_num == MS_MSG_DIRECTORY_SCANNING_CANCEL) {
+
 		if ((ret = ms_send_scan_request(&recv_msg, client_sock)) != MS_MEDIA_ERR_NONE) {
 			res = ret;
 			goto ERROR;
@@ -603,7 +604,7 @@ ERROR:
 
 gboolean ms_read_db_tcp_batch_socket(GIOChannel *src, GIOCondition condition, gpointer data)
 {
-#define MAX_THREAD_NUM 3
+#define MAX_THREAD_NUM 5
 
 	static GThreadPool *gtp = NULL;
 	GError *error = NULL;
