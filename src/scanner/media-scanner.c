@@ -39,7 +39,7 @@
 
 static GMainLoop *scanner_mainloop = NULL;
 
-static void __msc_power_off_cb(void* data);
+static void __msc_power_off_cb(ms_power_info_s *power_info, void* data);
 static void __msc_add_event_receiver(void *data);
 static void __msc_remove_event_receiver(void);
 
@@ -141,7 +141,7 @@ EXIT:
 	return 0;
 }
 
-static void __msc_power_off_cb(void* data)
+static void __msc_power_off_cb(ms_power_info_s *power_info, void* data)
 {
 	msc_send_power_off_request();
 

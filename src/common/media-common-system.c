@@ -79,32 +79,43 @@ static void __ms_block_changed(GDBusConnection* connection,
 					gpointer user_data)
 {
 	const char *devnode = NULL;
-	const char *mount_point = NULL;
+	const char *mount_path = NULL;
 	GVariant *tmp;
-	int block_type;
-	int state;
 	gsize size = 0;
 	block_cb_data *cb_data = (block_cb_data *)user_data;
 	void *usr_cb = cb_data->usr_cb;
 	void *usr_data = cb_data->usr_data;
+	ms_block_info_s *block_info = NULL;
+
+	MS_MALLOC(block_info, sizeof(ms_block_info_s));
+	if (block_info == NULL) {
+		MS_DBG_ERR("malloc failed");
+		return;
+	}
 
 	tmp = g_variant_get_child_value(parameters, 0);
-	block_type = g_variant_get_int32(tmp);
-	MS_DBG_ERR("block_type : %d", block_type);
+	block_info->block_type = g_variant_get_int32(tmp);
+	MS_DBG_ERR("block_type : %d", block_info->block_type);
 
 	tmp = g_variant_get_child_value(parameters, 1);
 	devnode = g_variant_get_string (tmp, &size);
 	MS_DBG_ERR("devnode : %s", devnode);
 
 	tmp = g_variant_get_child_value(parameters, 8);
-	mount_point = g_variant_get_string (tmp, &size);
-	MS_DBG_ERR("mount_point : %s", mount_point);
+	mount_path = g_variant_get_string (tmp, &size);
+	if (mount_path != NULL) {
+		block_info->mount_path = strdup(mount_path);
+		MS_DBG_ERR("mount_point : %s", block_info->mount_path);
+	}
 
 	tmp = g_variant_get_child_value(parameters, 9);
-	state = g_variant_get_int32 (tmp);
-	MS_DBG_ERR("state : %d", state);
+	block_info->state = g_variant_get_int32 (tmp);
+	MS_DBG_ERR("state : %d", block_info->state);
 
-	((block_changed_cb)usr_cb)(mount_point, block_type, state, usr_data);
+	((block_changed_cb)usr_cb)(block_info, usr_data);
+	MS_SAFE_FREE(block_info->mount_path);
+	MS_SAFE_FREE(block_info);
+
 	MS_DBG_ERR("user callback done");
 }
 
@@ -472,6 +483,7 @@ static DBusHandlerResult __poweroff_msg_filter (DBusConnection *connection, DBus
 		DBusMessageIter read_iter;
 		DBusBasicValue value;
 		power_off_cb cb_func = (power_off_cb)usr_cb;
+		ms_power_info_s *power_info = NULL;
 
 		dbus_error_init (&error);
 
@@ -497,7 +509,7 @@ static DBusHandlerResult __poweroff_msg_filter (DBusConnection *connection, DBus
 		}
 
 		if (value.i32 == 2 || value.i32 == 3)
-			cb_func(usr_data);
+			cb_func(power_info, usr_data);
 
 		return DBUS_HANDLER_RESULT_HANDLED;
 	}

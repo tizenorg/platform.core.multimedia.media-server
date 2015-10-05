@@ -59,6 +59,8 @@
 
 #define MS_SOCK_NOT_ALLOCATE -1
 
+#define MS_INI_DEFAULT_PATH "/usr/etc/media_content_config.ini"
+
 typedef enum {
 	MS_STORAGE_INTERNAL = 0,	/**< The device's internal storage */
 	MS_STORAGE_EXTERNAL = 1,	/**< The device's external storage */

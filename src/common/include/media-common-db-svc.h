@@ -45,6 +45,12 @@ typedef enum {
 	MS_NOTI_SWITCH_OFF = 1,
 } ms_noti_switch_e;
 
+typedef enum {
+	MS_ITEM_INSERT		= 0,
+	MS_ITEM_DELETE 		= 1,
+	MS_ITEM_UPDATE		= 2,
+}ms_noti_type_e;
+
 typedef int (*CONNECT)(void**, uid_t, char **);
 typedef int (*DISCONNECT)(void*, char **);
 typedef int (*INSERT_ITEM_BEGIN)(void*, int, int, int, char **);
@@ -54,20 +60,20 @@ typedef int (*SET_ITEM_VALIDITY_END)(void*, uid_t, char **);
 typedef int (*UPDATE_BEGIN)(void);
 typedef int (*UPDATE_END)(const char *, uid_t);
 
-typedef int (*SEND_DIR_UPDATE_NOTI)(void *, const char *, const char *, char **);
+typedef int (*SEND_DIR_UPDATE_NOTI)(void *, const char *, const char *, const char *, int, int, char **);
 typedef int (*CHECK_ITEM_EXIST)(void*, const char *, const char *, bool*, char **);
-typedef int (*INSERT_ITEM)(void*, const char*, const char *, int, uid_t, char **);
-typedef int (*INSERT_ITEM_IMMEDIATELY)(void*, const char *, const char *, int, uid_t, char **);
+typedef int (*INSERT_ITEM)(void*, const char *, const char *, int, uid_t, char **);
+typedef int (*INSERT_ITEM_IMMEDIATELY)(void *, const char *, const char *, int, uid_t, char **);
 typedef int (*INSERT_BURST_ITEM)(void *, const char *, const char *, int, uid_t, char **);
-typedef int (*SET_ALL_STORAGE_ITEMS_VALIDITY)(void*, const char *, int, int, uid_t, char **);
-typedef int (*SET_FOLDER_ITEM_VALIDITY)(void*, const char*, const char *, int, int, uid_t, char**);
-typedef int (*SET_ITEM_VALIDITY)(void*, const char*, const char *, int, int, uid_t, char **);
+typedef int (*SET_ALL_STORAGE_ITEMS_VALIDITY)(void *, const char *, int, int, uid_t, char **);
+typedef int (*SET_FOLDER_ITEM_VALIDITY)(void *, const char *, const char *, int, int, uid_t, char**);
+typedef int (*SET_ITEM_VALIDITY)(void *, const char *, const char *, int, int, uid_t, char **);
 typedef int (*DELETE_ITEM)(void *, const char *, const char *, uid_t, char **);
-typedef int (*DELETE_ALL_ITEMS_IN_STORAGE)(void*, const char *, int, uid_t, char **);
-typedef int (*DELETE_ALL_INVALID_ITMES_IN_STORAGE)(void*, const char *, int, uid_t, char **);
-typedef int (*DELETE_ALL_INVALID_ITEMS_IN_FOLDER)(void*, const char *, const char*, bool, uid_t, char**);
+typedef int (*DELETE_ALL_ITEMS_IN_STORAGE)(void *, const char *, int, uid_t, char **);
+typedef int (*DELETE_ALL_INVALID_ITMES_IN_STORAGE)(void *, const char *, int, uid_t, char **);
+typedef int (*DELETE_ALL_INVALID_ITEMS_IN_FOLDER)(void *, const char *, const char *, bool, uid_t, char**);
 typedef int (*COUNT_DELETE_ITEMS_IN_FOLDER)(void *, const char *, const char *, int *, char **);
-typedef int (*GET_FOLDER_LIST)(void *, const char *, char*, char ***, int **, int *, char **);
+typedef int (*GET_FOLDER_LIST)(void *, const char *, char *, char ***, int **, int **, int *, char **);
 typedef int (*UPDATE_FOLDER_TIME)(void *, const char *, const char *, uid_t, char **);
 typedef int (*GET_STORAGE_ID)(void *, const char *, char *, char **);
 typedef int (*GET_STORAGE_SCAN_STATUS)(void *, const char *, int *, char **);
@@ -94,6 +100,11 @@ typedef int (*UPDATE_ITEM_META)(void *, const char *, int, uid_t, char **);
 typedef int (*UPDATE_ITEM_BEGIN)(void *, int, char **);
 typedef int (*UPDATE_ITEM_END)(void *, uid_t, char **);
 
+typedef int (*DELETE_INVALID_FOLDER_BY_PATH)(void*, const char*, const char*, uid_t, int *, char **);
+typedef int (*CHECK_FOLDER_EXIST)(void*, const char*, const char*, char **);
+typedef int (*COUNT_SUBFOLDER)(void*, const char*, const char*, int *, char **);
+typedef int (*GET_FOLDER_ID)(void *, const char *, const char *, char *, char **);
+
 int ms_load_functions(void);
 void ms_unload_functions(void);
 int ms_get_insert_count();
@@ -110,7 +121,7 @@ int ms_validaty_change_all_items(void **handle, const char *storage_id, ms_stora
 bool ms_delete_invalid_items(void **handle, const char *storage_id, ms_storage_type_t store_type, uid_t uid);
 int ms_set_folder_item_validity(void **handle, const char *storage_id, const char *path, int validity, int recursive, uid_t uid);
 int ms_delete_invalid_items_in_folder(void **handle, const char *storage_id, const char *path, bool is_recursive, uid_t uid);
-int ms_send_dir_update_noti(void **handle, const char *storage_id, const char *path);
+int ms_send_dir_update_noti(void **handle, const char *storage_id, const char *path, const char *folder_id, ms_noti_type_e noti_type, int pid);
 int ms_count_delete_items_in_folder(void **handle, const char *storage_id, const char*path, int *count);
 int ms_get_folder_list(void **handle, const char *storage_id, char* start_path, GArray **dir_array);
 int ms_update_folder_time(void **handle, const char *storage_id, char *folder_path, uid_t uid);
@@ -133,6 +144,12 @@ int ms_delete_storage(void **handle, const char *storage_id, const char *storage
 int ms_set_storage_validity(void **handle, const char *storage_id, int validity, uid_t uid);
 int ms_set_all_storage_validity(void **handle, int validity, uid_t uid);
 int ms_update_meta_batch(void **handle, const char *path, uid_t uid);
+int ms_delete_invalid_folder_by_path(void **handle, const char *storage_id, const char *folder_path, uid_t uid, int *delete_count);
+int ms_check_folder_exist(void **handle, const char *storage_id, const char *folder_path);
+int ms_check_subfolder_count(void **handle, const char *storage_id, const char *folder_path, int *count);
+int ms_get_folder_id(void **handle, const char *storage_id, const char *path, char **folder_id);
+int ms_get_delete_count();
+void ms_reset_delete_count();
 
 /****************************************************************************************************
 FOR BULK COMMIT

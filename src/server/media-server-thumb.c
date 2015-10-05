@@ -37,6 +37,11 @@
 
 #define THUMB_SERVER_NAME "media-thumbnail"
 #define MS_SOCK_BLOCK_SIZE 512
+#define MS_INI_GET_INT(dict, key, value, default) \
+	do { \
+		value = iniparser_getint(dict, key, default); \
+		MS_DBG("get %s = %d", key, value); \
+	} while(0)
 #define THUMB_SERVER_PATH tzplatform_mkpath(TZ_SYS_BIN,"media-thumbnail-server")
 
 gboolean _ms_thumb_agent_timer();
@@ -50,6 +55,7 @@ static gboolean g_thumb_server_queued_all_extracting_request = FALSE;
 static int g_communicate_sock = 0;
 static int g_timer_id = 0;
 static int g_server_pid = 0;
+static int g_thumb_server_active = -1;
 
 static GQueue *g_request_queue = NULL;
 static int g_queue_work = 0;
@@ -1028,6 +1034,23 @@ gboolean _ms_thumb_agent_prepare_tcp_socket(int *sock_fd, unsigned short serv_po
 	*sock_fd = sock;
 
 	return TRUE;
+}
+
+int ms_thumb_get_config()
+{
+	dictionary *dict = NULL;
+
+	dict = iniparser_load(MS_INI_DEFAULT_PATH);
+	if(!dict) {
+		MS_DBG_ERR("%s load failed", MS_INI_DEFAULT_PATH);
+		return -1;
+	}
+
+	MS_INI_GET_INT(dict, "media-content-config:thumbnail_activation",g_thumb_server_active, 0);
+	MS_DBG("Thumb-server activation level = %d", g_thumb_server_active);
+
+	iniparser_freedict(dict);
+	return 0;
 }
 
 gpointer ms_thumb_agent_start_thread(gpointer data)

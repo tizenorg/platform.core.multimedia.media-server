@@ -6,7 +6,7 @@ AC_INIT([media-server], [1.0])
 AC_CONFIG_AUX_DIR([build-aux])
 AC_CONFIG_HEADERS([config.h:config.in])
 
-AM_INIT_AUTOMAKE([subdir-objects -Wall -Werror foreign])
+AM_INIT_AUTOMAKE([-Wall -Werror foreign])
 
 # for platform setting
 AC_CONFIG_MACRO_DIR([m4])
@@ -93,6 +93,10 @@ AC_SUBST(SQLITE3_LIBS)
 PKG_CHECK_MODULES(DB_UTIL, db-util)
 AC_SUBST(DB_UTIL_CFLAGS)
 AC_SUBST(DB_UTIL_LIBS)
+
+PKG_CHECK_MODULES(INIPARSER, iniparser)
+AC_SUBST(INIPARSER_CFLAGS)
+AC_SUBST(INIPARSER_LIBS)
 
 #tz-platform-config lib
 PKG_CHECK_MODULES(TZ_PLATFORM_CONFIG, libtzplatform-config)

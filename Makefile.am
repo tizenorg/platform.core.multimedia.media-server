@@ -1,4 +1,5 @@
 ACLOCAL_AMFLAGS = -I m4
+AUTOMAKE_OPTIONS = subdir-objects
 
 SUBDIRS = .
 
@@ -61,7 +62,8 @@ dist_fmsvc_DATA = ./data/mediasvr
 #libmedia utils
 ######################################################
 lib_LTLIBRARIES = libmedia-utils.la
-libmedia_utils_la_SOURCES = lib/media-util-noti.c \
+libmedia_utils_la_SOURCES = lib/media-util-noti-internal.c \
+                            lib/media-util-noti.c \
                             lib/media-util-ipc.c \
                             lib/media-util-db.c \
                             lib/media-util-register.c \
@@ -164,6 +166,7 @@ mediadb_update_LDADD = libmedia-utils.la \
 ### includeheaders ###
 includeheadersdir = $(includedir)/media-utils
 includeheaders_HEADERS = lib/include/media-util-noti-common.h \
+                         lib/include/media-util-noti-internal.h \
                          lib/include/media-util-noti.h \
                          lib/include/media-util-register.h \
                          lib/include/media-util-err.h \

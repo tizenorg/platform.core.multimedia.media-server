@@ -94,7 +94,6 @@ static char* __media_get_path(uid_t uid)
 {
 	char *result_psswd = NULL;
 	struct group *grpinfo = NULL;
-	int err = 0;
 
 	if (uid == getuid()) {
 		result_psswd = strndup(MEDIA_ROOT_PATH_INTERNAL, strlen(MEDIA_ROOT_PATH_INTERNAL));

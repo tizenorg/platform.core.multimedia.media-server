@@ -53,17 +53,17 @@ void _msc_mmc_changed_event(const char *mount_path, ms_stg_status_e mount_status
 }
 
 
-void msc_device_block_changed_cb(const char *mount_path, int block_type, ms_stg_status_e mount_status, void *user_data)
+void msc_device_block_changed_cb(ms_block_info_s *block_info, void *user_data)
 {
-	if (block_type == 0) {
+	if (block_info->block_type == 0) {
 		MS_DBG_ERR("GET THE USB EVENT");
-		if (mount_status == MS_STG_INSERTED) {
+		if (block_info->state == MS_STG_INSERTED) {
 			/*DO NOT THING*/
 		} else {
-			__msc_usb_remove_event(mount_path);
+			__msc_usb_remove_event(block_info->mount_path);
 		}
 	} else {
 		MS_DBG_ERR("GET THE MMC EVENT");
-		_msc_mmc_changed_event(mount_path, mount_status);
+		_msc_mmc_changed_event(block_info->mount_path, block_info->state);
 	}
 }
