@@ -559,7 +559,7 @@ int ms_insert_item_pass2(void **handle, const char* storage_id, const char *path
 	storage_type = ms_get_storage_type_by_full(path, uid);
 
 	for (lib_index = 0; lib_index < lib_num; lib_index++) {
-		ret = ((UPDATE_ITEM_EXTRACT)func_array[lib_index][eUPDATE_EXTRACT])(handle[lib_index], storage_id, storage_type, scan_type, path, uid, &err_msg); /*dlopen*/
+		ret = ((UPDATE_ITEM_EXTRACT)func_array[lib_index][eUPDATE_EXTRACT])(handle[lib_index], storage_id, storage_type, scan_type, uid, path, &err_msg); /*dlopen*/
 		if (ret != 0) {
 			MS_DBG_ERR("error : %s [%s] %s", g_array_index(so_array, char*, lib_index), err_msg, path);
 			MS_SAFE_FREE(err_msg);

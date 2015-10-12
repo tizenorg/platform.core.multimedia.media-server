@@ -140,10 +140,11 @@ int ms_present_mmc_status(ms_sdcard_status_type_t status)
 #define DEVICE_INFO_FILE ".device_info_"
 
 struct linux_dirent {
-	int           d_ino;
-	long           d_off;
-	unsigned short d_reclen;
-	char           d_name[];
+	ino64_t 	   d_ino;	 /* 64-bit inode number */
+	off64_t 	   d_off;	 /* 64-bit offset to next structure */
+	unsigned short d_reclen; /* Size of this dirent */
+	unsigned char  d_type;	 /* File type */
+	char		   d_name[]; /* Filename (null-terminated) */
 };
 
 #define BUF_SIZE 1024
@@ -174,7 +175,6 @@ int ms_read_device_info(const char *root_path, char **device_uuid)
 	char buf[BUF_SIZE] = {0,};
 	struct linux_dirent *d;
 	int bpos = 0;
-	char d_type;
 	bool find_uuid = FALSE;
 
 	ret = __ms_check_mount_path(root_path);
@@ -205,9 +205,8 @@ int ms_read_device_info(const char *root_path, char **device_uuid)
 
 		for (bpos = 0; bpos < nread;) {
 			d = (struct linux_dirent *) (buf + bpos);
-			d_type = *(buf + bpos + d->d_reclen - 1);
 
-			if (d_type == DT_REG && (strncmp(d->d_name, DEVICE_INFO_FILE, strlen(DEVICE_INFO_FILE)) == 0)) {
+			if (d->d_type == DT_REG && (strncmp(d->d_name, DEVICE_INFO_FILE, strlen(DEVICE_INFO_FILE)) == 0)) {
 				MS_DBG_ERR("FIND DEV INFO : %s", d->d_name);
 				bpos += d->d_reclen;
 				find_uuid = TRUE;

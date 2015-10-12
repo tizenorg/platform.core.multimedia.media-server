@@ -98,6 +98,7 @@ libmedia_utils_la_LIBADD  =   $(GLIB_LIBS) \
 
 bin_PROGRAMS = media-server \
 		media-scanner \
+		media-scanner-v2 \
 		mediadb-update
 ######################################################
 #media server
@@ -144,6 +145,29 @@ media_scanner_CFLAGS += -fPIE
 media_scanner_LDFLAGS = -pie
 
 media_scanner_LDADD = $(COMMON_LDADD)
+
+######################################################
+#media scanner v2
+######################################################
+media_scanner_v2_SOURCES = src/common/media-common-utils.c \
+			src/common/media-common-system.c \
+                        src/common/media-common-external-storage.c \
+			src/common/media-common-db-svc.c \
+			src/scanner-v2/media-scanner-common-v2.c \
+			src/scanner-v2/media-scanner-device-block-v2.c\
+                        src/scanner-v2/media-scanner-scan-v2.c \
+                        src/scanner-v2/media-scanner-socket-v2.c \
+			src/scanner-v2/media-scanner-extract-v2.c \
+                        src/scanner-v2/media-scanner-v2.c
+
+media_scanner_v2_CFLAGS = -I${srcdir}/src/scanner-v2/include \
+			   $(COMMON_CFLAGS)
+
+media_scanner_v2_CFLAGS += -fPIE
+
+media_scanner_v2_LDFLAGS = -pie
+
+media_scanner_v2_LDADD = $(COMMON_LDADD)
 
 ######################################################
 #mediadb_udpate

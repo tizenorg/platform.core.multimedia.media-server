@@ -84,7 +84,7 @@ typedef int (*SET_FOLDER_VALIDITY)(void*, const char*, const char*, int, bool, u
 typedef int (*INSERT_FOLDER_BEGIN)(void *, int, char**);
 typedef int (*INSERT_FOLDER_END)(void*, uid_t, char**);
 typedef int (*INSERT_ITEM_SCAN)(void*, const char*, const char*, int, uid_t, char **);
-typedef int (*UPDATE_ITEM_EXTRACT)(void*, const char*, int, int, const char*, uid_t, char **);
+typedef int (*UPDATE_ITEM_EXTRACT)(void*, const char*, int, int, uid_t, const char*, char **);
 
 typedef int (*CHECK_DB)(void*, bool*, uid_t, char **);
 typedef int (*GET_UUID)(void *, char **, char **);

@@ -1,6 +1,6 @@
 Name:       media-server
 Summary:    File manager service server.
-Version:    0.2.60
+Version:    0.2.59
 Release:    0
 Group:      Multimedia/Service
 License:    Apache-2.0
@@ -107,6 +107,7 @@ ln -sf ../media-server-user.path  %{_unitdir_user}/default.target.wants/
 %defattr(-,root,root,-)
 %{_bindir}/media-server
 %{_bindir}/media-scanner
+%{_bindir}/media-scanner-v2
 %{_bindir}/mediadb-update
 %exclude %attr(755,-,-) %{_sysconfdir}/rc.d/init.d/mediasvr
 %exclude /etc/rc.d/rc3.d/S46mediasvr
@@ -134,3 +135,4 @@ ln -sf ../media-server-user.path  %{_unitdir_user}/default.target.wants/
 %{_libdir}/libmedia-utils.so
 %{_libdir}/pkgconfig/libmedia-utils.pc
 %{_includedir}/media-utils/*.h
+
