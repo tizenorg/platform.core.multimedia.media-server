@@ -595,175 +595,6 @@ gboolean _ms_thumb_agent_timer()
 	return FALSE;
 }
 
-int _ms_thumb_cancel_media(const char *path, int pid)
-{
-	int ret = -1;
-	int i = 0;
-	int req_len = 0;
-
-	req_len = g_queue_get_length(g_request_queue);
-
-	MS_DBG("Queue length : %d", req_len);
-
-	for (i = 0; i < req_len; i++) {
-		thumbRequest *req = NULL;
-		req = (thumbRequest *)g_queue_peek_nth(g_request_queue, i);
-		if (req == NULL) continue;
-
-		if ((req->recv_msg->pid) == pid && (strncmp(path, req->recv_msg->org_path, strlen(path))) == 0 && req->recv_msg->request_id == 0) {
-			MS_DBG("Remove %s from queue", req->recv_msg->org_path);
-			g_queue_pop_nth(g_request_queue, i);
-
-			close(req->client_sock);
-			MS_SAFE_FREE(req->recv_msg);
-			MS_SAFE_FREE(req);
-			ret = 0;
-
-			break;
-		}
-	}
-
-	return ret;
-}
-
-int _ms_thumb_cancel_media_raw_data(int request_id, int pid)
-{
-	int ret = -1;
-	int i = 0;
-	int req_len = 0;
-
-	req_len = g_queue_get_length(g_request_queue);
-
-	MS_DBG("Queue length : %d", req_len);
-
-	for (i = 0; i < req_len; i++) {
-		thumbRequest *req = NULL;
-		req = (thumbRequest *)g_queue_peek_nth(g_request_queue, i);
-		if (req == NULL) continue;
-
-		if ((req->recv_msg->pid) == pid && request_id == req->recv_msg->request_id) {
-			MS_DBG("Remove %d from queue", req->recv_msg->request_id);
-			g_queue_pop_nth(g_request_queue, i);
-
-			close(req->client_sock);
-			MS_SAFE_FREE(req->recv_msg);
-			MS_SAFE_FREE(req);
-			ret = 0;
-
-			break;
-		}
-	}
-
-	return ret;
-}
-
-
-int _ms_thumb_cancel_all(int pid)
-{
-	int ret = -1;
-	int i = 0;
-	int req_len = 0;
-
-	req_len = g_queue_get_length(g_request_queue);
-
-	MS_DBG("Queue length : %d", req_len);
-
-	for (i = 0; i < req_len; i++) {
-		thumbRequest *req = NULL;
-		req = (thumbRequest *)g_queue_peek_nth(g_request_queue, i);
-		if (req == NULL) continue;
-
-		if (req->recv_msg->pid == pid && req->recv_msg->request_id == 0) {
-			MS_DBG("Remove [%d] %s from queue", req->recv_msg->pid, req->recv_msg->org_path);
-			g_queue_pop_nth(g_request_queue, i);
-			i--;
-			req_len--;
-
-			close(req->client_sock);
-			MS_SAFE_FREE(req->recv_msg);
-			MS_SAFE_FREE(req);
-			ret = 0;
-		}
-	}
-
-	return ret;
-}
-
-int _ms_thumb_cancel_all_raw_data(int pid)
-{
-	int ret = -1;
-	int i = 0;
-	int req_len = 0;
-
-	req_len = g_queue_get_length(g_request_queue);
-
-	MS_DBG("Queue length : %d", req_len);
-
-	for (i = 0; i < req_len; i++) {
-		thumbRequest *req = NULL;
-		req = (thumbRequest *)g_queue_peek_nth(g_request_queue, i);
-		if (req == NULL) continue;
-
-		if (req->recv_msg->pid == pid && req->recv_msg->request_id != 0) {
-			MS_DBG("Remove [%d] %s from queue", req->recv_msg->pid, req->recv_msg->org_path);
-			g_queue_pop_nth(g_request_queue, i);
-			i--;
-			req_len--;
-
-			close(req->client_sock);
-			MS_SAFE_FREE(req->recv_msg);
-			MS_SAFE_FREE(req);
-			ret = 0;
-		}
-	}
-
-	return ret;
-}
-
-void _ms_thumb_cancel_request(thumbRequest *thumb_req)
-{
-	MS_DBG("");
-	int ret = -1;
-
-	if (thumb_req == NULL) return;
-
-	thumbMsg *recv_msg = thumb_req->recv_msg;
-	if (recv_msg == NULL) {
-		MS_SAFE_FREE(thumb_req);
-		return;
-	}
-
-	if (recv_msg->msg_type == 3)
-		ret = _ms_thumb_cancel_media(recv_msg->org_path, recv_msg->pid);
-	else if (recv_msg->msg_type == 4)
-		ret = _ms_thumb_cancel_all(recv_msg->pid);
-	else if (recv_msg->msg_type == 9)
-		ret = _ms_thumb_cancel_all_raw_data(recv_msg->pid);
-	else if (recv_msg->msg_type == 8)
-		ret = _ms_thumb_cancel_media_raw_data(recv_msg->request_id, recv_msg->pid);
-
-	if (ret == 0) {
-		recv_msg->status = 0;  // THUMB_SUCCESS
-	} else {
-		recv_msg->status = -1;  // THUMB_FAIL
-	}
-
-	if (recv_msg->origin_path_size <= 0  || recv_msg->origin_path_size > MS_FILE_PATH_LEN_MAX) {
-		MS_DBG_ERR("recv_msg->origin_path_size is invalid %d", recv_msg->origin_path_size );
-		return;
-	}
-
-	recv_msg->dest_path_size = recv_msg->origin_path_size;
-	strncpy(recv_msg->dst_path, recv_msg->org_path, recv_msg->dest_path_size);
-
-	close(thumb_req->client_sock);
-
-	MS_SAFE_FREE(thumb_req->recv_msg);
-	MS_SAFE_FREE(thumb_req);
-
-	return;
-}
-
 gboolean _ms_thumb_request_to_server(gpointer data)
 {
 	int req_len = 0;
@@ -881,7 +712,7 @@ gboolean _ms_thumb_request_to_server(gpointer data)
 			block_size = buf_size;
 		}
 		if (send(client_sock, buf+sending_block, block_size, 0) != block_size) {
-			MS_DBG_ERR("sendto failed : %s", strerror(errno));
+			MS_DBG_STRERROR("sendto failed");
 		}
 		sending_block += block_size;
 		buf_size -= block_size;
@@ -967,11 +798,6 @@ gboolean _ms_thumb_agent_read_socket(GIOChannel *src,
 	thumb_req->client_sock = client_sock;
 	thumb_req->recv_msg = recv_msg;
 
-	if (recv_msg->msg_type == 3 || recv_msg->msg_type == 4  || recv_msg->msg_type == 8  || recv_msg->msg_type == 9) { // THUMB_REQUEST_CANCEL_MEDIA || THUMB_REQUEST_CANCEL_ALL || THUMB_REQUEST_CANCEL_ALL_RAW_DATA
-		_ms_thumb_cancel_request(thumb_req);
-		return TRUE;
-	}
-
 	if (g_request_queue == NULL) {
 		MS_DBG_WARN("queue is init");
 		g_request_queue = g_queue_new();
@@ -994,7 +820,7 @@ gboolean _ms_thumb_agent_read_socket(GIOChannel *src,
 		_ms_thumb_set_buffer(&res_msg, &buf, &buf_size);
 
 		if (send(client_sock, buf, buf_size, 0) != buf_size) {
-			MS_DBG_ERR("sendto failed : %s", strerror(errno));
+			MS_DBG_STRERROR("sendto failed");
 		} else {
 			MS_DBG("Sent Refuse msg from %s", recv_msg->org_path);
 		}
@@ -1055,11 +881,12 @@ int ms_thumb_get_config()
 
 gpointer ms_thumb_agent_start_thread(gpointer data)
 {
-	MS_DBG("");
 	int sockfd = -1;
 	GSource *source = NULL;
 	GIOChannel *channel = NULL;
 	GMainContext *context = NULL;
+
+	MS_DBG_FENTER();
 
 	/* Create and bind new TCP socket */
 	if (!_ms_thumb_agent_prepare_tcp_socket(&sockfd, MS_THUMB_CREATOR_PORT)) {
@@ -1102,6 +929,8 @@ gpointer ms_thumb_agent_start_thread(gpointer data)
 	close(g_communicate_sock);
 
 	g_main_loop_unref(g_thumb_agent_loop);
+
+	close(sockfd);
 
 	return NULL;
 }
