@@ -69,7 +69,7 @@ gboolean msc_receive_request(GIOChannel *src, GIOCondition condition, gpointer d
 	/* copy from recived data */
 	req_num = recv_msg->msg_type;
 
-	switch(req_num){
+	switch (req_num) {
 		case MS_MSG_BULK_INSERT:
 		case MS_MSG_BURSTSHOT_INSERT:
 			{

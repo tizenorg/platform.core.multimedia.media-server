@@ -80,12 +80,12 @@ int main(int argc, char **argv)
 
 	/* Create pipe */
 	err = unlink(MS_SCANNER_FIFO_PATH_REQ);
-	if (err !=0) {
+	if (err != 0) {
 		MS_DBG_STRERROR("[No-Error] unlink failed");
 	}
 
 	err = mkfifo(MS_SCANNER_FIFO_PATH_REQ, MS_SCANNER_FIFO_MODE);
-	if (err !=0) {
+	if (err != 0) {
 		MS_DBG_STRERROR("mkfifo failed");
 		return MS_MEDIA_ERR_INTERNAL;
 	}
@@ -125,11 +125,11 @@ int main(int argc, char **argv)
 
 	g_main_loop_run(scanner_mainloop2);
 
-	g_thread_join (scan_thread);
-	g_thread_join (register_thread);
-	g_thread_join (storage_scan_thread);
-	g_thread_join (storage_extract_thread);
-	g_thread_join (folder_extract_thread);
+	g_thread_join(scan_thread);
+	g_thread_join(register_thread);
+	g_thread_join(storage_scan_thread);
+	g_thread_join(storage_extract_thread);
+	g_thread_join(folder_extract_thread);
 
 	g_io_channel_shutdown(channel, FALSE, NULL);
 	g_io_channel_unref(channel);

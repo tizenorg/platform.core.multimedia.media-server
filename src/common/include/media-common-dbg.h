@@ -39,30 +39,30 @@
 
 #define MS_DBG_SLOG(fmt, args...) do{ if (true) { \
 		SECURE_LOGD(fmt "\n" , ##args); \
-		}} while(false)
+		}} while (false)
 
 #define MS_DBG(fmt, args...) do{ if (true) { \
 		LOGD(fmt "\n" , ##args); \
-		}} while(false)
+		}} while (false)
 
 #define MS_DBG_INFO(fmt, args...) do{ if (true) { \
 		LOGI(fmt "\n" , ##args); \
-		}} while(false)
+		}} while (false)
 
 #define MS_DBG_WARN(fmt, args...) do{ if (true) { \
 		LOGW(fmt "\n", ##args); \
-		}} while(false)
+		}} while (false)
 
 #define MS_DBG_ERR(fmt, args...) do{ if (true) { \
 		LOGE(fmt "\n", ##args); \
-		}} while(false)
+		}} while (false)
 
 #define MS_DBG_FENTER() do{ if (true) { \
 		LOGD("<ENTER> \n"); \
-		}} while(false)
+		}} while (false)
 
 #define MS_DBG_FLEAVE() do{ if (true) { \
 		LOGD("<LEAVE> \n"); \
-		}} while(false)
+		}} while (false)
 
 #endif /*_MEDIA_COMMON_DBG_H_*/

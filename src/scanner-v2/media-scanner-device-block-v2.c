@@ -42,7 +42,7 @@ static void __msc_usb_remove_event(const char *mount_path)
 	int remain_request = 0;
 	bool status = FALSE;
 
-	if(!ms_config_get_int(VCONFKEY_FILEMANAGER_DB_STATUS, &update_status)) {
+	if (!ms_config_get_int(VCONFKEY_FILEMANAGER_DB_STATUS, &update_status)) {
 		MS_DBG_ERR("ms_config_get_int[VCONFKEY_FILEMANAGER_DB_STATUS]");
 	}
 

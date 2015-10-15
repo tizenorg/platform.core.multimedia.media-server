@@ -36,7 +36,7 @@
 
 #define MS_SOCK_UDP_BLOCK_SIZE 512
 
-char MEDIA_IPC_PATH[][70] ={
+char MEDIA_IPC_PATH[][70] = {
 	{"/var/run/media-server/media_ipc_dbbatchupdate.socket"},
 	{"/var/run/media-server/media_ipc_scandaemon.socket"},
 	{"/var/run/media-server/media_ipc_scanner.socket"},
@@ -46,7 +46,7 @@ char MEDIA_IPC_PATH[][70] ={
 	{"/var/run/media-server/media_ipc_thumbdaemon.socket"},
 };
 
-char MEDIA_IPC_PATH_CLIENT[][80] ={
+char MEDIA_IPC_PATH_CLIENT[][80] = {
 	{"/var/run/user/%i/media-server/media_ipc_dbbatchupdate_client%i.socket"},
 	{"/var/run/user/%i/media-server/media_ipc_scandaemon_client%i.socket"},
 	{"/var/run/user/%i/media-server/media_ipc_scanner_client%i.socket"},
@@ -56,7 +56,7 @@ char MEDIA_IPC_PATH_CLIENT[][80] ={
 	{"/var/run/user/%i/media-server/media_ipc_thumbdaemon_client%i.socket"},
 };
 
-char MEDIA_IPC_PATH_CLIENT_ROOT[][80] ={
+char MEDIA_IPC_PATH_CLIENT_ROOT[][80] = {
 	{"/var/run/media-server/media_ipc_dbbatchupdate_client%i.socket"},
 	{"/var/run/media-server/media_ipc_scandaemon_client%i.socket"},
 	{"/var/run/media-server/media_ipc_scanner_client%i.socket"},
@@ -66,22 +66,24 @@ char MEDIA_IPC_PATH_CLIENT_ROOT[][80] ={
 	{"/var/run/media-server/media_ipc_thumbdaemon_client%i.socket"},
 };
 
-static int _mkdir(const char *dir, mode_t mode) {
-        char tmp[256];
-        char *p = NULL;
-        size_t len;
+static int _mkdir(const char *dir, mode_t mode)
+{
+	char tmp[256];
+	char *p = NULL;
+	size_t len;
 
-        snprintf(tmp, sizeof(tmp),"%s",dir);
-        len = strlen(tmp);
-        if(tmp[len - 1] == '/')
-                tmp[len - 1] = 0;
-        for(p = tmp + 1; *p; p++)
-                if(*p == '/') {
-                        *p = 0;
-                        mkdir(tmp, mode);
-                        *p = '/';
-                }
-        return mkdir(tmp, mode);
+	snprintf(tmp, sizeof(tmp), "%s", dir);
+	len = strlen(tmp);
+	if (tmp[len - 1] == '/')
+		tmp[len - 1] = 0;
+	for (p = tmp + 1; *p; p++)
+		if (*p == '/') {
+			*p = 0;
+			mkdir(tmp, mode);
+			*p = '/';
+		}
+
+	return mkdir(tmp, mode);
 }
 
 int ms_ipc_create_client_socket(ms_protocol_e protocol, int timeout_sec, ms_sock_info_s* sock_info)
@@ -91,24 +93,23 @@ int ms_ipc_create_client_socket(ms_protocol_e protocol, int timeout_sec, ms_sock
 
 	struct timeval tv_timeout = { timeout_sec, 0 };
 
-	if(protocol == MS_PROTOCOL_UDP)
-	{
-		char *path;
-		int cx,len;
+	if (protocol == MS_PROTOCOL_UDP) {
+		char *path = NULL;
+		int cx = 0, len = 0;
 
-		if (tzplatform_getuid(TZ_USER_NAME) == 0 ){
-			cx = snprintf ( NULL, 0, MEDIA_IPC_PATH_CLIENT_ROOT[sock_info->port],getpid());
-			sock_info->sock_path = (char*)malloc((cx + 1 )*sizeof(char));
-			snprintf ( sock_info->sock_path, cx + 1,  MEDIA_IPC_PATH_CLIENT_ROOT[sock_info->port],getpid());
+		if (tzplatform_getuid(TZ_USER_NAME) == 0) {
+			cx = snprintf(NULL, 0, MEDIA_IPC_PATH_CLIENT_ROOT[sock_info->port], getpid());
+			sock_info->sock_path = (char*)malloc((cx + 1)*sizeof(char));
+			snprintf(sock_info->sock_path, cx + 1,  MEDIA_IPC_PATH_CLIENT_ROOT[sock_info->port], getpid());
 		} else {
-			len = snprintf ( NULL, 0, "/var/run/user/%i/media-server", tzplatform_getuid(TZ_USER_NAME));
-			path = (char*)malloc((len + 1 )*sizeof(char));
-			snprintf ( path, len + 1, "/var/run/user/%i/media-server", tzplatform_getuid(TZ_USER_NAME));
+			len = snprintf(NULL, 0, "/var/run/user/%i/media-server", tzplatform_getuid(TZ_USER_NAME));
+			path = (char*)malloc((len + 1)*sizeof(char));
+			snprintf(path, len + 1, "/var/run/user/%i/media-server", tzplatform_getuid(TZ_USER_NAME));
 			_mkdir(path, 0777);
 			free(path);
-			cx = snprintf ( NULL, 0, MEDIA_IPC_PATH_CLIENT[sock_info->port], tzplatform_getuid(TZ_USER_NAME),getpid());
-			sock_info->sock_path = (char*)malloc((cx + 1 )*sizeof(char));
-			snprintf ( sock_info->sock_path, cx + 1,  MEDIA_IPC_PATH_CLIENT[sock_info->port],tzplatform_getuid(TZ_USER_NAME),getpid());
+			cx = snprintf(NULL, 0, MEDIA_IPC_PATH_CLIENT[sock_info->port], tzplatform_getuid(TZ_USER_NAME), getpid());
+			sock_info->sock_path = (char*)malloc((cx + 1)*sizeof(char));
+			snprintf(sock_info->sock_path, cx + 1,  MEDIA_IPC_PATH_CLIENT[sock_info->port], tzplatform_getuid(TZ_USER_NAME), getpid());
 		}
 
 		/* Create a datagram/UDP socket */
@@ -130,9 +131,7 @@ int ms_ipc_create_client_socket(ms_protocol_e protocol, int timeout_sec, ms_sock
 			free(sock_info->sock_path);
 			return MS_MEDIA_ERR_SOCKET_CONN;
 		}
-	}
-	else
-	{
+	} else {
 		/*Create TCP Socket*/
 		if ((sock = socket(PF_FILE, SOCK_STREAM, 0)) < 0) {
 			MSAPI_DBG_STRERROR("socket failed");
@@ -162,7 +161,7 @@ int ms_ipc_delete_client_socket(ms_sock_info_s* sock_info)
 	MSAPI_DBG("sockfd %d close", sock_info->sock_fd);
 	if (sock_info->sock_path != NULL) {
 		err = unlink(sock_info->sock_path);
-		if (err< 0) {
+		if (err < 0) {
 			MSAPI_DBG_STRERROR("unlink failed");
 		}
 		free(sock_info->sock_path);
@@ -181,16 +180,13 @@ int ms_ipc_create_server_socket(ms_protocol_e protocol, ms_msg_port_type_e port,
 
 	serv_port = port;
 
-	if(protocol == MS_PROTOCOL_UDP)
-	{
+	if (protocol == MS_PROTOCOL_UDP) {
 		/* Create a datagram/UDP socket */
 		if ((sock = socket(PF_FILE, SOCK_DGRAM, 0)) < 0) {
 			MSAPI_DBG_STRERROR("socket failed");
 			return MS_MEDIA_ERR_SOCKET_CONN;
 		}
-	}
-	else
-	{
+	} else {
 		/* Create a TCP socket */
 		if ((sock = socket(PF_FILE, SOCK_STREAM, 0)) < 0) {
 			MSAPI_DBG_STRERROR("socket failed");
@@ -206,12 +202,12 @@ int ms_ipc_create_server_socket(ms_protocol_e protocol, ms_msg_port_type_e port,
 	strncpy(serv_addr.sun_path, MEDIA_IPC_PATH[serv_port], strlen(MEDIA_IPC_PATH[serv_port]));
 
 	/* Bind to the local address */
-	for (i = 0; i < 100; i ++) {
+	for (i = 0; i < 100; i++) {
 		if (bind(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) == 0) {
 			bind_success = true;
 			break;
 		}
-		MSAPI_DBG("%d",i);
+		MSAPI_DBG("%d", i);
 		usleep(250000);
 	}
 
@@ -360,7 +356,7 @@ int ms_ipc_wait_message(int sockfd, void *recv_msg, unsigned int msg_size, struc
 	int recv_msg_size;
 	socklen_t addr_len;
 
-	if (!recv_msg ||!recv_addr)
+	if (!recv_msg || !recv_addr)
 		return MS_MEDIA_ERR_INVALID_PARAMETER;
 
 	addr_len = sizeof(struct sockaddr_un);
@@ -390,20 +386,20 @@ int ms_ipc_wait_block_message(int sockfd, void *recv_msg, unsigned int msg_size,
 	int recv_size = 0;
 	unsigned int remain_size = msg_size;
 
-	if (!recv_msg ||!recv_addr)
+	if (!recv_msg || !recv_addr)
 		return MS_MEDIA_ERR_INVALID_PARAMETER;
 
 	addr_len = sizeof(struct sockaddr_un);
 	block_size = MS_SOCK_UDP_BLOCK_SIZE;
 	block_buf = malloc(block_size * sizeof(unsigned char));
-	if(block_buf == NULL) {
+	if (block_buf == NULL) {
 		MSAPI_DBG_ERR("malloc failed.");
 		return MS_MEDIA_ERR_OUT_OF_MEMORY;
 	}
 	memset(block_buf, 0, block_size * sizeof(unsigned char));
 
-	while(remain_size > 0) {
-		if(remain_size < MS_SOCK_UDP_BLOCK_SIZE) {
+	while (remain_size > 0) {
+		if (remain_size < MS_SOCK_UDP_BLOCK_SIZE) {
 			block_size = remain_size;
 		}
 		if ((recv_msg_size = recvfrom(sockfd, block_buf, block_size, 0, (struct sockaddr *)recv_addr, &addr_len)) < 0) {

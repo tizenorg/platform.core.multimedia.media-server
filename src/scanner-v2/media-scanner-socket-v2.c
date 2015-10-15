@@ -66,7 +66,7 @@ static int _msc_remove_request(GAsyncQueue *req_queue, ms_comm_msg_s *recv_msg)
 
 	temp_scan_queue = g_async_queue_new();
 
-	for (i = 0; i <len; i++) {
+	for (i = 0; i < len; i++) {
 		/*create new queue to compare request*/
 		msg = g_async_queue_pop(scan_queue2);
 		if ((strcmp(msg->msg, cancel_path) == 0) && (pid == msg->pid)) {
@@ -75,7 +75,7 @@ static int _msc_remove_request(GAsyncQueue *req_queue, ms_comm_msg_s *recv_msg)
 			g_async_queue_push(temp_scan_queue, GINT_TO_POINTER(msg));
 		}
 	}
-	g_async_queue_unref (scan_queue2);
+	g_async_queue_unref(scan_queue2);
 	scan_queue2 = temp_scan_queue;
 
 END_REMOVE_REQUEST:
@@ -84,10 +84,9 @@ END_REMOVE_REQUEST:
 
 	GAsyncQueue *temp_extract_queue = NULL;
 	int len_extract = g_async_queue_length(folder_extract_queue);
-	if(len_extract != 0)
-	{
+	if (len_extract != 0) {
 		temp_extract_queue = g_async_queue_new();
-		for (i = 0; i <len_extract; i++) {
+		for (i = 0; i < len_extract; i++) {
 			/*create new queue to compare request*/
 			msg = g_async_queue_pop(folder_extract_queue);
 			if ((strcmp(msg->msg, cancel_path) == 0) && (pid == msg->pid)) {
@@ -96,7 +95,7 @@ END_REMOVE_REQUEST:
 				g_async_queue_push(temp_extract_queue, GINT_TO_POINTER(msg));
 			}
 		}
-		g_async_queue_unref (folder_extract_queue);
+		g_async_queue_unref(folder_extract_queue);
 		folder_extract_queue = temp_extract_queue;
 	}
 
@@ -135,7 +134,7 @@ gboolean msc_receive_request(GIOChannel *src, GIOCondition condition, gpointer d
 	/* copy from recived data */
 	req_num = recv_msg->msg_type;
 
-	switch(req_num){
+	switch (req_num) {
 		case MS_MSG_BULK_INSERT:
 		case MS_MSG_BURSTSHOT_INSERT:
 			{

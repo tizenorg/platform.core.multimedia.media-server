@@ -63,7 +63,7 @@ static GDBusConnection *g_usb_bus;
 
 static int g_usb_handler;
 
-typedef struct block_cb_data{
+typedef struct block_cb_data {
 	block_changed_cb usr_cb;
 	void *usr_data;
 } block_cb_data;
@@ -98,18 +98,18 @@ static void __ms_block_changed(GDBusConnection* connection,
 	MS_DBG_ERR("block_type : %d", block_info->block_type);
 
 	tmp = g_variant_get_child_value(parameters, 1);
-	devnode = g_variant_get_string (tmp, &size);
+	devnode = g_variant_get_string(tmp, &size);
 	MS_DBG_ERR("devnode : %s", devnode);
 
 	tmp = g_variant_get_child_value(parameters, 8);
-	mount_path = g_variant_get_string (tmp, &size);
+	mount_path = g_variant_get_string(tmp, &size);
 	if (mount_path != NULL) {
 		block_info->mount_path = strdup(mount_path);
 		MS_DBG_ERR("mount_point : %s", block_info->mount_path);
 	}
 
 	tmp = g_variant_get_child_value(parameters, 9);
-	block_info->state = g_variant_get_int32 (tmp);
+	block_info->state = g_variant_get_int32(tmp);
 	MS_DBG_ERR("state : %d", block_info->state);
 
 	((block_changed_cb)usr_cb)(block_info, usr_data);
@@ -138,8 +138,8 @@ static int __ms_sys_subscribe_device_block_event(block_changed_cb usr_callback, 
 	if (g_usb_bus == NULL) {
 		g_usb_bus = g_bus_get_sync(G_BUS_TYPE_SYSTEM, NULL, &error);
 		if (!g_usb_bus) {
-			MS_DBG_ERR ("Failed to connect to the g D-BUS daemon: %s", error->message);
-			g_error_free (error);
+			MS_DBG_ERR("Failed to connect to the g D-BUS daemon: %s", error->message);
+			g_error_free(error);
 			ret = MS_MEDIA_ERR_INTERNAL;
 			goto ERROR;
 		}
@@ -203,9 +203,8 @@ int ms_sys_unset_device_block_event_cb(void)
 	return MS_MEDIA_ERR_NONE;
 }
 
-#define DBUS_REPLY_TIMEOUT  (-1)
-static int __ms_dbus_method_sync(const char *dest, const char *path,
-        const char *interface, const char *method, const char *param, GArray **dev_list)
+#define DBUS_REPLY_TIMEOUT (-1)
+static int __ms_dbus_method_sync(const char *dest, const char *path, const char *interface, const char *method, const char *param, GArray **dev_list)
 {
 	DBusConnection *conn;
 	DBusMessage *msg;
@@ -289,7 +288,7 @@ static int __ms_dbus_method_sync(const char *dest, const char *path,
 
 		dbus_message_iter_next(&piter);
 		dbus_message_iter_get_basic(&piter, &val_int);
-	        MS_DBG("\treadonly(%d)", val_int);
+		MS_DBG("\treadonly(%d)", val_int);
 
 		dbus_message_iter_next(&piter);
 		dbus_message_iter_get_basic(&piter, &val_str);
@@ -345,15 +344,15 @@ int ms_sys_get_device_list(ms_stg_type_e stg_type, GArray **dev_list)
 int ms_sys_release_device_list(GArray **dev_list)
 {
 	if (*dev_list) {
-		while((*dev_list)->len != 0) {
+		while ((*dev_list)->len != 0) {
 			ms_block_info_s *data = NULL;
 			data = g_array_index(*dev_list , ms_block_info_s*, 0);
-			g_array_remove_index (*dev_list, 0);
-			MS_DBG("MOUNT PATH [%s] RELEASED",data->mount_path);
+			g_array_remove_index(*dev_list, 0);
+			MS_DBG("MOUNT PATH [%s] RELEASED", data->mount_path);
 			MS_SAFE_FREE(data->mount_path);
 			MS_SAFE_FREE(data);
 		}
-		g_array_free (*dev_list, FALSE);
+		g_array_free(*dev_list, FALSE);
 		*dev_list = NULL;
 	}
 
@@ -440,7 +439,7 @@ int ms_sys_get_uid(uid_t *uid)
 {
 	int ret;
 
-	ret = __ms_dbus_get_uid(UID_DBUS_NAME,UID_DBUS_PATH, UID_DBUS_INTERFACE, UID_DBUS_METHOD, uid);
+	ret = __ms_dbus_get_uid(UID_DBUS_NAME, UID_DBUS_PATH, UID_DBUS_INTERFACE, UID_DBUS_METHOD, uid);
 	if (ret < 0) {
 		MS_DBG("Failed to send dbus (%d)", ret);
 	} else {
@@ -459,7 +458,7 @@ int ms_sys_get_uid(uid_t *uid)
 #define POWER_DBUS_INTERFACE "org.tizen.system.deviced.PowerOff"
 #define POWER_DBUS_MATCH_RULE "type='signal',interface='org.tizen.system.deviced.PowerOff'"
 
-typedef struct pwoff_cb_data{
+typedef struct pwoff_cb_data {
 	power_off_cb usr_cb;
 	void *usr_data;
 } pwoff_cb_data;
@@ -468,7 +467,7 @@ DBusConnection *g_pwr_dbus;
 
 pwoff_cb_data *g_pwr_cb_data = NULL;
 
-static DBusHandlerResult __poweroff_msg_filter (DBusConnection *connection, DBusMessage *message, void *user_data)
+static DBusHandlerResult __poweroff_msg_filter(DBusConnection *connection, DBusMessage *message, void *user_data)
 {
 	pwoff_cb_data *cb_data = (pwoff_cb_data *)user_data;
 	void *usr_cb = cb_data->usr_cb;
@@ -477,7 +476,7 @@ static DBusHandlerResult __poweroff_msg_filter (DBusConnection *connection, DBus
 	MS_DBG_FENTER();
 
 	/* A Ping signal on the com.burtonini.dbus.Signal interface */
-	if (dbus_message_is_signal (message, POWER_DBUS_INTERFACE, POWER_DBUS_NAME)) {
+	if (dbus_message_is_signal(message, POWER_DBUS_INTERFACE, POWER_DBUS_NAME)) {
 		int current_type = DBUS_TYPE_INVALID;
 		DBusError error;
 		DBusMessageIter read_iter;
@@ -485,13 +484,13 @@ static DBusHandlerResult __poweroff_msg_filter (DBusConnection *connection, DBus
 		power_off_cb cb_func = (power_off_cb)usr_cb;
 		ms_power_info_s *power_info = NULL;
 
-		dbus_error_init (&error);
+		dbus_error_init(&error);
 
 		/* get data from dbus message */
-		dbus_message_iter_init (message, &read_iter);
-		while ((current_type = dbus_message_iter_get_arg_type (&read_iter)) != DBUS_TYPE_INVALID){
-	                dbus_message_iter_get_basic (&read_iter, &value);
-			switch(current_type) {
+		dbus_message_iter_init(message, &read_iter);
+		while ((current_type = dbus_message_iter_get_arg_type(&read_iter)) != DBUS_TYPE_INVALID) {
+			dbus_message_iter_get_basic(&read_iter, &value);
+			switch (current_type) {
 				case DBUS_TYPE_INT32:
 					MS_DBG_WARN("value[%d]", value.i32);
 					break;
@@ -505,7 +504,7 @@ static DBusHandlerResult __poweroff_msg_filter (DBusConnection *connection, DBus
 				break;
 			}
 
-			dbus_message_iter_next (&read_iter);
+			dbus_message_iter_next(&read_iter);
 		}
 
 		if (value.i32 == 2 || value.i32 == 3)
@@ -522,19 +521,19 @@ int ms_sys_set_poweroff_cb(power_off_cb user_callback, void *user_data)
 	DBusError error;
 
 	/*add noti receiver for power off*/
-	dbus_error_init (&error);
+	dbus_error_init(&error);
 
-	g_pwr_dbus = dbus_bus_get (DBUS_BUS_SYSTEM, &error);
+	g_pwr_dbus = dbus_bus_get(DBUS_BUS_SYSTEM, &error);
 	if (!g_pwr_dbus) {
-		MS_DBG_ERR ("Failed to connect to the D-BUS daemon: %s", error.message);
+		MS_DBG_ERR("Failed to connect to the D-BUS daemon: %s", error.message);
 		return MS_MEDIA_ERR_INTERNAL;
 	}
 
-	dbus_connection_setup_with_g_main (g_pwr_dbus, NULL);
+	dbus_connection_setup_with_g_main(g_pwr_dbus, NULL);
 
 	g_pwr_cb_data = malloc(sizeof(pwoff_cb_data));
 	if (g_pwr_cb_data == NULL) {
-		MS_DBG_ERR ("malloc failed");
+		MS_DBG_ERR("malloc failed");
 		return MS_MEDIA_ERR_OUT_OF_MEMORY;
 	}
 
@@ -542,9 +541,9 @@ int ms_sys_set_poweroff_cb(power_off_cb user_callback, void *user_data)
 	g_pwr_cb_data->usr_data = user_data;
 
 	/* listening to messages from all objects as no path is specified */
-	dbus_bus_add_match (g_pwr_dbus, POWER_DBUS_MATCH_RULE, &error);
-	if( !dbus_connection_add_filter (g_pwr_dbus, __poweroff_msg_filter, g_pwr_cb_data, NULL)) {
-		dbus_bus_remove_match (g_pwr_dbus, POWER_DBUS_MATCH_RULE, NULL);
+	dbus_bus_add_match(g_pwr_dbus, POWER_DBUS_MATCH_RULE, &error);
+	if (!dbus_connection_add_filter(g_pwr_dbus, __poweroff_msg_filter, g_pwr_cb_data, NULL)) {
+		dbus_bus_remove_match(g_pwr_dbus, POWER_DBUS_MATCH_RULE, NULL);
 		MS_DBG_ERR("dbus_connection_add_filter failed");
 		return MS_MEDIA_ERR_INTERNAL;
 	}
@@ -559,12 +558,12 @@ int ms_sys_unset_poweroff_cb(void)
 	}
 
 	dbus_connection_remove_filter(g_pwr_dbus, __poweroff_msg_filter, g_pwr_cb_data);
-	dbus_bus_remove_match (g_pwr_dbus, MS_MEDIA_DBUS_MATCH_RULE, NULL);
+	dbus_bus_remove_match(g_pwr_dbus, MS_MEDIA_DBUS_MATCH_RULE, NULL);
 	dbus_connection_unref(g_pwr_dbus);
 	g_pwr_dbus = NULL;
 
 	MS_SAFE_FREE(g_pwr_cb_data);
 
-        return MS_MEDIA_ERR_NONE;
+	return MS_MEDIA_ERR_NONE;
 }
 

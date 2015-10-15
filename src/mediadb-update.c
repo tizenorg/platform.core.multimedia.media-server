@@ -59,8 +59,8 @@ void print_help()
 	printf("\n");
 	printf("db-update --help for check this messages.\n");
 	printf("\n");
-	printf("A file or directory must exists under %s or %s.\n",tzplatform_getenv(TZ_USER_HOME),tzplatform_mkpath(TZ_SYS_STORAGE,"sdcard"));
-	printf("Using %s is allowed SD card is mounted.\n",tzplatform_mkpath(TZ_SYS_STORAGE,"sdcard"));
+	printf("A file or directory must exists under %s or %s.\n", tzplatform_getenv(TZ_USER_HOME), tzplatform_mkpath(TZ_SYS_STORAGE, "sdcard"));
+	printf("Using %s is allowed SD card is mounted.\n", tzplatform_mkpath(TZ_SYS_STORAGE, "sdcard"));
 	printf("\n");
 	printf("=======================================================================================\n");
 }
@@ -71,34 +71,33 @@ static void __check_media_db(void)
 	void *db_handle = NULL;
 	char *err_msg = NULL;
 	int ret = 0;
-	bool fscan= false;
+	bool fscan = false;
 
-	funcHandle = dlopen ("/usr/lib/libmedia-content-plugin.so", RTLD_LAZY);
-	if(funcHandle == NULL)
-	{
+	funcHandle = dlopen("/usr/lib/libmedia-content-plugin.so", RTLD_LAZY);
+	if (funcHandle == NULL) {
 		printf("Error when open plug-in\n");
 		return;
 	}
 
-	svc_connect			= dlsym (funcHandle, "connect_db");
-	svc_disconnect		= dlsym (funcHandle, "disconnect_db");
-	svc_check_db 		= dlsym (funcHandle, "check_db");
+	svc_connect			= dlsym(funcHandle, "connect_db");
+	svc_disconnect		= dlsym(funcHandle, "disconnect_db");
+	svc_check_db			= dlsym(funcHandle, "check_db");
 
-	ret = svc_connect(&db_handle,tzplatform_getuid(TZ_USER_NAME), &err_msg);
-	if(ret < 0)
+	ret = svc_connect(&db_handle, tzplatform_getuid(TZ_USER_NAME), &err_msg);
+	if (ret < 0)
 		printf("Error svc_connect\n");
 
 	ret = svc_check_db(db_handle, &fscan, tzplatform_getuid(TZ_USER_NAME), &err_msg);
-	if(ret < 0)
+	if (ret < 0)
 		printf("Error svc_check_db\n");
 
 	ret = svc_disconnect(db_handle, &err_msg);
-	if(ret < 0)
+	if (ret < 0)
 		printf("Error svc_disconnect\n");
 
 	printf("Check media db done\n");
 
-	dlclose (funcHandle);
+	dlclose(funcHandle);
 }
 
 static void __get_storage_id(const char *path, char *storage_id, uid_t uid)
@@ -108,32 +107,31 @@ static void __get_storage_id(const char *path, char *storage_id, uid_t uid)
 	char *err_msg = NULL;
 	int ret = 0;
 
-	funcHandle = dlopen ("/usr/lib/libmedia-content-plugin.so", RTLD_LAZY);
-	if(funcHandle == NULL)
-	{
+	funcHandle = dlopen("/usr/lib/libmedia-content-plugin.so", RTLD_LAZY);
+	if (funcHandle == NULL) {
 		printf("Error when open plug-in\n");
 		return;
 	}
 
-	svc_connect			= dlsym (funcHandle, "connect_db");
-	svc_disconnect		= dlsym (funcHandle, "disconnect_db");
-	svc_get_storage_id 	= dlsym (funcHandle, "get_storage_id");
+	svc_connect			= dlsym(funcHandle, "connect_db");
+	svc_disconnect		= dlsym(funcHandle, "disconnect_db");
+	svc_get_storage_id	= dlsym(funcHandle, "get_storage_id");
 
 	ret = svc_connect(&db_handle, uid, &err_msg);
-	if(ret < 0)
+	if (ret < 0)
 		printf("Error svc_connect\n");
 
 	ret = svc_get_storage_id(db_handle, path, storage_id, uid, &err_msg);
-	if(ret < 0)
+	if (ret < 0)
 		printf("Error svc_get_storage_id\n");
 
 	ret = svc_disconnect(db_handle, &err_msg);
-	if(ret < 0)
+	if (ret < 0)
 		printf("Error svc_disconnect\n");
 
 	printf("Start Scanning for [%s][%s]\n", path, storage_id);
 
-	dlclose (funcHandle);
+	dlclose(funcHandle);
 }
 
 int dir_scan_non_recursive(const char *path)
@@ -158,7 +156,7 @@ typedef enum {
 	DIRECTORY_OK,
 	FILE_OK,
 	NOT_OK,
-}check_result;
+} check_result;
 
 check_result check_path(char *path)
 {
@@ -197,7 +195,7 @@ int main(int argc, char **argv)
 	char *argv1 = NULL;
 	char *argv2 = NULL;
 
-	if (argc > 3 ||argc < 2) {
+	if (argc > 3 || argc < 2) {
 		print_help();
 		exit(1);
 	}

@@ -40,8 +40,8 @@
 
 #define MS_NO_REMAIN_TASK 0
 
-#define MEDIA_SERVER_PATH tzplatform_mkpath(TZ_SYS_BIN,"media-scanner")
-#define MEDIA_SERVER_PATH_V2 tzplatform_mkpath(TZ_SYS_BIN,"media-scanner-v2")
+#define MEDIA_SERVER_PATH tzplatform_mkpath(TZ_SYS_BIN, "media-scanner")
+#define MEDIA_SERVER_PATH_V2 tzplatform_mkpath(TZ_SYS_BIN, "media-scanner-v2")
 
 extern GMainLoop *mainloop;
 extern GArray *owner_list;
@@ -70,7 +70,7 @@ ms_db_status_type_t ms_check_scanning_status(void)
 {
 	int status;
 
-	if(ms_config_get_int(VCONFKEY_FILEMANAGER_DB_STATUS, &status)) {
+	if (ms_config_get_int(VCONFKEY_FILEMANAGER_DB_STATUS, &status)) {
 		if (status == VCONFKEY_FILEMANAGER_DB_UPDATING) {
 			return MS_DB_UPDATING;
 		}
@@ -79,7 +79,7 @@ ms_db_status_type_t ms_check_scanning_status(void)
 	return MS_DB_UPDATED;
 }
 
-static gboolean _ms_stop_scanner (gpointer user_data)
+static gboolean _ms_stop_scanner(gpointer user_data)
 {
 	int task_num = MS_NO_REMAIN_TASK;
 
@@ -103,7 +103,7 @@ static gboolean _ms_stop_scanner (gpointer user_data)
 	}
 
 	/* stop media scanner */
-	if (child_pid >0 ) {
+	if (child_pid > 0) {
 		if (kill(child_pid, SIGKILL) < 0) {
 			MS_DBG_STRERROR("kill failed");
 			g_mutex_unlock(&scanner_mutex);
@@ -124,8 +124,8 @@ static gboolean _ms_stop_scanner (gpointer user_data)
 
 //	ms_reset_scanner_status();
 
-	g_source_destroy(g_main_context_find_source_by_id(g_main_loop_get_context (mainloop), alarm_id));
-	g_source_destroy(g_main_context_find_source_by_id(g_main_loop_get_context (mainloop), receive_id));
+	g_source_destroy(g_main_context_find_source_by_id(g_main_loop_get_context(mainloop), alarm_id));
+	g_source_destroy(g_main_context_find_source_by_id(g_main_loop_get_context(mainloop), receive_id));
 
 	return FALSE;
 }
@@ -136,7 +136,7 @@ static int _ms_get_ini_config(const char *key)
 	int value = 0;
 
 	dict = iniparser_load(MS_INI_DEFAULT_PATH);
-	if(!dict) {
+	if (!dict) {
 		MS_DBG_ERR("%s load failed", MS_INI_DEFAULT_PATH);
 		return 0;
 	}
@@ -160,8 +160,8 @@ void ms_cleanup_scanner(void)
 	unlink(MS_SCANNER_FIFO_PATH_RES);
 	unlink(MS_SCANNER_FIFO_PATH_REQ);
 
-	g_source_destroy(g_main_context_find_source_by_id(g_main_loop_get_context (mainloop), alarm_id));
-	g_source_destroy(g_main_context_find_source_by_id(g_main_loop_get_context (mainloop), receive_id));
+	g_source_destroy(g_main_context_find_source_by_id(g_main_loop_get_context(mainloop), alarm_id));
+	g_source_destroy(g_main_context_find_source_by_id(g_main_loop_get_context(mainloop), receive_id));
 
 	g_mutex_unlock(&scanner_mutex);
 
@@ -178,7 +178,7 @@ static void _ms_add_timeout(guint interval, GSourceFunc func, gpointer data)
 
 	src = g_timeout_source_new_seconds(interval);
 	g_source_set_callback(src, func, data, NULL);
-	alarm_id = g_source_attach(src, g_main_loop_get_context (mainloop));
+	alarm_id = g_source_attach(src, g_main_loop_get_context(mainloop));
 	g_source_unref(src);
 }
 
@@ -194,7 +194,7 @@ int ms_scanner_start(void)
 		return MS_MEDIA_ERR_NONE;
 	}
 
-	if((pid = fork()) < 0) {
+	if ((pid = fork()) < 0) {
 		MS_DBG_ERR("Fork error\n");
 		g_mutex_unlock(&scanner_mutex);
 	} else if (pid > 0) {
@@ -207,11 +207,11 @@ int ms_scanner_start(void)
 		int scanner_status = -1;
 
 		err = unlink(MS_SCANNER_FIFO_PATH_RES);
-		if (err !=0) {
+		if (err != 0) {
 			MS_DBG_STRERROR("[No-Error] unlink failed");
 		}
 		err = mkfifo(MS_SCANNER_FIFO_PATH_RES, MS_SCANNER_FIFO_MODE);
-		if (err !=0) {
+		if (err != 0) {
 			MS_DBG_STRERROR("mkfifo failed");
 			return MS_MEDIA_ERR_INTERNAL;
 		}
@@ -267,12 +267,12 @@ int ms_scanner_start(void)
 
 		return ret;
 		/* attach socket receive message callback */
-	} else if(pid == 0) {
+	} else if (pid == 0) {
 		/* child process */
 		MS_DBG_ERR("[No-Error] CHILD PROCESS");
 		MS_DBG("[No-Error] EXECUTE MEDIA SCANNER");
 
-		if(_ms_get_ini_config("media-content-config:scanner_type") == 1)
+		if (_ms_get_ini_config("media-content-config:scanner_type") == 1)
 			execl(MEDIA_SERVER_PATH_V2, "media-scanner-v2", NULL);
 		else
 			execl(MEDIA_SERVER_PATH, "media-scanner", NULL);

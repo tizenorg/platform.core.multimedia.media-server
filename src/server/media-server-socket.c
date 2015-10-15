@@ -49,13 +49,12 @@ gint cur_running_task;
 
 extern bool power_off;
 
-typedef struct ms_req_owner_data
-{
+typedef struct ms_req_owner_data {
 	int pid;
 	int index;
 	int client_sockfd;
 	char *req_path;
-}ms_req_owner_data;
+} ms_req_owner_data;
 
 static int __ms_add_owner(int pid, int client_sock, char *path)
 {
@@ -69,7 +68,7 @@ static int __ms_add_owner(int pid, int client_sock, char *path)
 			/* These are used for sending result of scanning */
 			if (owner_list == NULL) {
 				/*create array for processing overlay data*/
-				owner_list = g_array_new (FALSE, FALSE, sizeof (ms_req_owner_data *));
+				owner_list = g_array_new(FALSE, FALSE, sizeof(ms_req_owner_data *));
 				if (owner_list == NULL) {
 					MS_DBG_ERR("g_array_new error");
 					return MS_MEDIA_ERR_OUT_OF_MEMORY;
@@ -81,7 +80,7 @@ static int __ms_add_owner(int pid, int client_sock, char *path)
 
 			if (owner_data == NULL) {
 				MS_DBG_ERR("MS_MALLOC failed");
-				g_array_free (owner_list, FALSE);
+				g_array_free(owner_list, FALSE);
 				owner_list = NULL;
 				return MS_MEDIA_ERR_OUT_OF_MEMORY;
 			}
@@ -114,7 +113,7 @@ static int __ms_find_owner(int pid, const char *req_path, ms_req_owner_data **ow
 
 	MS_DBG("length list :  %d", len);
 
-	for (i=0; i < len; i++) {
+	for (i = 0; i < len; i++) {
 		data = g_array_index(owner_list, ms_req_owner_data*, i);
 		MS_DBG("%d %d", data->pid, pid);
 		MS_DBG("%s %s", data->req_path, req_path);
@@ -143,7 +142,7 @@ static int __ms_delete_owner(ms_req_owner_data *owner_data)
 
 static int __ms_send_result_to_client(int pid, ms_comm_msg_s *recv_msg)
 {
-	if(strlen(recv_msg->msg) == 0) {
+	if (strlen(recv_msg->msg) == 0) {
 		MS_DBG_ERR("msg is NULL");
 		return MS_MEDIA_ERR_INVALID_PARAMETER;
 	}
@@ -154,7 +153,7 @@ static int __ms_send_result_to_client(int pid, ms_comm_msg_s *recv_msg)
 		/* find owner data */
 		ms_req_owner_data *owner_data = NULL;
 		char *res_path = strdup(recv_msg->msg);
-		if(res_path  == NULL) {
+		if (res_path  == NULL) {
 			MS_DBG_ERR("res_path is NULL");
 			return MS_MEDIA_ERR_OUT_OF_MEMORY;
 		}
@@ -219,7 +218,7 @@ gboolean ms_read_socket(gpointer user_data)
 		goto ERROR;
 	}
 
-	if(strncmp(recv_msg.msg, MEDIA_ROOT_PATH_EXTERNAL, strlen(MEDIA_ROOT_PATH_EXTERNAL)) == 0) {
+	if (strncmp(recv_msg.msg, MEDIA_ROOT_PATH_EXTERNAL, strlen(MEDIA_ROOT_PATH_EXTERNAL)) == 0) {
 		if (ms_cynara_check(&creds, EXTERNAL_STORAGE_PRIVILEGE) != MS_MEDIA_ERR_NONE) {
 			res = ret;
 			goto ERROR;
@@ -238,11 +237,10 @@ gboolean ms_read_socket(gpointer user_data)
 	req_num = recv_msg.msg_type;
 	pid = recv_msg.pid;
 
-	/* register file request
-         * media server inserts the meta data of one file into media db */
+	/* register file request media server inserts the meta data of one file into media db */
 	if (req_num == MS_MSG_DIRECTORY_SCANNING
-		||req_num == MS_MSG_BULK_INSERT
-		||req_num == MS_MSG_DIRECTORY_SCANNING_NON_RECURSIVE
+		|| req_num == MS_MSG_BULK_INSERT
+		|| req_num == MS_MSG_DIRECTORY_SCANNING_NON_RECURSIVE
 		|| req_num == MS_MSG_BURSTSHOT_INSERT
 		|| req_num == MS_MSG_DIRECTORY_SCANNING_CANCEL) {
 		if ((ret = ms_send_scan_request(&recv_msg, client_sock)) != MS_MEDIA_ERR_NONE) {
@@ -267,7 +265,7 @@ ERROR:
 
 		memset(&res_msg, 0x0, sizeof(ms_comm_msg_s));
 
-		switch(req_num) {
+		switch (req_num) {
 			case MS_MSG_DIRECTORY_SCANNING:
 			case MS_MSG_DIRECTORY_SCANNING_NON_RECURSIVE:
 				res_msg.msg_type = MS_MSG_SCANNER_RESULT;
@@ -276,7 +274,7 @@ ERROR:
 			case MS_MSG_BURSTSHOT_INSERT:
 				res_msg.msg_type = MS_MSG_SCANNER_BULK_RESULT;
 				break;
-			default :
+			default:
 				break;
 		}
 
@@ -332,9 +330,9 @@ int ms_send_scan_request(ms_comm_msg_s *send_msg, int client_sock)
 		g_mutex_unlock(&scanner_mutex);
 
 		err = ms_scanner_start();
-		if(err == MS_MEDIA_ERR_NONE) {
+		if (err == MS_MEDIA_ERR_NONE) {
 			err = __ms_send_request(send_msg);
-			if(err != MS_MEDIA_ERR_NONE) {
+			if (err != MS_MEDIA_ERR_NONE) {
 				MS_DBG_ERR("__ms_send_request failed", err);
 			}
 		} else {
@@ -380,7 +378,7 @@ int ms_send_storage_scan_request(const char *root_path, const char *storage_id, 
 		case MS_SCAN_META:
 			scan_msg.msg_type = MS_MSG_STORAGE_META;
 			break;
-		default :
+		default:
 			ret = MS_MEDIA_ERR_INVALID_PARAMETER;
 			MS_DBG_ERR("ms_send_storage_scan_request invalid parameter");
 			goto ERROR;
@@ -390,14 +388,14 @@ int ms_send_storage_scan_request(const char *root_path, const char *storage_id, 
 	/* msg_size & msg */
 	if (root_path != NULL) {
 		scan_msg.msg_size = strlen(root_path);
-		strncpy(scan_msg.msg, root_path, scan_msg.msg_size );
+		strncpy(scan_msg.msg, root_path, scan_msg.msg_size);
 	}
 
 	if (storage_id != NULL) {
 		strncpy(scan_msg.storage_id, storage_id, MS_UUID_SIZE-1);
 	}
 
-	if(uid == 0) {
+	if (uid == 0) {
 		ms_sys_get_uid(&uid);
 	}
 
@@ -456,7 +454,7 @@ gboolean ms_read_db_tcp_socket(GIOChannel *src, GIOCondition condition, gpointer
 	MS_SAFE_FREE(creds.smack);
 	MS_SAFE_FREE(creds.uid);
 
-	if(media_db_connect(&db_handle, recv_msg.uid, TRUE) != MS_MEDIA_ERR_NONE) {
+	if (media_db_connect(&db_handle, recv_msg.uid, TRUE) != MS_MEDIA_ERR_NONE) {
 		MS_DBG_ERR("Failed to connect DB");
 		goto ERROR;
 	}
@@ -482,7 +480,7 @@ ERROR:
 		MS_DBG("Sent successfully");
 	}
 
-	if (close(client_sock) <0) {
+	if (close(client_sock) < 0) {
 		MS_DBG_STRERROR("close failed");
 	}
 
@@ -495,7 +493,7 @@ void _ms_process_tcp_message(gpointer data,  gpointer user_data)
 	int ret = MS_MEDIA_ERR_NONE;
 	char * sql_query = NULL;
 	ms_comm_msg_s recv_msg;
-	int client_sock = GPOINTER_TO_INT (data);
+	int client_sock = GPOINTER_TO_INT(data);
 	int send_msg = MS_MEDIA_ERR_NONE;
 	MediaDBHandle *db_handle = NULL;
 
@@ -503,7 +501,7 @@ void _ms_process_tcp_message(gpointer data,  gpointer user_data)
 
 //	MS_DBG_ERR("client sokcet : %d", client_sock);
 
-	while(1) {
+	while (1) {
 		if (power_off == TRUE) {
 			MS_DBG_WARN("in the power off sequence");
 			break;
@@ -518,8 +516,8 @@ void _ms_process_tcp_message(gpointer data,  gpointer user_data)
 		}
 
 		/* Connect Media DB*/
-		if(db_handle == NULL) {
-			if(media_db_connect(&db_handle, recv_msg.uid, TRUE) != MS_MEDIA_ERR_NONE) {
+		if (db_handle == NULL) {
+			if (media_db_connect(&db_handle, recv_msg.uid, TRUE) != MS_MEDIA_ERR_NONE) {
 				MS_DBG_ERR("Failed to connect DB");
 				send_msg = MS_MEDIA_ERR_DB_CONNECT_FAIL;
 				goto ERROR;
@@ -530,9 +528,9 @@ void _ms_process_tcp_message(gpointer data,  gpointer user_data)
 		if (sql_query != NULL) {
 			if (recv_msg.msg_type == MS_MSG_DB_UPDATE_BATCH_START) {
 				ret = media_db_update_db_batch_start(sql_query);
-			} else if(recv_msg.msg_type == MS_MSG_DB_UPDATE_BATCH_END) {
+			} else if (recv_msg.msg_type == MS_MSG_DB_UPDATE_BATCH_END) {
 				ret = media_db_update_db_batch_end(db_handle, sql_query);
-			} else if(recv_msg.msg_type == MS_MSG_DB_UPDATE_BATCH) {
+			} else if (recv_msg.msg_type == MS_MSG_DB_UPDATE_BATCH) {
 				ret = media_db_update_db_batch(sql_query);
 			} else {
 
@@ -567,7 +565,7 @@ void _ms_process_tcp_message(gpointer data,  gpointer user_data)
 		}
 	}
 
-	if (close(client_sock) <0) {
+	if (close(client_sock) < 0) {
 		MS_DBG_STRERROR("close failed");
 	}
 
@@ -588,7 +586,7 @@ ERROR:
 		MS_DBG("Sent successfully");
 	}
 
-	if (close(client_sock) <0) {
+	if (close(client_sock) < 0) {
 		MS_DBG_STRERROR("close failed");
 	}
 
@@ -672,7 +670,7 @@ ERROR:
 			MS_DBG("Sent successfully");
 		}
 
-		if (close(client_sock) <0) {
+		if (close(client_sock) < 0) {
 			MS_DBG_STRERROR("close failed");
 		}
 	}
@@ -716,7 +714,7 @@ gboolean ms_receive_message_from_scanner(GIOChannel *src, GIOCondition condition
 			MS_DBG_SLOG("This request is from media-server");
 		}
 	} else {
-		MS_DBG_ERR("This result message is wrong : %d", recv_msg.msg_type );
+		MS_DBG_ERR("This result message is wrong : %d", recv_msg.msg_type);
 	}
 
 	return TRUE;
@@ -775,7 +773,7 @@ int ms_send_storage_otg_scan_request(const char *path, const char *device_uuid, 
 		case MS_SCAN_INVALID:
 			scan_msg.msg_type = MS_MSG_STORAGE_INVALID;
 			break;
-		default :
+		default:
 			ret = MS_MEDIA_ERR_INVALID_PARAMETER;
 			MS_DBG_ERR("ms_send_storage_scan_request invalid parameter");
 			goto ERROR;
@@ -784,7 +782,7 @@ int ms_send_storage_otg_scan_request(const char *path, const char *device_uuid, 
 
 	/* msg_size & msg */
 	scan_msg.msg_size = strlen(path);
-	strncpy(scan_msg.msg, path, scan_msg.msg_size );
+	strncpy(scan_msg.msg, path, scan_msg.msg_size);
 	strncpy(scan_msg.storage_id, device_uuid, MS_UUID_SIZE-1);
 
 	ret = ms_send_scan_request(&scan_msg, -1);

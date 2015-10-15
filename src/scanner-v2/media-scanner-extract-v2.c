@@ -166,7 +166,7 @@ gboolean msc_folder_extract_thread(void *data)
 		/*call for bundle commit*/
 		//__msc_bacth_commit_disable(handle, TRUE, TRUE, extract_data->storage_id, ret);
 
-NEXT:
+NEXT :
 		msc_get_power_status(&power_off_status);
 		if (power_off_status) {
 			MS_DBG_ERR("power off");
@@ -360,8 +360,7 @@ NEXT:
 		/*Active flush */
 		malloc_trim(0);
 
-		if(extract_data->result)
-		{
+		if (extract_data->result) {
 			msc_send_result(ret, extract_data);
 		}
 
@@ -391,13 +390,13 @@ void msc_insert_exactor_request(int message_type, bool ins_status, const char *s
 	extract_data->uid = uid;
 	extract_data->result = ins_status;
 	extract_data->msg_size = strlen(path);
-	strncpy(extract_data->msg, path, extract_data->msg_size );
+	strncpy(extract_data->msg, path, extract_data->msg_size);
 	strncpy(extract_data->storage_id, storage_id, MS_UUID_SIZE-1);
 
 	if (message_type == MS_MSG_STORAGE_ALL || message_type == MS_MSG_STORAGE_PARTIAL || message_type == MS_MSG_STORAGE_INVALID) {
 		g_async_queue_push(storage_extract_queue, GINT_TO_POINTER(extract_data));
 		MS_DBG("insert to storage exactor queue. msg_type [%d]", ins_status);
-	} else if(message_type == MS_MSG_DIRECTORY_SCANNING || message_type == MS_MSG_DIRECTORY_SCANNING_NON_RECURSIVE) {
+	} else if (message_type == MS_MSG_DIRECTORY_SCANNING || message_type == MS_MSG_DIRECTORY_SCANNING_NON_RECURSIVE) {
 		g_async_queue_push(folder_extract_queue, GINT_TO_POINTER(extract_data));
 		MS_DBG("insert to dir exactor queue. msg_type [%d]", ins_status);
 	} else {
@@ -410,7 +409,7 @@ void msc_insert_exactor_request(int message_type, bool ins_status, const char *s
 
 int msc_remove_extract_request(const ms_comm_msg_s *recv_msg)
 {
-	if(recv_msg == NULL) {
+	if (recv_msg == NULL) {
 		MS_DBG_ERR("recv_msg is null");
 		return MS_MEDIA_ERR_INVALID_PARAMETER;
 	}
@@ -429,7 +428,7 @@ int msc_remove_extract_request(const ms_comm_msg_s *recv_msg)
 
 	temp_queue = g_async_queue_new();
 	int i = 0;
-	for (; i <len; i++) {
+	for (; i < len; i++) {
 		/*create new queue to compare request*/
 		msg = g_async_queue_pop(storage_extract_queue);
 		if ((strcmp(msg->storage_id, storageid) == 0)) {
@@ -438,7 +437,7 @@ int msc_remove_extract_request(const ms_comm_msg_s *recv_msg)
 			g_async_queue_push(temp_queue, GINT_TO_POINTER(msg));
 		}
 	}
-	g_async_queue_unref (storage_extract_queue);
+	g_async_queue_unref(storage_extract_queue);
 	storage_extract_queue = temp_queue;
 
 END_REMOVE_REQUEST:
@@ -596,23 +595,23 @@ static int __msc_get_storage_extract_status(ms_storage_scan_status_e *status)
 
 static int __msc_resume_extract()
 {
-	g_mutex_lock (&extract_data_mutex);
+	g_mutex_lock(&extract_data_mutex);
 
-	g_cond_signal (&extract_data_cond);
+	g_cond_signal(&extract_data_cond);
 
-	g_mutex_unlock (&extract_data_mutex);
+	g_mutex_unlock(&extract_data_mutex);
 
 	return MS_MEDIA_ERR_NONE;
 }
 
 static int __msc_pause_extract()
 {
-	g_mutex_lock (&extract_data_mutex);
+	g_mutex_lock(&extract_data_mutex);
 
 	while (g_directory_extract_processing)
-		g_cond_wait (&extract_data_cond, &extract_data_mutex);
+		g_cond_wait(&extract_data_cond, &extract_data_mutex);
 
-	g_mutex_unlock (&extract_data_mutex);
+	g_mutex_unlock(&extract_data_mutex);
 
 	return MS_MEDIA_ERR_NONE;
 }
@@ -635,7 +634,7 @@ static int __msc_extract_set_db_status(ms_db_status_type_t status, ms_storage_ty
 			}
 		}
 	} else if (status == MS_DB_UPDATED) {
-		if(!ms_config_set_int(VCONFKEY_FILEMANAGER_DB_STATUS,  VCONFKEY_FILEMANAGER_DB_UPDATED)) {
+		if (!ms_config_set_int(VCONFKEY_FILEMANAGER_DB_STATUS,  VCONFKEY_FILEMANAGER_DB_UPDATED)) {
 			res = MS_MEDIA_ERR_VCONF_SET_FAIL;
 			MS_DBG_ERR("ms_config_set_int failed");
 		}
@@ -647,7 +646,7 @@ static int __msc_extract_set_db_status(ms_db_status_type_t status, ms_storage_ty
 			}
 		}
 	} else {
-		if(!ms_config_set_int(VCONFKEY_FILEMANAGER_DB_STATUS,  VCONFKEY_FILEMANAGER_DB_UPDATED)) {
+		if (!ms_config_set_int(VCONFKEY_FILEMANAGER_DB_STATUS,  VCONFKEY_FILEMANAGER_DB_UPDATED)) {
 			res = MS_MEDIA_ERR_VCONF_SET_FAIL;
 			MS_DBG_ERR("ms_config_set_int failed");
 		}
@@ -697,7 +696,7 @@ int msc_push_extract_request(ms_extract_type_e scan_type, ms_comm_msg_s *recv_ms
 {
 	int ret = MS_MEDIA_ERR_NONE;
 
-	switch(scan_type) {
+	switch (scan_type) {
 		case MS_EXTRACT_STORAGE:
 			g_async_queue_push(storage_extract_queue, GINT_TO_POINTER(recv_msg));
 			break;
@@ -738,7 +737,7 @@ int msc_get_remain_extract_request(ms_extract_type_e scan_type, int *remain_requ
 {
 	int ret = MS_MEDIA_ERR_NONE;
 
-	switch(scan_type) {
+	switch (scan_type) {
 		case MS_EXTRACT_STORAGE:
 			*remain_request = g_async_queue_length(storage_extract_queue);
 			break;

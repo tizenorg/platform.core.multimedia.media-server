@@ -94,7 +94,7 @@ int ms_usb_insert_handler(const char *mount_path)
 				}
 				scan_type = MS_SCAN_PART;
 				ms_set_storage_validity(handle, storage_id, 1, uid);
-				if (ms_set_storage_scan_status(handle, storage_id, MEDIA_SCAN_PREPARE, uid) != MS_MEDIA_ERR_NONE){
+				if (ms_set_storage_scan_status(handle, storage_id, MEDIA_SCAN_PREPARE, uid) != MS_MEDIA_ERR_NONE) {
 					MS_DBG_ERR("ms_set_storage_scan_status failed");
 				}
 			} else {
@@ -140,7 +140,7 @@ int ms_usb_remove_handler(const char *mount_path)
 
 		ms_connect_db(&handle, uid);
 
-		while(1) {
+		while (1) {
 			memset(device_id, 0x0, sizeof(device_id));
 			ms_get_storage_id(handle, mount_path, device_id);
 
@@ -170,13 +170,13 @@ static ms_dir_scan_type_t __ms_get_mmc_scan_type(const char *cid, const char *st
 	MS_DBG("Last MMC id = [%s] MMC path = [%s]", storage_name, storage_path);
 	MS_DBG("Current MMC info = [%s]", cid);
 
-	if(storage_name != NULL) {
+	if (storage_name != NULL) {
 		if (strcmp(storage_name, cid) == 0) {
 			scan_type = MS_SCAN_PART;
 		}
 	}
 
-	if(scan_type == MS_SCAN_PART)
+	if (scan_type == MS_SCAN_PART)
 		MS_DBG("MMC Scan type [MS_SCAN_PART]");
 	else
 		MS_DBG("MMC Scan type [MS_SCAN_ALL]");
@@ -269,7 +269,7 @@ int ms_mmc_insert_handler(const char *mount_path)
 
 	if (info_exist == TRUE) {
 		scan_type = __ms_get_mmc_scan_type(cid, storage_name, storage_path);
-		if(scan_type == MS_SCAN_ALL) /*FIX ME. path should be compared*/
+		if (scan_type == MS_SCAN_ALL) /*FIX ME. path should be compared*/
 			__ms_update_mmc_info(db_handle, storage_name, cid, mount_path);
 	} else {
 		__ms_insert_mmc_info(db_handle, cid, mount_path);

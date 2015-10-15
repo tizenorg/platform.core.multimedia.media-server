@@ -93,7 +93,7 @@ int ms_cynara_receive_untrusted_message(int sockfd, ms_comm_msg_s *recv_msg, ms_
 	int ret = 0;
 	int recv_msg_size = 0;
 
-	if (!recv_msg ||!credentials)
+	if (!recv_msg || !credentials)
 		return MS_MEDIA_ERR_INVALID_PARAMETER;
 
 	if ((recv_msg_size = read(sockfd, recv_msg, sizeof(ms_comm_msg_s))) < 0) {
@@ -114,19 +114,19 @@ int ms_cynara_receive_untrusted_message(int sockfd, ms_comm_msg_s *recv_msg, ms_
 	}
 
 	ret = cynara_creds_socket_get_pid(sockfd, &(credentials->pid));
-	if(ret < 0) {
+	if (ret < 0) {
 		MSAPI_DBG_ERR("cynara_creds_socket_get_pid failed");
 		return MS_MEDIA_ERR_INTERNAL;
 	}
 
 	ret = cynara_creds_socket_get_user(sockfd, USER_METHOD_UID, &(credentials->uid));
-	if(ret < 0) {
+	if (ret < 0) {
 		MSAPI_DBG_ERR("cynara_creds_socket_get_user failed");
 		return MS_MEDIA_ERR_INTERNAL;
 	}
 
 	ret = cynara_creds_socket_get_client(sockfd, CLIENT_METHOD_SMACK, &(credentials->smack));
-	if(ret < 0) {
+	if (ret < 0) {
 		MSAPI_DBG_ERR("cynara_creds_socket_get_client failed");
 		return MS_MEDIA_ERR_INTERNAL;
 	}
@@ -143,11 +143,11 @@ int ms_cynara_receive_untrusted_message_thumb(int sockfd, thumbMsg *recv_msg, ms
 	int recv_msg_size = 0;
 	unsigned char *buf = NULL;
 
-	if (!recv_msg ||!credentials)
+	if (!recv_msg || !credentials)
 		return MS_MEDIA_ERR_INVALID_PARAMETER;
 
 	header_size = sizeof(thumbMsg) -(MAX_FILEPATH_LEN * 2) - sizeof(unsigned char *);
-	MS_MALLOC(buf,header_size);
+	MS_MALLOC(buf, header_size);
 
 	if ((recv_msg_size = recv(sockfd, buf, header_size, 0)) < 0) {
 		if (errno == EWOULDBLOCK) {
@@ -165,12 +165,12 @@ int ms_cynara_receive_untrusted_message_thumb(int sockfd, thumbMsg *recv_msg, ms
 
 	if (recv_msg->origin_path_size <= 0) {
 		MS_SAFE_FREE(buf);
-		MSAPI_DBG_ERR("msg->origin_path_size is invalid %d", recv_msg->origin_path_size );
+		MSAPI_DBG_ERR("msg->origin_path_size is invalid %d", recv_msg->origin_path_size);
 		return MS_MEDIA_ERR_INVALID_PARAMETER;
 	}
 
 	MS_MALLOC(buf, (unsigned int)(recv_msg->origin_path_size));
-	if(buf == NULL) {
+	if (buf == NULL) {
 		MSAPI_DBG_STRERROR("malloc failed");
 		return MS_MEDIA_ERR_OUT_OF_MEMORY;
 	}
@@ -192,12 +192,12 @@ int ms_cynara_receive_untrusted_message_thumb(int sockfd, thumbMsg *recv_msg, ms
 
 	if (recv_msg->dest_path_size <= 0) {
 		MS_SAFE_FREE(buf);
-		MSAPI_DBG_ERR("msg->origin_path_size is invalid %d", recv_msg->dest_path_size );
+		MSAPI_DBG_ERR("msg->origin_path_size is invalid %d", recv_msg->dest_path_size);
 		return MS_MEDIA_ERR_INVALID_PARAMETER;
 	}
 
 	MS_MALLOC(buf, (unsigned int)(recv_msg->dest_path_size));
-	if(buf == NULL) {
+	if (buf == NULL) {
 		MSAPI_DBG_STRERROR("malloc failed");
 		return MS_MEDIA_ERR_OUT_OF_MEMORY;
 	}
@@ -219,19 +219,19 @@ int ms_cynara_receive_untrusted_message_thumb(int sockfd, thumbMsg *recv_msg, ms
 
 
 	ret = cynara_creds_socket_get_pid(sockfd, &(credentials->pid));
-	if(ret < 0) {
+	if (ret < 0) {
 		MSAPI_DBG_ERR("cynara_creds_socket_get_pid failed");
 		return MS_MEDIA_ERR_INTERNAL;
 	}
 
 	ret = cynara_creds_socket_get_user(sockfd, USER_METHOD_UID, &(credentials->uid));
-	if(ret < 0) {
+	if (ret < 0) {
 		MSAPI_DBG_ERR("cynara_creds_socket_get_user failed");
 		return MS_MEDIA_ERR_INTERNAL;
 	}
 
 	ret = cynara_creds_socket_get_client(sockfd, CLIENT_METHOD_SMACK, &(credentials->smack));
-	if(ret < 0) {
+	if (ret < 0) {
 		MSAPI_DBG_ERR("cynara_creds_socket_get_client failed");
 		return MS_MEDIA_ERR_INTERNAL;
 	}

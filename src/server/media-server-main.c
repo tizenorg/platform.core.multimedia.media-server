@@ -72,7 +72,7 @@ void _power_off_cb(ms_power_info_s *power_info, void* data)
 
 	/*Quit DB Thread*/
 	GMainLoop *db_mainloop = ms_db_get_mainloop();
-	if(db_mainloop && g_main_loop_is_running(db_mainloop)) {
+	if (db_mainloop && g_main_loop_is_running(db_mainloop)) {
 		g_main_loop_quit(db_mainloop);
 	}
 
@@ -172,22 +172,24 @@ void _ms_change_lang_vconf_cb(keynode_t *key, void* data)
 	return;
 }
 
-static int _mkdir(const char *dir, mode_t mode) {
-        char tmp[256];
-        char *p = NULL;
-        size_t len;
+static int _mkdir(const char *dir, mode_t mode)
+{
+	char tmp[256];
+	char *p = NULL;
+	size_t len;
 
-        snprintf(tmp, sizeof(tmp),"%s",dir);
-        len = strlen(tmp);
-        if(tmp[len - 1] == '/')
-                tmp[len - 1] = 0;
-        for(p = tmp + 1; *p; p++)
-                if(*p == '/') {
-                        *p = 0;
-                        mkdir(tmp, mode);
-                        *p = '/';
-                }
-        return mkdir(tmp, mode);
+	snprintf(tmp, sizeof(tmp), "%s", dir);
+	len = strlen(tmp);
+	if (tmp[len - 1] == '/')
+		tmp[len - 1] = 0;
+	for (p = tmp + 1; *p; p++)
+		if (*p == '/') {
+			*p = 0;
+			mkdir(tmp, mode);
+			*p = '/';
+		}
+
+	return mkdir(tmp, mode);
 }
 
 int main(int argc, char **argv)
@@ -220,7 +222,7 @@ int main(int argc, char **argv)
 	thumb_thread = g_thread_new("thumb_agent_thread", (GThreadFunc)ms_thumb_agent_start_thread, NULL);
 
 	/*clear previous data of sdcard on media database and check db status for updating*/
-	while(!ms_db_get_thread_status()) {
+	while (!ms_db_get_thread_status()) {
 		MS_DBG_ERR("wait db thread");
 		sleep(1);
 	}
@@ -259,7 +261,7 @@ static void __ms_add_requst_receiver(GMainLoop *mainloop, GIOChannel **channel)
 
 	/*prepare socket*/
 	/* create dir socket */
-	_mkdir("/var/run/media-server",S_IRWXU | S_IRWXG | S_IRWXO);
+	_mkdir("/var/run/media-server", S_IRWXU | S_IRWXG | S_IRWXO);
 
 	/* Create and bind new UDP socket */
 	if (ms_ipc_create_server_socket(MS_PROTOCOL_TCP, MS_SCANNER_PORT, &sockfd)
@@ -305,7 +307,7 @@ static void __ms_add_event_receiver(GIOChannel *channel)
 	char *lang = NULL;
 
 	/*set power off callback function*/
-	ms_sys_set_poweroff_cb(_power_off_cb,channel);
+	ms_sys_set_poweroff_cb(_power_off_cb, channel);
 	ms_sys_set_device_block_event_cb(ms_device_block_changed_cb, NULL);
 
 	if (!ms_config_get_str(VCONFKEY_LANGSET, &lang)) {
@@ -347,7 +349,7 @@ static void __ms_add_signal_handler(void)
 		MS_DBG_STRERROR("sigaction failed");
 	}
 
-	signal(SIGPIPE,SIG_IGN);
+	signal(SIGPIPE, SIG_IGN);
 }
 
 static void __ms_check_mediadb(void)
@@ -375,7 +377,7 @@ static int __ms_check_mmc_status(void)
 			int dev_num = dev_list->len;
 			ms_block_info_s *block_info = NULL;
 
-			for (i = 0; i < dev_num; i ++) {
+			for (i = 0; i < dev_num; i++) {
 				block_info = (ms_block_info_s *)g_array_index(dev_list , ms_stg_type_e*, i);
 				ms_mmc_insert_handler(block_info->mount_path);
 			}
@@ -406,7 +408,7 @@ static int __ms_check_usb_status(void)
 			int dev_num = dev_list->len;
 			ms_block_info_s *block_info = NULL;
 
-			for (i = 0; i < dev_num; i ++) {
+			for (i = 0; i < dev_num; i++) {
 				block_info = (ms_block_info_s *)g_array_index(dev_list , ms_stg_type_e*, i);
 				ms_usb_insert_handler(block_info->mount_path);
 			}

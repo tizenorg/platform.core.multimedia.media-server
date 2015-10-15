@@ -132,7 +132,7 @@ int ms_present_mmc_status(ms_sdcard_status_type_t status)
 	else if (status == MS_SDCARD_REMOVED)
 		ret = notification_status_message_post(_GETSYSTEMSTR("IDS_COM_BODY_SD_CARD_UNEXPECTEDLY_REMOVED"));
 
-	if(ret != NOTIFICATION_ERROR_NONE)
+	if (ret != NOTIFICATION_ERROR_NONE)
 		return MS_MEDIA_ERR_INTERNAL;
 	return MS_MEDIA_ERR_NONE;
 }
@@ -140,11 +140,11 @@ int ms_present_mmc_status(ms_sdcard_status_type_t status)
 #define DEVICE_INFO_FILE ".device_info_"
 
 struct linux_dirent {
-	ino64_t 	   d_ino;	 /* 64-bit inode number */
-	off64_t 	   d_off;	 /* 64-bit offset to next structure */
-	unsigned short d_reclen; /* Size of this dirent */
-	unsigned char  d_type;	 /* File type */
-	char		   d_name[]; /* Filename (null-terminated) */
+	ino64_t			d_ino;	 /* 64-bit inode number */
+	off64_t			d_off;	 /* 64-bit offset to next structure */
+	unsigned short	d_reclen; /* Size of this dirent */
+	unsigned char	d_type;	 /* File type */
+	char				d_name[]; /* Filename (null-terminated) */
 };
 
 #define BUF_SIZE 1024
@@ -253,7 +253,7 @@ int ms_write_device_info(const char *root_path, char *device_uuid)
 	int len = 0;
 	char path[MS_FILE_PATH_LEN_MAX] = {0,};
 
-	len = snprintf(path, MS_FILE_PATH_LEN_MAX -1 , "%s/%s%s", root_path, DEVICE_INFO_FILE,device_uuid);
+	len = snprintf(path, MS_FILE_PATH_LEN_MAX -1, "%s/%s%s", root_path, DEVICE_INFO_FILE, device_uuid);
 	if (len < 0) {
 		return MS_MEDIA_ERR_INVALID_PARAMETER;
 	}

@@ -27,7 +27,7 @@
 #include "media-common-dbg.h"
 #include <tzplatform_config.h>
 
-#define CONFIG_PATH tzplatform_mkpath(TZ_SYS_DATA,"file-manager-service/plugin-config")
+#define CONFIG_PATH tzplatform_mkpath(TZ_SYS_DATA, "file-manager-service/plugin-config")
 #define EXT ".so"
 #define EXT_LEN 3
 #define MSC_REGISTER_COUNT 300 /*For bundle commit*/
@@ -124,7 +124,7 @@ static bool _ms_load_config()
 		MS_DBG_ERR("fp is NULL");
 		return MS_MEDIA_ERR_FILE_OPEN_FAIL;
 	}
-	while(1) {
+	while (1) {
 		if (fgets(buf, 256, fp) == NULL)
 			break;
 
@@ -201,7 +201,7 @@ int ms_load_functions(void)
 	/*load information of so*/
 	_ms_load_config();
 
-	if(so_array->len == 0) {
+	if (so_array->len == 0) {
 		MS_DBG_ERR("There is no information for functions");
 		return MS_MEDIA_ERR_DYNAMIC_LINK;
 	}
@@ -216,7 +216,7 @@ int ms_load_functions(void)
 		return MS_MEDIA_ERR_OUT_OF_MEMORY;
 	}
 
-	while(lib_index < lib_num) {
+	while (lib_index < lib_num) {
 		/*get handle*/
 		MS_DBG_SLOG("[name of so : %s]", g_array_index(so_array, char*, lib_index));
 		func_handle[lib_index] = dlopen(g_array_index(so_array, char*, lib_index), RTLD_LAZY);
@@ -238,12 +238,12 @@ int ms_load_functions(void)
 		return MS_MEDIA_ERR_OUT_OF_MEMORY;
 	}
 
-	for(lib_index = 0 ; lib_index < lib_num; lib_index ++) {
+	for (lib_index = 0 ; lib_index < lib_num; lib_index++) {
 		MS_MALLOC(func_array[lib_index], sizeof(void*) * eFUNC_MAX);
 		if (func_array[lib_index] == NULL) {
 			int index;
 
-			for (index = 0; index < lib_index; index ++) {
+			for (index = 0; index < lib_index; index++) {
 				MS_SAFE_FREE(func_array[index]);
 			}
 			MS_SAFE_FREE(func_array);
@@ -261,7 +261,7 @@ int ms_load_functions(void)
 			if (func_array[lib_index][func_index] == NULL) {
 				int index;
 
-				for (index = 0; index < lib_index; index ++) {
+				for (index = 0; index < lib_index; index++) {
 					MS_SAFE_FREE(func_array[index]);
 				}
 				MS_SAFE_FREE(func_array);
@@ -280,7 +280,7 @@ void ms_unload_functions(void)
 {
 	int lib_index;
 
-	for (lib_index = 0; lib_index < lib_num; lib_index ++)
+	for (lib_index = 0; lib_index < lib_num; lib_index++)
 		dlclose(func_handle[lib_index]);
 
 	for (lib_index = 0; lib_index < lib_num; lib_index++) {
@@ -289,15 +289,15 @@ void ms_unload_functions(void)
 			}
 	}
 
-	MS_SAFE_FREE (func_array);
-	MS_SAFE_FREE (func_handle);
+	MS_SAFE_FREE(func_array);
+	MS_SAFE_FREE(func_handle);
 
 	if (so_array) {
 		/*delete all node*/
-		while(so_array->len != 0) {
+		while (so_array->len != 0) {
 			char *so_name = NULL;
 			so_name = g_array_index(so_array , char*, 0);
-			g_array_remove_index (so_array, 0);
+			g_array_remove_index(so_array, 0);
 			MS_SAFE_FREE(so_name);
 		}
 		g_array_free(so_array, FALSE);
@@ -334,7 +334,7 @@ int ms_connect_db(void ***handle, uid_t uid)
 	/*Lock mutex for openning db*/
 	g_mutex_lock(&db_mutex);
 
-	MS_MALLOC(*handle, sizeof (void*) * lib_num);
+	MS_MALLOC(*handle, sizeof(void*) * lib_num);
 	if (*handle == NULL) {
 		MS_DBG_ERR("malloc failed");
 		g_mutex_unlock(&db_mutex);
@@ -751,12 +751,12 @@ int ms_get_folder_list(void **handle, const char* storage_id, char* start_path, 
 
 	*dir_array = g_array_new(FALSE, FALSE, sizeof(ms_dir_info_s*));
 	if (count != 0) {
-		for(i = 0; i < count; i ++) {
+		for (i = 0; i < count; i++) {
 			dir_info = malloc(sizeof(ms_dir_info_s));
 			if (dir_info != NULL) {
 				dir_info->dir_path = strdup(folder_list[i]);
 				dir_info->modified_time = modified_time_list[i];
-				dir_info->item_num= item_num_list[i];
+				dir_info->item_num = item_num_list[i];
 				g_array_append_val(*dir_array, dir_info);
 			} else {
 				MS_DBG_ERR("malloc failed");
@@ -777,10 +777,10 @@ int ms_get_folder_list(void **handle, const char* storage_id, char* start_path, 
 ERROR:
 
 	if (*dir_array) {
-		while((*dir_array)->len != 0) {
+		while ((*dir_array)->len != 0) {
 			ms_dir_info_s *data = NULL;
 			data = g_array_index(*dir_array , ms_dir_info_s*, 0);
-			g_array_remove_index (*dir_array, 0);
+			g_array_remove_index(*dir_array, 0);
 			MS_SAFE_FREE(data->dir_path);
 		}
 		g_array_free(*dir_array, FALSE);
@@ -971,7 +971,7 @@ int ms_check_db_upgrade(void **handle, bool *need_full_scan, uid_t uid)
 	return res;
 }
 
- int ms_genarate_uuid(void **handle, char **uuid)
+int ms_genarate_uuid(void **handle, char **uuid)
 {
 	int lib_index = 0;
 	int ret;

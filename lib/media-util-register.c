@@ -39,14 +39,14 @@
 #include "media-util-dbg.h"
 #include "media-util.h"
 
-typedef struct media_callback_data{
+typedef struct media_callback_data {
 	GSource *source;
 	scan_complete_cb user_callback;
 	void *user_data;
 	char *sock_path;
 } media_callback_data;
 
-typedef struct media_scan_data{
+typedef struct media_scan_data {
 	GIOChannel *src;
 	media_callback_data *cb_data;
 	int pid;
@@ -123,7 +123,7 @@ static int _check_dir_path(const char *dir_path, uid_t uid)
 	struct stat sb;
 	DIR *dp = NULL;
 
-	if (!_is_valid_path(dir_path,uid)) {
+	if (!_is_valid_path(dir_path, uid)) {
 		MSAPI_DBG("Invalid path : %s", dir_path);
 		return MS_MEDIA_ERR_INVALID_PATH;
 	}
@@ -142,7 +142,7 @@ static int _check_dir_path(const char *dir_path, uid_t uid)
 		}
 		return MS_MEDIA_ERR_INTERNAL;
 	} else {
-		if((sb.st_mode & S_IFMT) != S_IFDIR) {
+		if ((sb.st_mode & S_IFMT) != S_IFDIR) {
 			MSAPI_DBG("Invalid path : %s is not directory", dir_path);
 			return MS_MEDIA_ERR_INVALID_PATH;
 		}
@@ -184,7 +184,7 @@ gboolean _read_socket(GIOChannel *src, GIOCondition condition, gpointer data)
 
 	req_result.pid = recv_msg.pid;
 	req_result.result = recv_msg.result;
-	if (recv_msg.msg_type ==MS_MSG_SCANNER_RESULT) {
+	if (recv_msg.msg_type == MS_MSG_SCANNER_RESULT) {
 		req_result.complete_path = strndup(recv_msg.msg, recv_msg.msg_size);
 		req_result.request_type = MEDIA_DIRECTORY_SCAN;
 		MSAPI_DBG("complete_path :%d", req_result.complete_path);
@@ -278,7 +278,7 @@ static int _remove_request(const char * req_path)
 		req_data = g_array_index(req_list, media_scan_data*, i);
 		if (strcmp(req_data->req_path, req_path) == 0) {
 			flag = true;
-			g_array_remove_index (req_list, i);
+			g_array_remove_index(req_list, i);
 		}
 	}
 
@@ -368,8 +368,7 @@ static int __media_db_request_update_async(ms_msg_type_e msg_type, const char *s
 	char *sock_path = NULL;
 	ms_sock_info_s sock_info;
 
-	if(!MS_STRING_VALID(request_msg))
-	{
+	if (!MS_STRING_VALID(request_msg)) {
 		MSAPI_DBG_ERR("invalid query");
 		return MS_MEDIA_ERR_INVALID_PARAMETER;
 	}
@@ -377,8 +376,7 @@ static int __media_db_request_update_async(ms_msg_type_e msg_type, const char *s
 	MSAPI_DBG("REQUEST DIRECTORY SCANNING[%s]", request_msg);
 
 	request_msg_size = strlen(request_msg);
-	if(request_msg_size >= MAX_MSG_SIZE)
-	{
+	if (request_msg_size >= MAX_MSG_SIZE) {
 		MSAPI_DBG_ERR("Query is Too long. [%d] query size limit is [%d]", request_msg_size, MAX_MSG_SIZE);
 		return MS_MEDIA_ERR_INVALID_PARAMETER;
 	}
@@ -410,8 +408,8 @@ static int __media_db_request_update_async(ms_msg_type_e msg_type, const char *s
 		return ret;
 	}
 
-	ret = _attach_callback(request_msg, &sockfd, sock_path, user_callback ,user_data);
-	if(ret != MS_MEDIA_ERR_NONE)
+	ret = _attach_callback(request_msg, &sockfd, sock_path, user_callback, user_data);
+	if (ret != MS_MEDIA_ERR_NONE)
 		return ret;
 
 	return ret;
@@ -426,8 +424,7 @@ static int __media_db_request_update_cancel(ms_msg_type_e msg_type, const char *
 	ms_sock_info_s sock_info;
 	sock_info.port = MS_SCANNER_PORT;
 
-	if(!MS_STRING_VALID(request_msg))
-	{
+	if (!MS_STRING_VALID(request_msg)) {
 		MSAPI_DBG_ERR("invalid query");
 		return MS_MEDIA_ERR_INVALID_PARAMETER;
 	}
@@ -435,8 +432,7 @@ static int __media_db_request_update_cancel(ms_msg_type_e msg_type, const char *
 	MSAPI_DBG("REQUEST CANCEL DIRECTORY SCANNING[%s]", request_msg);
 
 	request_msg_size = strlen(request_msg);
-	if(request_msg_size >= MAX_MSG_SIZE)
-	{
+	if (request_msg_size >= MAX_MSG_SIZE) {
 		MSAPI_DBG_ERR("Query is Too long. [%d] query size limit is [%d]", request_msg_size, MAX_MSG_SIZE);
 		return MS_MEDIA_ERR_INVALID_PARAMETER;
 	}
@@ -461,7 +457,7 @@ static int __media_db_request_update_cancel(ms_msg_type_e msg_type, const char *
 	}
 
 	ret = _remove_request(request_msg);
-	if(ret != MS_MEDIA_ERR_NONE)
+	if (ret != MS_MEDIA_ERR_NONE)
 		return ret;
 
 	return ret;
@@ -471,8 +467,8 @@ int media_directory_scanning_async(const char *directory_path, const char *stora
 {
 	int ret = MS_MEDIA_ERR_NONE;
 
-	ret = _check_dir_path(directory_path,uid);
-	if(ret != MS_MEDIA_ERR_NONE)
+	ret = _check_dir_path(directory_path, uid);
+	if (ret != MS_MEDIA_ERR_NONE)
 		return ret;
 
 	if (recursive_on == TRUE)
@@ -488,7 +484,7 @@ int media_directory_scanning_cancel(const char *directory_path, uid_t uid)
 	int ret = MS_MEDIA_ERR_NONE;
 
 	ret = _check_dir_path(directory_path, uid);
-	if(ret != MS_MEDIA_ERR_NONE)
+	if (ret != MS_MEDIA_ERR_NONE)
 		return ret;
 
 	ret = __media_db_request_update_cancel(MS_MSG_DIRECTORY_SCANNING_CANCEL, directory_path);

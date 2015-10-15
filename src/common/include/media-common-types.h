@@ -43,9 +43,9 @@
 /*Use for Poweroff sequence*/
 #define POWEROFF -1 /*This number uses for stopping Scannig thread*/
 
-#define MS_SAFE_FREE(src)      { if(src) {free(src); src = NULL;} }
+#define MS_SAFE_FREE(src)      { if (src) {free(src); src = NULL;} }
 #define MS_MALLOC(src, size)	{ if (size > SIZE_MAX || size <= 0) {src = NULL;} \
-							else { src = malloc(size); if(src) memset(src, 0x0, size);} }
+							else { src = malloc(size); if (src) memset(src, 0x0, size);} }
 #define MS_STRING_VALID(str)	\
 								((str != NULL && strlen(str) > 0) ? TRUE : FALSE)
 

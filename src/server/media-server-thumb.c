@@ -41,8 +41,8 @@
 	do { \
 		value = iniparser_getint(dict, key, default); \
 		MS_DBG("get %s = %d", key, value); \
-	} while(0)
-#define THUMB_SERVER_PATH tzplatform_mkpath(TZ_SYS_BIN,"media-thumbnail-server")
+	} while (0)
+#define THUMB_SERVER_PATH tzplatform_mkpath(TZ_SYS_BIN, "media-thumbnail-server")
 
 gboolean _ms_thumb_agent_timer();
 
@@ -124,8 +124,8 @@ void _ms_thumb_create_timer(int id)
 		g_source_destroy(g_main_context_find_source_by_id(g_main_context_get_thread_default(), id));
 
 	GSource *timer_src = g_timeout_source_new_seconds(MS_TIMEOUT_SEC_20);
-	g_source_set_callback (timer_src, _ms_thumb_agent_timer, NULL, NULL);
-	g_timer_id = g_source_attach (timer_src, g_main_context_get_thread_default());
+	g_source_set_callback(timer_src, _ms_thumb_agent_timer, NULL, NULL);
+	g_timer_id = g_source_attach(timer_src, g_main_context_get_thread_default());
 
 }
 
@@ -203,7 +203,7 @@ int _ms_thumb_recv_msg(int sock, thumbMsg *msg)
 	header_size = sizeof(thumbMsg) -(MAX_FILEPATH_LEN * 2) - sizeof(unsigned char *);
 
 	MS_MALLOC(buf, header_size);
-	if(buf == NULL) {
+	if (buf == NULL) {
 		MS_DBG_STRERROR("malloc failed");
 		return MS_MEDIA_ERR_OUT_OF_MEMORY;
 	}
@@ -219,19 +219,19 @@ int _ms_thumb_recv_msg(int sock, thumbMsg *msg)
 
 	MS_SAFE_FREE(buf);
 
-	if(msg->msg_type == MS_MSG_THUMB_EXTRACT_ALL_DONE || msg->msg_type == 5) {
+	if (msg->msg_type == MS_MSG_THUMB_EXTRACT_ALL_DONE || msg->msg_type == 5) {
 		MS_DBG("msg_type only cases [%d]", msg->msg_type);
 		return MS_MEDIA_ERR_NONE;
 	}
 
 	if (msg->origin_path_size <= 0  || msg->origin_path_size > MS_FILE_PATH_LEN_MAX) {
 		MS_SAFE_FREE(buf);
-		MS_DBG_ERR("msg->origin_path_size is invalid %d", msg->origin_path_size );
+		MS_DBG_ERR("msg->origin_path_size is invalid %d", msg->origin_path_size);
 		return MS_MEDIA_ERR_DATA_TAINTED;
 	}
 
 	MS_MALLOC(buf, (unsigned int)(msg->origin_path_size));
-	if(buf == NULL) {
+	if (buf == NULL) {
 		MS_DBG_STRERROR("malloc failed");
 		return MS_MEDIA_ERR_OUT_OF_MEMORY;
 	}
@@ -247,12 +247,12 @@ int _ms_thumb_recv_msg(int sock, thumbMsg *msg)
 
 	if (msg->dest_path_size <= 0  || msg->dest_path_size > MS_FILE_PATH_LEN_MAX) {
 		MS_SAFE_FREE(buf);
-		MS_DBG_ERR("msg->dest_path_size is invalid %d", msg->dest_path_size );
+		MS_DBG_ERR("msg->dest_path_size is invalid %d", msg->dest_path_size);
 		return MS_MEDIA_ERR_DATA_TAINTED;
 	}
 
 	MS_MALLOC(buf, (unsigned int)(msg->dest_path_size));
-	if(buf == NULL) {
+	if (buf == NULL) {
 		MS_DBG_ERR("malloc failed");
 		return MS_MEDIA_ERR_OUT_OF_MEMORY;
 	}
@@ -268,13 +268,13 @@ int _ms_thumb_recv_msg(int sock, thumbMsg *msg)
 
 	if (msg->thumb_size < 0) {
 		MS_SAFE_FREE(buf);
-		MS_DBG_ERR("msg->thumb_size is invalid %d", msg->thumb_size );
+		MS_DBG_ERR("msg->thumb_size is invalid %d", msg->thumb_size);
 		return MS_MEDIA_ERR_DATA_TAINTED;
 	}
 
-	if(msg->thumb_size > 0) {
+	if (msg->thumb_size > 0) {
 		MS_MALLOC(buf, (unsigned int)(msg->thumb_size));
-		if(buf == NULL) {
+		if (buf == NULL) {
 			MS_DBG_ERR("malloc failed");
 			return MS_MEDIA_ERR_OUT_OF_MEMORY;
 		}
@@ -287,7 +287,7 @@ int _ms_thumb_recv_msg(int sock, thumbMsg *msg)
 
 		MS_SAFE_FREE(msg->thumb_data);
 		MS_MALLOC(msg->thumb_data, (unsigned int)(msg->thumb_size));
-		if(msg->thumb_data == NULL) {
+		if (msg->thumb_data == NULL) {
 			MS_DBG_ERR("malloc failed");
 			MS_SAFE_FREE(buf);
 			return MS_MEDIA_ERR_OUT_OF_MEMORY;
@@ -321,7 +321,7 @@ int _ms_thumb_set_buffer(thumbMsg *req_msg, unsigned char **buf, int *buf_size)
 
 	size = header_size + org_path_len + dst_path_len + data_len;
 	MS_MALLOC(*buf, size);
-	if(*buf == NULL) {
+	if (*buf == NULL) {
 		MS_DBG_STRERROR("MALLOC failed");
 		return -1;
 	}
@@ -329,7 +329,7 @@ int _ms_thumb_set_buffer(thumbMsg *req_msg, unsigned char **buf, int *buf_size)
 	memcpy(*buf, req_msg, header_size);
 	memcpy((*buf)+header_size, req_msg->org_path, org_path_len);
 	memcpy((*buf)+header_size + org_path_len, req_msg->dst_path, dst_path_len);
-	if(data_len > 0)
+	if (data_len > 0)
 		memcpy((*buf)+header_size + org_path_len + dst_path_len, req_msg->thumb_data, data_len);
 
 	*buf_size = size;
@@ -384,9 +384,9 @@ gboolean _ms_thumb_agent_recv_thumb_done_from_server(GIOChannel *src, GIOConditi
 
 	/* Once all-thumb extraction is done, check if there is queued all-thumb request */
 	GSource *check_queued_all_thumb_request = NULL;
-	check_queued_all_thumb_request = g_idle_source_new ();
-	g_source_set_callback (check_queued_all_thumb_request, _ms_thumb_check_queued_request, NULL, NULL);
-	g_source_attach (check_queued_all_thumb_request, g_main_context_get_thread_default());
+	check_queued_all_thumb_request = g_idle_source_new();
+	g_source_set_callback(check_queued_all_thumb_request, _ms_thumb_check_queued_request, NULL, NULL);
+	g_source_attach(check_queued_all_thumb_request, g_main_context_get_thread_default());
 
 	if (g_thumb_server_extracting == FALSE) {
 		MS_DBG_WARN("Recv thumb server extracting done already");
@@ -616,7 +616,7 @@ gboolean _ms_thumb_request_to_server(gpointer data)
 	}
 
 	if (g_folk_thumb_server == FALSE && g_thumb_server_extracting == FALSE) {
-//		if(_ms_thumb_check_process() == FALSE) { // This logic is temporary
+//		if (_ms_thumb_check_process() == FALSE) { // This logic is temporary
 			MS_DBG_WARN("Thumb server is not running.. so start it");
 			if (!_ms_thumb_agent_execute_server()) {
 				MS_DBG_ERR("_ms_thumb_agent_execute_server is failed");
@@ -647,7 +647,7 @@ gboolean _ms_thumb_request_to_server(gpointer data)
 	client_sock = req->client_sock;
 	recv_msg = req->recv_msg;
 
-	if (req->client_sock <=0 || req->recv_msg == NULL) {
+	if (req->client_sock <= 0 || req->recv_msg == NULL) {
 		MS_DBG_ERR("client sock is below 0 or recv msg is NULL");
 		MS_SAFE_FREE(req->recv_msg);
 		MS_SAFE_FREE(req);
@@ -707,8 +707,8 @@ gboolean _ms_thumb_request_to_server(gpointer data)
 	unsigned char *buf = NULL;
 	_ms_thumb_set_buffer(&res_msg, &buf, &buf_size);
 
-	while(buf_size > 0) {
-		if(buf_size < MS_SOCK_BLOCK_SIZE) {
+	while (buf_size > 0) {
+		if (buf_size < MS_SOCK_BLOCK_SIZE) {
 			block_size = buf_size;
 		}
 		if (send(client_sock, buf+sending_block, block_size, 0) != block_size) {
@@ -716,11 +716,11 @@ gboolean _ms_thumb_request_to_server(gpointer data)
 		}
 		sending_block += block_size;
 		buf_size -= block_size;
-		if(block_size < MS_SOCK_BLOCK_SIZE) {
+		if (block_size < MS_SOCK_BLOCK_SIZE) {
 			block_size = MS_SOCK_BLOCK_SIZE;
 		}
 	}
-	if(buf_size == 0) {
+	if (buf_size == 0) {
 		MS_DBG_SLOG("Sent data(%d) from %s", res_msg.thumb_size, res_msg.org_path);
 	}
 
@@ -780,7 +780,7 @@ gboolean _ms_thumb_agent_read_socket(GIOChannel *src,
 		MS_DBG_ERR("credential information error");
 	}
 
-	if ( getuid() != cr.uid ){
+	if (getuid() != cr.uid) {
 		recv_msg->uid = cr.uid;
 	}
 
@@ -838,10 +838,10 @@ gboolean _ms_thumb_agent_read_socket(GIOChannel *src,
 
 	if (!g_queue_work) {
 		GSource *src_request = NULL;
-		src_request = g_idle_source_new ();
-		g_source_set_callback (src_request, _ms_thumb_request_to_server, NULL, NULL);
+		src_request = g_idle_source_new();
+		g_source_set_callback(src_request, _ms_thumb_request_to_server, NULL, NULL);
 		//g_source_set_priority(src_request, G_PRIORITY_LOW);
-		g_source_attach (src_request, g_main_context_get_thread_default());
+		g_source_attach(src_request, g_main_context_get_thread_default());
 		g_queue_work = 1;
 	}
 
@@ -867,12 +867,12 @@ int ms_thumb_get_config()
 	dictionary *dict = NULL;
 
 	dict = iniparser_load(MS_INI_DEFAULT_PATH);
-	if(!dict) {
+	if (!dict) {
 		MS_DBG_ERR("%s load failed", MS_INI_DEFAULT_PATH);
 		return -1;
 	}
 
-	MS_INI_GET_INT(dict, "media-content-config:thumbnail_activation",g_thumb_server_active, 0);
+	MS_INI_GET_INT(dict, "media-content-config:thumbnail_activation", g_thumb_server_active, 0);
 	MS_DBG("Thumb-server activation level = %d", g_thumb_server_active);
 
 	iniparser_freedict(dict);

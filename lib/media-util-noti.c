@@ -40,7 +40,7 @@ static int ref_count = 0;
 
 #define MS_MEDIA_DBUS_NAME "ms_db_updated"
 
-typedef struct noti_callback_data{
+typedef struct noti_callback_data {
 	db_update_cb user_callback;
 	void *user_data;
 } noti_callback_data;
@@ -117,8 +117,8 @@ int media_db_update_subscribe(db_update_cb user_cb, void *user_data)
 	if (g_bus == NULL) {
 		g_bus = g_bus_get_sync(G_BUS_TYPE_SYSTEM, NULL, &error);
 		if (!g_bus) {
-			MSAPI_DBG ("Failed to connect to the g D-BUS daemon: %s", error->message);
-			g_error_free (error);
+			MSAPI_DBG("Failed to connect to the g D-BUS daemon: %s", error->message);
+			g_error_free(error);
 			ret = MS_MEDIA_ERR_INTERNAL;
 			goto ERROR;
 		}
@@ -147,7 +147,7 @@ int media_db_update_subscribe(db_update_cb user_cb, void *user_data)
 		g_data_store = (void *)callback_data;
 	}
 
-	ref_count ++;
+	ref_count++;
 
 	g_mutex_unlock(&noti_mutex);
 
@@ -184,7 +184,7 @@ int media_db_update_unsubscribe(void)
 		g_data_store = NULL;
 	}
 
-	ref_count --;
+	ref_count--;
 
 	g_mutex_unlock(&noti_mutex);
 
@@ -206,8 +206,8 @@ int media_db_update_send(int pid, /* mandatory */
 
 	bus = g_bus_get_sync(G_BUS_TYPE_SYSTEM, NULL, &error);
 	if (!bus) {
-		MSAPI_DBG ("Failed to get gdbus connection: %s", error->message);
-		g_error_free (error);
+		MSAPI_DBG("Failed to get gdbus connection: %s", error->message);
+		g_error_free(error);
 		return MS_MEDIA_ERR_INTERNAL;
 	}
 
@@ -223,7 +223,7 @@ int media_db_update_send(int pid, /* mandatory */
 	} else if (item == MS_MEDIA_ITEM_DIRECTORY) {
 		MSAPI_DBG("DIRECTORY CHANGED");
 		/* fill all datas */
-		if(uuid != NULL) {
+		if (uuid != NULL) {
 			message = g_variant_new("(iiiss)", item, pid, update_type, path, uuid);
 		} else {
 			message = g_variant_new("(iiis)", item, pid, update_type, path);
@@ -240,11 +240,9 @@ int media_db_update_send(int pid, /* mandatory */
 					MS_MEDIA_DBUS_NAME,
 					message,
 					&error);
-	if (!emmiting)
-	{
-		MSAPI_DBG_ERR("g_dbus_connection_emit_signal failed : %s", error?error->message:"none");
-		if (error)
-		{
+	if (!emmiting) {
+		MSAPI_DBG_ERR("g_dbus_connection_emit_signal failed : %s", error ? error->message : "none");
+		if (error) {
 			MSAPI_DBG_ERR("Error in g_dbus_connection_emit_signal");
 			g_object_unref(bus);
 			g_error_free(error);
@@ -255,11 +253,9 @@ int media_db_update_send(int pid, /* mandatory */
 
 	gboolean flush = FALSE;
 	flush = g_dbus_connection_flush_sync(bus, NULL, &error);
-	if (!flush)
-	{
+	if (!flush) {
 		MSAPI_DBG_ERR("g_dbus_connection_flush_sync failed");
-		if (error)
-		{
+		if (error) {
 			MSAPI_DBG_ERR("error : [%s]", error->message);
 			g_object_unref(bus);
 			g_error_free(error);
@@ -288,8 +284,8 @@ int media_db_update_send_v2(int pid, /* mandatory */
 
 	bus = g_bus_get_sync(G_BUS_TYPE_SYSTEM, NULL, &error);
 	if (!bus) {
-		MSAPI_DBG ("Failed to get gdbus connection: %s", error->message);
-		g_error_free (error);
+		MSAPI_DBG("Failed to get gdbus connection: %s", error->message);
+		g_error_free(error);
 		return MS_MEDIA_ERR_INTERNAL;
 	}
 
@@ -305,7 +301,7 @@ int media_db_update_send_v2(int pid, /* mandatory */
 	} else if (item == MS_MEDIA_ITEM_DIRECTORY) {
 		MSAPI_DBG("DIRECTORY CHANGED");
 		/* fill all datas */
-		if(uuid != NULL) {
+		if (uuid != NULL) {
 			message = g_variant_new("(iiiss)", item, pid, update_type, path, uuid);
 		} else {
 			message = g_variant_new("(iiis)", item, pid, update_type, path);
@@ -322,11 +318,9 @@ int media_db_update_send_v2(int pid, /* mandatory */
 					MS_MEDIA_DBUS_NAME,
 					message,
 					&error);
-	if (!emmiting)
-	{
-		MSAPI_DBG_ERR("g_dbus_connection_emit_signal failed : %s", error?error->message:"none");
-		if (error)
-		{
+	if (!emmiting) {
+		MSAPI_DBG_ERR("g_dbus_connection_emit_signal failed : %s", error ? error->message : "none");
+		if (error) {
 			MSAPI_DBG_ERR("Error in g_dbus_connection_emit_signal");
 			g_object_unref(bus);
 			g_error_free(error);
@@ -337,11 +331,9 @@ int media_db_update_send_v2(int pid, /* mandatory */
 
 	gboolean flush = FALSE;
 	flush = g_dbus_connection_flush_sync(bus, NULL, &error);
-	if (!flush)
-	{
+	if (!flush) {
 		MSAPI_DBG_ERR("g_dbus_connection_flush_sync failed");
-		if (error)
-		{
+		if (error) {
 			MSAPI_DBG_ERR("error : [%s]", error->message);
 			g_object_unref(bus);
 			g_error_free(error);

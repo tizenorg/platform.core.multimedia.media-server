@@ -161,7 +161,7 @@ int ms_strappend(char *res, const int size, const char *pattern,
 	int len = 0;
 	int real_size = size - 1;
 
-	if (!res ||!pattern || !str1 ||!str2 )
+	if (!res || !pattern || !str1 || !str2)
 		return MS_MEDIA_ERR_INVALID_PARAMETER;
 
 	if (real_size < (int)(strlen(str1) + strlen(str2)))

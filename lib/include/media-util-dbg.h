@@ -69,14 +69,14 @@
 		} while (0)
 
 #define MSAPI_RETV_IF(expr, val) do { \
-			if(expr) { \
+			if (expr) { \
 				LOGE(FONT_COLOR_RED);	  \
 				return (val); \
 			} \
 		} while (0)
 
 #define MSAPI_RETVM_IF(expr, val, fmt, arg...) do { \
-			if(expr) { \
+			if (expr) { \
 				LOGE(FONT_COLOR_RED fmt, ##arg);	\
 				return (val); \
 			} \

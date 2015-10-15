@@ -67,24 +67,21 @@ static char* __media_get_media_DB(uid_t uid)
 {
 	char *result_psswd = NULL;
 	struct group *grpinfo = NULL;
-	if(uid == getuid())
-	{
+	if (uid == getuid()) {
 		result_psswd = strdup(MEDIA_DB_NAME);
 		grpinfo = getgrnam("users");
-		if(grpinfo == NULL) {
+		if (grpinfo == NULL) {
 			MSAPI_DBG_ERR("getgrnam(users) returns NULL !");
 			return NULL;
 		}
-	}
-	else
-	{
+	} else {
 		struct passwd *userinfo = getpwuid(uid);
-		if(userinfo == NULL) {
+		if (userinfo == NULL) {
 			MSAPI_DBG_ERR("getpwuid(%d) returns NULL !", uid);
 			return NULL;
 		}
 		grpinfo = getgrnam("users");
-		if(grpinfo == NULL) {
+		if (grpinfo == NULL) {
 			MSAPI_DBG_ERR("getgrnam(users) returns NULL !");
 			return NULL;
 		}
@@ -99,7 +96,7 @@ static char* __media_get_media_DB(uid_t uid)
 	return result_psswd;
 }
 
-static int __media_db_connect_db_with_handle(sqlite3 **db_handle,uid_t uid, bool need_write)
+static int __media_db_connect_db_with_handle(sqlite3 **db_handle, uid_t uid, bool need_write)
 {
 	int ret = SQLITE_OK;
 
@@ -167,15 +164,13 @@ static int __media_db_request_update_tcp(ms_msg_type_e msg_type, const char *req
 	int retry_count = 0;
 	sock_info.port = MS_DB_UPDATE_PORT;
 
-	if(!MS_STRING_VALID(request_msg))
-	{
+	if (!MS_STRING_VALID(request_msg)) {
 		MSAPI_DBG_ERR("invalid query");
 		return MS_MEDIA_ERR_INVALID_PARAMETER;
 	}
 
 	request_msg_size = strlen(request_msg);
-	if(request_msg_size >= MAX_MSG_SIZE)
-	{
+	if (request_msg_size >= MAX_MSG_SIZE) {
 		MSAPI_DBG_ERR("Query is Too long. [%d] query size limit is [%d]", request_msg_size, MAX_MSG_SIZE);
 		return MS_MEDIA_ERR_INVALID_PARAMETER;
 	}
@@ -222,17 +217,17 @@ RETRY:
 	if ((recv_msg_size = recv(sockfd, &recv_msg, sizeof(recv_msg), 0)) < 0) {
 		MSAPI_DBG_ERR("recv failed : [%d]", sockfd);
 
-		 if (errno == EINTR) {
+		if (errno == EINTR) {
 			MSAPI_DBG_STRERROR("catch interrupt");
 			goto RETRY;
-	 	}
+		}
 
 		if (errno == EWOULDBLOCK) {
-			if(retry_count < MAX_RETRY_COUNT)	{
+			if (retry_count < MAX_RETRY_COUNT)	{
 				MSAPI_DBG_ERR("TIME OUT[%d]", retry_count);
-				retry_count ++;
+				retry_count++;
 				goto RETRY;
-		 	}
+			}
 
 			close(sockfd);
 			MSAPI_DBG_ERR("Timeout. Can't try any more");
@@ -299,7 +294,7 @@ static int __media_db_close_tcp_client_socket()
 	int ret = MS_MEDIA_ERR_NONE;
 
 	if (g_tcp_client_sock != -1) {
-		if (close(g_tcp_client_sock)<0) {
+		if (close(g_tcp_client_sock) < 0) {
 			MSAPI_DBG_ERR("sock(%d) close failed", g_tcp_client_sock);
 			MSAPI_DBG_STRERROR("socket close failed");
 			ret = MS_MEDIA_ERR_SOCKET_INTERNAL;
@@ -316,15 +311,13 @@ static int __media_db_request_batch_update(ms_msg_type_e msg_type, const char *r
 	int request_msg_size = 0;
 	int sockfd = -1;
 
-	if(!MS_STRING_VALID(request_msg))
-	{
+	if (!MS_STRING_VALID(request_msg)) {
 		MSAPI_DBG_ERR("invalid query");
 		return MS_MEDIA_ERR_INVALID_PARAMETER;
 	}
 
 	request_msg_size = strlen(request_msg);
-	if(request_msg_size >= MAX_MSG_SIZE)
-	{
+	if (request_msg_size >= MAX_MSG_SIZE) {
 		MSAPI_DBG_ERR("Query is Too long. [%d] query size limit is [%d]", request_msg_size, MAX_MSG_SIZE);
 		return MS_MEDIA_ERR_INVALID_PARAMETER;
 	}
@@ -383,11 +376,11 @@ static int _media_db_update_directly(sqlite3 *db_handle, const char *sql_str)
 
 //	MSAPI_DBG_SLOG("SQL = [%s]", sql_str);
 
-EXEC_RETRY:
+EXEC_RETRY :
 	ret = sqlite3_exec(db_handle, sql_str, NULL, NULL, &zErrMsg);
 
 	if (SQLITE_OK != ret) {
-		MSAPI_DBG_ERR("DB Update Fail SQL:%s", sql_str);
+		MSAPI_DBG_ERR("DB Update Fail SQL : %s", sql_str);
 		MSAPI_DBG_ERR("ERROR [%s]", zErrMsg);
 		if (ret == SQLITE_BUSY) {
 			ret = MS_MEDIA_ERR_DB_BUSY_FAIL;
@@ -409,7 +402,7 @@ EXEC_RETRY:
 	}
 
 	if (zErrMsg)
-		sqlite3_free (zErrMsg);
+		sqlite3_free(zErrMsg);
 
 	return ret;
 }
@@ -421,7 +414,7 @@ int media_db_connect(MediaDBHandle **handle, uid_t uid, bool need_write)
 
 	MSAPI_DBG_FUNC();
 
-	ret = __media_db_connect_db_with_handle(&db_handle,uid, need_write);
+	ret = __media_db_connect_db_with_handle(&db_handle, uid, need_write);
 	MSAPI_RETV_IF(ret != MS_MEDIA_ERR_NONE, ret);
 
 	*handle = db_handle;
@@ -447,7 +440,7 @@ int media_db_request_update_db(const char *query_str, uid_t uid)
 
 	MSAPI_RETVM_IF(!MS_STRING_VALID(query_str), MS_MEDIA_ERR_INVALID_PARAMETER, "Invalid Query");
 
-	ret = __media_db_request_update_tcp(MS_MSG_DB_UPDATE, query_str ,uid);
+	ret = __media_db_request_update_tcp(MS_MSG_DB_UPDATE, query_str, uid);
 	if (ret != MS_MEDIA_ERR_NONE) {
 		MSAPI_DBG_ERR("__media_db_request_update_tcp failed : %d", ret);
 	}

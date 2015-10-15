@@ -55,7 +55,7 @@ gboolean ms_db_thread(void *data)
 
 	/* Create TCP Socket*/
 	ret = ms_ipc_create_server_socket(MS_PROTOCOL_TCP, MS_DB_UPDATE_PORT, &sockfd);
-	if(ret != MS_MEDIA_ERR_NONE) {
+	if (ret != MS_MEDIA_ERR_NONE) {
 		MS_DBG_ERR("Failed to create socket");
 		return FALSE;
 	}
@@ -67,7 +67,7 @@ gboolean ms_db_thread(void *data)
 
 	/* Create TCP Socket for batch query*/
 	ret = ms_ipc_create_server_socket(MS_PROTOCOL_TCP, MS_DB_BATCH_UPDATE_PORT, &tcp_sockfd);
-	if(ret != MS_MEDIA_ERR_NONE) {
+	if (ret != MS_MEDIA_ERR_NONE) {
 		close(sockfd);
 		MS_DBG_ERR("Failed to create socket");
 		return FALSE;
