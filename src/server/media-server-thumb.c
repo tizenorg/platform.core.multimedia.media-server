@@ -149,8 +149,7 @@ bool _ms_thumb_check_process()
 		if (result == NULL)
 			break;
 
-		if (pinfo.d_type != 4 || pinfo.d_name[0] == '.'
-		    || pinfo.d_name[0] > 57)
+		if (pinfo.d_type != 4 || pinfo.d_name[0] == '.' || pinfo.d_name[0] > 57)
 			continue;
 
 		FILE *fp;
@@ -224,7 +223,7 @@ int _ms_thumb_recv_msg(int sock, thumbMsg *msg)
 		return MS_MEDIA_ERR_NONE;
 	}
 
-	if (msg->origin_path_size <= 0  || msg->origin_path_size > MS_FILE_PATH_LEN_MAX) {
+	if (msg->origin_path_size <= 0 || msg->origin_path_size > MS_FILE_PATH_LEN_MAX) {
 		MS_SAFE_FREE(buf);
 		MS_DBG_ERR("msg->origin_path_size is invalid %d", msg->origin_path_size);
 		return MS_MEDIA_ERR_DATA_TAINTED;
@@ -245,7 +244,7 @@ int _ms_thumb_recv_msg(int sock, thumbMsg *msg)
 
 	MS_SAFE_FREE(buf);
 
-	if (msg->dest_path_size <= 0  || msg->dest_path_size > MS_FILE_PATH_LEN_MAX) {
+	if (msg->dest_path_size <= 0 || msg->dest_path_size > MS_FILE_PATH_LEN_MAX) {
 		MS_SAFE_FREE(buf);
 		MS_DBG_ERR("msg->dest_path_size is invalid %d", msg->dest_path_size);
 		return MS_MEDIA_ERR_DATA_TAINTED;
@@ -923,8 +922,8 @@ gpointer ms_thumb_agent_start_thread(gpointer data)
 	_ms_thumb_agent_finish_jobs();
 
 	/*close an IO channel*/
-	g_io_channel_shutdown(channel,  FALSE, NULL);
-	g_io_channel_shutdown(g_tcp_channel,  FALSE, NULL);
+	g_io_channel_shutdown(channel, FALSE, NULL);
+	g_io_channel_shutdown(g_tcp_channel, FALSE, NULL);
 	g_io_channel_unref(channel);
 	close(g_communicate_sock);
 

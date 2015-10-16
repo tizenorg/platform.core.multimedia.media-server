@@ -1,5 +1,5 @@
 /*
- *  Media Utility
+ * Media Utility
  *
  * Copyright (c) 2000 - 2011 Samsung Electronics Co., Ltd. All rights reserved.
  *
@@ -25,20 +25,19 @@
 #include "media-util-db.h"
 
 #ifndef FALSE
-#define FALSE  0
+#define FALSE 0
 #endif
 #ifndef TRUE
-#define TRUE   1
+#define TRUE 1
 #endif
 
-#define MS_SAFE_FREE(src)      { if (src) {free(src); src = NULL;} }
+#define MS_SAFE_FREE(src)		{ if (src) {free(src); src = NULL;} }
 #define MS_MALLOC(src, size)	{ if (size > SIZE_MAX || size <= 0) {src = NULL;} \
 							else { src = malloc(size); if (src) memset(src, 0x0, size);} }
 #define MS_STRING_VALID(str)	\
 	((str != NULL && strlen(str) > 0) ? TRUE : FALSE)
 
 int media_db_update_db(MediaDBHandle *handle, const char *query_str);
-
 int media_db_update_db_batch_start(const char *query_str);
 int media_db_update_db_batch(const char *query_str);
 int media_db_update_db_batch_end(MediaDBHandle *handle, const char *query_str);

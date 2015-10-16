@@ -1,5 +1,5 @@
 /*
- *  Media Server
+ * Media Server
  *
  * Copyright (c) 2000 - 2011 Samsung Electronics Co., Ltd. All rights reserved.
  *
@@ -108,7 +108,7 @@ gboolean ms_db_thread(void *data)
 
 	db_thread_ready = FALSE;
 
-	g_io_channel_shutdown(channel,  FALSE, NULL);
+	g_io_channel_shutdown(channel, FALSE, NULL);
 	g_io_channel_unref(channel);
 
 	/*close socket*/

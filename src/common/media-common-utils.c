@@ -1,5 +1,5 @@
 /*
- *  Media Server
+ * Media Server
  *
  * Copyright (c) 2000 - 2011 Samsung Electronics Co., Ltd. All rights reserved.
  *
@@ -63,8 +63,7 @@ void ms_check_time_diff(struct timeval *start_time, struct timeval *end_time)
 	time.tv_sec = end_time->tv_sec - start_time->tv_sec;
 	time.tv_usec = end_time->tv_usec - start_time->tv_usec;
 	difftime = MILLION * time.tv_sec + time.tv_usec;
-	MS_DBG("The function_to_time took %ld microseconds or %f seconds.",
-	       difftime, difftime / (double)MILLION);
+	MS_DBG("The function_to_time took %ld microseconds or %f seconds.", difftime, difftime / (double)MILLION);
 }
 #endif
 
@@ -155,8 +154,7 @@ ms_storage_type_t ms_get_storage_type_by_full(const char *path, uid_t uid)
 	return ret;
 }
 
-int ms_strappend(char *res, const int size, const char *pattern,
-	     const char *str1, const char *str2)
+int ms_strappend(char *res, const int size, const char *pattern, const char *str1, const char *str2)
 {
 	int len = 0;
 	int real_size = size - 1;

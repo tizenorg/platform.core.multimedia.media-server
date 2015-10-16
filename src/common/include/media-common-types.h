@@ -1,5 +1,5 @@
 /*
- *  Media Server
+ * Media Server
  *
  * Copyright (c) 2000 - 2011 Samsung Electronics Co., Ltd. All rights reserved.
  *
@@ -43,19 +43,19 @@
 /*Use for Poweroff sequence*/
 #define POWEROFF -1 /*This number uses for stopping Scannig thread*/
 
-#define MS_SAFE_FREE(src)      { if (src) {free(src); src = NULL;} }
+#define MS_SAFE_FREE(src)		{ if (src) {free(src); src = NULL;} }
 #define MS_MALLOC(src, size)	{ if (size > SIZE_MAX || size <= 0) {src = NULL;} \
 							else { src = malloc(size); if (src) memset(src, 0x0, size);} }
 #define MS_STRING_VALID(str)	\
 								((str != NULL && strlen(str) > 0) ? TRUE : FALSE)
 
 /*System default folder definition*/
-#define FAT_FILENAME_LEN_MAX          255	/* not inc null */
-#define FAT_FILEPATH_LEN_MAX          4096	/* inc null */
+#define FAT_FILENAME_LEN_MAX		255	/* not inc null */
+#define FAT_FILEPATH_LEN_MAX		4096	/* inc null */
 
 /* The following MACROs(TAF_XXX) are defined in "fs-limit.h"*/
-#define MS_FILE_NAME_LEN_MAX     FAT_FILENAME_LEN_MAX		 /**< File name max length on file system */
-#define MS_FILE_PATH_LEN_MAX     FAT_FILEPATH_LEN_MAX		 /**< File path max length (include file name) on file system */
+#define MS_FILE_NAME_LEN_MAX		FAT_FILENAME_LEN_MAX		 /**< File name max length on file system */
+#define MS_FILE_PATH_LEN_MAX		FAT_FILEPATH_LEN_MAX		 /**< File path max length (include file name) on file system */
 
 #define MS_SOCK_NOT_ALLOCATE -1
 
@@ -68,8 +68,8 @@ typedef enum {
 } ms_storage_type_t;
 
 typedef enum {
-	MS_SDCARD_INSERTED,    /**< Stored only in phone */
-	MS_SDCARD_REMOVED,	     /**< Stored only in MMC */
+	MS_SDCARD_INSERTED,	/**< Stored only in phone */
+	MS_SDCARD_REMOVED,	/**< Stored only in MMC */
 } ms_sdcard_status_type_t;
 
 typedef enum {

@@ -1,5 +1,5 @@
 /*
- *  Media Server
+ * Media Server
  *
  * Copyright (c) 2000 - 2011 Samsung Electronics Co., Ltd. All rights reserved.
  *
@@ -20,7 +20,7 @@
  */
 
 #define _GNU_SOURCE
-#include <dirent.h>     /* Defines DT_* constants */
+#include <dirent.h>	/* Defines DT_* constants */
 #include <fcntl.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -310,7 +310,7 @@ gboolean msc_storage_extract_thread(void *data)
 			}
 		} else {
 			if (scan_type == MS_MSG_STORAGE_ALL) {
-				/*  Delete all data before full scanning */
+				/* Delete all data before full scanning */
 				if (!ms_delete_all_items(handle, storage_id, storage_type)) {
 					MS_DBG_ERR("msc_delete_all_record fails");
 				}
@@ -341,7 +341,7 @@ gboolean msc_storage_extract_thread(void *data)
 		}
 
 		/* send notification */
-		ms_send_dir_update_noti(handle,  storage_id, update_path);
+		ms_send_dir_update_noti(handle, storage_id, update_path);
 #endif
 
 NEXT:
@@ -634,7 +634,7 @@ static int __msc_extract_set_db_status(ms_db_status_type_t status, ms_storage_ty
 			}
 		}
 	} else if (status == MS_DB_UPDATED) {
-		if (!ms_config_set_int(VCONFKEY_FILEMANAGER_DB_STATUS,  VCONFKEY_FILEMANAGER_DB_UPDATED)) {
+		if (!ms_config_set_int(VCONFKEY_FILEMANAGER_DB_STATUS, VCONFKEY_FILEMANAGER_DB_UPDATED)) {
 			res = MS_MEDIA_ERR_VCONF_SET_FAIL;
 			MS_DBG_ERR("ms_config_set_int failed");
 		}
@@ -646,7 +646,7 @@ static int __msc_extract_set_db_status(ms_db_status_type_t status, ms_storage_ty
 			}
 		}
 	} else {
-		if (!ms_config_set_int(VCONFKEY_FILEMANAGER_DB_STATUS,  VCONFKEY_FILEMANAGER_DB_UPDATED)) {
+		if (!ms_config_set_int(VCONFKEY_FILEMANAGER_DB_STATUS, VCONFKEY_FILEMANAGER_DB_UPDATED)) {
 			res = MS_MEDIA_ERR_VCONF_SET_FAIL;
 			MS_DBG_ERR("ms_config_set_int failed");
 		}

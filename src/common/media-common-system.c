@@ -1,5 +1,5 @@
 /*
- *  Media Server
+ * Media Server
  *
  * Copyright (c) 2000 - 2011 Samsung Electronics Co., Ltd. All rights reserved.
  *
@@ -37,7 +37,7 @@
 
 
 //////////////////////////////////////////////////////////////////////////////
-/// CHECK THE STORATE(MMC, USB)  STATE
+/// CHECK THE STORATE(MMC, USB) STATE
 //////////////////////////////////////////////////////////////////////////////
 
 #define DEVICED_BUS_NAME       "org.tizen.system.deviced"

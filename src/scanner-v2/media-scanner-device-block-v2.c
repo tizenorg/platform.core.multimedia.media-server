@@ -1,5 +1,5 @@
 /*
- *  Media Server
+ * Media Server
  *
  * Copyright (c) 2000 - 2011 Samsung Electronics Co., Ltd. All rights reserved.
  *
@@ -38,7 +38,7 @@ static void __msc_usb_remove_event(const char *mount_path)
 	MS_DBG_ERR("===========================================================");
 	MS_DBG_ERR("USB REMOVED, mountpath : %s", mount_path);
 	MS_DBG_ERR("===========================================================");
-	int update_status  = -1;
+	int update_status = -1;
 	int remain_request = 0;
 	bool status = FALSE;
 

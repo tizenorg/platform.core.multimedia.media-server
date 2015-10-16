@@ -1,5 +1,5 @@
 /*
- *  Media Server
+ * Media Server
  *
  * Copyright (c) 2015 Samsung Electronics Co., Ltd. All rights reserved.
  *
@@ -22,9 +22,9 @@
 /**
  * This file contains Cynara integration code
  *
- * @file    media-util-cynara.c
- * @author  Jacek Bukarewicz (j.bukarewicz@samsung.com)
- * @version 1.0
+ * @file		media-util-cynara.c
+ * @author	Jacek Bukarewicz (j.bukarewicz@samsung.com)
+ * @version	1.0
  * @brief
  */
 
@@ -110,7 +110,7 @@ int ms_cynara_receive_untrusted_message(int sockfd, ms_comm_msg_s *recv_msg, ms_
 
 	if (!(recv_msg->msg_size > 0 && recv_msg->msg_size < MAX_FILEPATH_LEN)) {
 		MSAPI_DBG_ERR("IPC message is wrong. message size is %d", recv_msg->msg_size);
-		return  MS_MEDIA_ERR_INVALID_IPC_MESSAGE;
+		return MS_MEDIA_ERR_INVALID_IPC_MESSAGE;
 	}
 
 	ret = cynara_creds_socket_get_pid(sockfd, &(credentials->pid));

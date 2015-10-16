@@ -1,5 +1,5 @@
 /*
- *  Media Utility
+ * Media Utility
  *
  * Copyright (c) 2000 - 2011 Samsung Electronics Co., Ltd. All rights reserved.
  *
@@ -209,7 +209,7 @@ ERROR:
 	MS_SAFE_FREE(req_result.complete_path);
 
 	/*close an IO channel*/
-	g_io_channel_shutdown(src,  FALSE, NULL);
+	g_io_channel_shutdown(src, FALSE, NULL);
 	g_io_channel_unref(src);
 
 	g_source_destroy(source);
@@ -304,7 +304,7 @@ static int _remove_request(const char * req_path)
 
 
 	/*close an IO channel*/
-	g_io_channel_shutdown(src,  FALSE, NULL);
+	g_io_channel_shutdown(src, FALSE, NULL);
 	g_io_channel_unref(src);
 
 	g_source_destroy(source);

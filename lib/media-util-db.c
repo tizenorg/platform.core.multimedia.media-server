@@ -1,5 +1,5 @@
 /*
- *  Media Utility
+ * Media Utility
  *
  * Copyright (c) 2000 - 2011 Samsung Electronics Co., Ltd. All rights reserved.
  *
@@ -333,7 +333,7 @@ static int __media_db_request_batch_update(ms_msg_type_e msg_type, const char *r
 
 	sockfd = __media_db_get_client_tcp_sock();
 	if (sockfd <= 0) {
-		return  MS_MEDIA_ERR_SOCKET_CONN;
+		return MS_MEDIA_ERR_SOCKET_CONN;
 	}
 
 	/* Send request */

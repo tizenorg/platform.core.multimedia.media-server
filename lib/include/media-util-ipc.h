@@ -1,5 +1,5 @@
 /*
- *  Media Utility
+ * Media Utility
  *
  * Copyright (c) 2000 - 2011 Samsung Electronics Co., Ltd. All rights reserved.
  *
@@ -47,8 +47,8 @@ int ms_ipc_send_msg_to_client(int sockfd, ms_comm_msg_s *send_msg, struct sockad
 int ms_ipc_send_msg_to_client_tcp(int sockfd, ms_comm_msg_s *send_msg, struct sockaddr_un *client_addr);
 int ms_ipc_receive_message(int sockfd, void *recv_msg, unsigned int msg_size);
 int ms_ipc_receive_message_tcp(int client_sock, ms_comm_msg_s *recv_msg);
-int ms_ipc_wait_message(int sockfd, void  *recv_msg, unsigned int msg_size, struct sockaddr_un *recv_addr, unsigned int *size);
-int ms_ipc_wait_block_message(int sockfd, void  *recv_msg, unsigned int msg_size, struct sockaddr_un *recv_addr, unsigned int *size);
+int ms_ipc_wait_message(int sockfd, void *recv_msg, unsigned int msg_size, struct sockaddr_un *recv_addr, unsigned int *size);
+int ms_ipc_wait_block_message(int sockfd, void *recv_msg, unsigned int msg_size, struct sockaddr_un *recv_addr, unsigned int *size);
 int ms_ipc_delete_client_socket(ms_sock_info_s* sock_info);
 int ms_ipc_accept_client_tcp(int serv_sock, int* client_sock);
 

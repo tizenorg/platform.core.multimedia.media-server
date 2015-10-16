@@ -1,5 +1,5 @@
 /*
- *  Media Server
+ * Media Server
  *
  * Copyright (c) 2000 - 2011 Samsung Electronics Co., Ltd. All rights reserved.
  *
@@ -228,7 +228,7 @@ int ms_load_functions(void)
 		lib_index++;
 	}
 
-	dlerror();    /* Clear any existing error */
+	dlerror();	/* Clear any existing error */
 
 	/*allocate for array of functions*/
 	MS_MALLOC(func_array, sizeof(void**) * lib_num);

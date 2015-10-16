@@ -1,5 +1,5 @@
 /*
- *  Media Utility
+ * Media Utility
  *
  * Copyright (c) 2015 Samsung Electronics Co., Ltd. All rights reserved.
  *
@@ -26,10 +26,10 @@
 #include <media-util-ipc.h>
 
 
-#define MEDIA_STORAGE_PRIVILEGE    "http://tizen.org/privilege/mediastorage"
-#define EXTERNAL_STORAGE_PRIVILEGE    "http://tizen.org/privilege/externalstorage"
+#define MEDIA_STORAGE_PRIVILEGE		"http://tizen.org/privilege/mediastorage"
+#define EXTERNAL_STORAGE_PRIVILEGE		"http://tizen.org/privilege/externalstorage"
 
-#define CONTENT_WRITE_PRIVILEGE    "http://tizen.org/privilege/content.write"
+#define CONTENT_WRITE_PRIVILEGE		"http://tizen.org/privilege/content.write"
 
 typedef struct {
 	pid_t pid;

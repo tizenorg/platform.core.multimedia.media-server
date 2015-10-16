@@ -1,5 +1,5 @@
 /*
- *  Media Server
+ * Media Server
  *
  * Copyright (c) 2000 - 2011 Samsung Electronics Co., Ltd. All rights reserved.
  *
@@ -20,7 +20,7 @@
  */
 
 #define _GNU_SOURCE
-#include <dirent.h>     /* Defines DT_* constants */
+#include <dirent.h>	/* Defines DT_* constants */
 #include <fcntl.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -164,7 +164,7 @@ static int __msc_set_db_status(ms_db_status_type_t status, ms_storage_type_t sto
 			}
 		}
 	} else if (status == MS_DB_UPDATED) {
-		if (!ms_config_set_int(VCONFKEY_FILEMANAGER_DB_STATUS,  VCONFKEY_FILEMANAGER_DB_UPDATED)) {
+		if (!ms_config_set_int(VCONFKEY_FILEMANAGER_DB_STATUS, VCONFKEY_FILEMANAGER_DB_UPDATED)) {
 			res = MS_MEDIA_ERR_VCONF_SET_FAIL;
 			MS_DBG_ERR("ms_config_set_int failed");
 		}
@@ -176,7 +176,7 @@ static int __msc_set_db_status(ms_db_status_type_t status, ms_storage_type_t sto
 			}
 		}
 	} else {
-		if (!ms_config_set_int(VCONFKEY_FILEMANAGER_DB_STATUS,  VCONFKEY_FILEMANAGER_DB_UPDATED)) {
+		if (!ms_config_set_int(VCONFKEY_FILEMANAGER_DB_STATUS, VCONFKEY_FILEMANAGER_DB_UPDATED)) {
 			res = MS_MEDIA_ERR_VCONF_SET_FAIL;
 			MS_DBG_ERR("ms_config_set_int failed");
 		}
@@ -248,7 +248,7 @@ static int __msc_check_scan_ignore(char * path)
 			snprintf(check_ignore_file, path_len, "%s%s", path, ignore_path);
 
 			exist = open(check_ignore_file, O_RDONLY);
-			if (exist >=  0) {
+			if (exist >= 0) {
 				MS_DBG_ERR("scan_ignore exists [%s]", check_ignore_file);
 				ret = MS_MEDIA_ERR_INVALID_PATH;
 			}
@@ -272,8 +272,8 @@ ERROR:
 	return ret;
 }
 
-GCond data_cond2;   /* Must be initialized somewhere */
-GMutex data_mutex2; /* Must be initialized somewhere */
+GCond data_cond2;	/* Must be initialized somewhere */
+GMutex data_mutex2;	/* Must be initialized somewhere */
 gpointer current_data2 = NULL;
 
 int msc_init_scan_thread()
@@ -551,7 +551,7 @@ static int __msc_dir_scan(void **handle, const char *storage_id, const char*star
 					}
 				} else if (d->d_type == DT_DIR) {
 					MS_DBG_ERR("INSERT DT_DIR");
-					if  (scan_type != MS_MSG_DIRECTORY_SCANNING_NON_RECURSIVE) {
+					if (scan_type != MS_MSG_DIRECTORY_SCANNING_NON_RECURSIVE) {
 						/* this request is recursive scanning */
 						/* add new directory to dir_array */
 						new_path = strdup(path);
@@ -592,7 +592,7 @@ static int __msc_dir_scan(void **handle, const char *storage_id, const char*star
 		if (__msc_storage_mount_status(new_start_path)) {
 			if (ms_delete_invalid_folder(handle, storage_id, uid) != MS_MEDIA_ERR_NONE) {
 				MS_DBG_ERR("delete invalid folder failed");
-				ret =  MS_MEDIA_ERR_DB_DELETE_FAIL;
+				ret = MS_MEDIA_ERR_DB_DELETE_FAIL;
 			}
 		} else {
 			MS_DBG_ERR("start path is unmounted");
@@ -1041,7 +1041,7 @@ gboolean msc_storage_scan_thread(void *data)
 			}
 		} else {
 			if (scan_type == MS_MSG_STORAGE_ALL) {
-				/*  Delete all data before full scanning */
+				/* Delete all data before full scanning */
 				if (!ms_delete_all_items(handle, scan_data->storage_id, storage_type, scan_data->uid)) {
 					MS_DBG_ERR("msc_delete_all_record fails");
 				}
@@ -1083,7 +1083,7 @@ gboolean msc_storage_scan_thread(void *data)
 		}
 
 		/* send notification */
-		ms_send_dir_update_noti(handle,  scan_data->storage_id, update_path, NULL, MS_ITEM_UPDATE, scan_data->pid);
+		ms_send_dir_update_noti(handle, scan_data->storage_id, update_path, NULL, MS_ITEM_UPDATE, scan_data->pid);
 
 		if (ret == MS_MEDIA_ERR_SCANNER_FORCE_STOP) {
 			ms_set_storage_scan_status(handle, scan_data->storage_id, MEDIA_SCAN_STOP, scan_data->uid);
@@ -1308,7 +1308,7 @@ static int __msc_make_file_list(char *file_path, GArray **path_array, uid_t uid)
 			continue;
 		}
 		/* insert getted path to the list */
-		if (g_array_append_val(*path_array, path)  == NULL) {
+		if (g_array_append_val(*path_array, path) == NULL) {
 			MS_DBG_ERR("g_array_append_val failed");
 			res = MS_MEDIA_ERR_OUT_OF_MEMORY;
 			goto FREE_RESOURCE;
@@ -1353,10 +1353,10 @@ static int __msc_batch_insert(ms_msg_type_e current_msg, int pid, GArray *path_a
 
 	MS_DBG_ERR("BULK REGISTER START");
 
-	/* get the inserting file path from array  and insert to db */
+	/* get the inserting file path from array and insert to db */
 	for (i = 0; i < path_array->len; i++) {
 
-		insert_path =  g_array_index(path_array, char*, i);
+		insert_path = g_array_index(path_array, char*, i);
 
 		/* get storage list */
 		memset(storage_id, 0x0, MS_UUID_SIZE);
@@ -1391,7 +1391,7 @@ static int __msc_pop_register_request(GArray *register_array, ms_comm_msg_s **re
 	ms_comm_msg_s *insert_data = NULL;
 
 	while (1) {
-		remain_request  = g_async_queue_length(reg_queue2);
+		remain_request = g_async_queue_length(reg_queue2);
 
 		/*updating requests remain*/
 		if (register_array->len != 0 && remain_request == 0) {

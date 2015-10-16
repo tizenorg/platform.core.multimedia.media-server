@@ -1,5 +1,5 @@
 /*
- *  Media Server
+ * Media Server
  *
  * Copyright (c) 2000 - 2011 Samsung Electronics Co., Ltd. All rights reserved.
  *
@@ -111,7 +111,7 @@ static int __ms_find_owner(int pid, const char *req_path, ms_req_owner_data **ow
 
 	*owner_data = NULL;
 
-	MS_DBG("length list :  %d", len);
+	MS_DBG("length list : %d", len);
 
 	for (i = 0; i < len; i++) {
 		data = g_array_index(owner_list, ms_req_owner_data*, i);
@@ -153,7 +153,7 @@ static int __ms_send_result_to_client(int pid, ms_comm_msg_s *recv_msg)
 		/* find owner data */
 		ms_req_owner_data *owner_data = NULL;
 		char *res_path = strdup(recv_msg->msg);
-		if (res_path  == NULL) {
+		if (res_path == NULL) {
 			MS_DBG_ERR("res_path is NULL");
 			return MS_MEDIA_ERR_OUT_OF_MEMORY;
 		}
@@ -177,7 +177,7 @@ static int __ms_send_result_to_client(int pid, ms_comm_msg_s *recv_msg)
 		}
 	} else {
 		/* owner data does not exist*/
-		/*  this is result of request of media server*/
+		/* this is result of request of media server*/
 		MS_DBG_ERR("There is no request, Owner list is NULL");
 		return MS_MEDIA_ERR_INTERNAL;
 	}
@@ -315,7 +315,7 @@ static int __ms_send_request(ms_comm_msg_s *send_msg)
 int ms_send_scan_request(ms_comm_msg_s *send_msg, int client_sock)
 {
 	int res = MS_MEDIA_ERR_NONE;
-	int err =  MS_MEDIA_ERR_NONE;
+	int err = MS_MEDIA_ERR_NONE;
 	int pid = send_msg->pid;
 
 	g_mutex_lock(&scanner_mutex);
@@ -488,7 +488,7 @@ ERROR:
 }
 
 
-void _ms_process_tcp_message(gpointer data,  gpointer user_data)
+void _ms_process_tcp_message(gpointer data, gpointer user_data)
 {
 	int ret = MS_MEDIA_ERR_NONE;
 	char * sql_query = NULL;
@@ -700,7 +700,7 @@ gboolean ms_receive_message_from_scanner(GIOChannel *src, GIOCondition condition
 		return MS_MEDIA_ERR_FILE_READ_FAIL;
 	}
 
-	MS_DBG_SLOG("receive result from scanner  [%d] %d, %s", recv_msg.pid, recv_msg.result, recv_msg.msg);
+	MS_DBG_SLOG("receive result from scanner [%d] %d, %s", recv_msg.pid, recv_msg.result, recv_msg.msg);
 
 	msg_type = recv_msg.msg_type;
 	pid = recv_msg.pid;

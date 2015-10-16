@@ -1,5 +1,5 @@
 /*
- *  Media Utility
+ * Media Utility
  *
  * Copyright (c) 2000 - 2011 Samsung Electronics Co., Ltd. All rights reserved.
  *
@@ -100,7 +100,7 @@ int ms_ipc_create_client_socket(ms_protocol_e protocol, int timeout_sec, ms_sock
 		if (tzplatform_getuid(TZ_USER_NAME) == 0) {
 			cx = snprintf(NULL, 0, MEDIA_IPC_PATH_CLIENT_ROOT[sock_info->port], getpid());
 			sock_info->sock_path = (char*)malloc((cx + 1)*sizeof(char));
-			snprintf(sock_info->sock_path, cx + 1,  MEDIA_IPC_PATH_CLIENT_ROOT[sock_info->port], getpid());
+			snprintf(sock_info->sock_path, cx + 1, MEDIA_IPC_PATH_CLIENT_ROOT[sock_info->port], getpid());
 		} else {
 			len = snprintf(NULL, 0, "/var/run/user/%i/media-server", tzplatform_getuid(TZ_USER_NAME));
 			path = (char*)malloc((len + 1)*sizeof(char));
@@ -109,7 +109,7 @@ int ms_ipc_create_client_socket(ms_protocol_e protocol, int timeout_sec, ms_sock
 			free(path);
 			cx = snprintf(NULL, 0, MEDIA_IPC_PATH_CLIENT[sock_info->port], tzplatform_getuid(TZ_USER_NAME), getpid());
 			sock_info->sock_path = (char*)malloc((cx + 1)*sizeof(char));
-			snprintf(sock_info->sock_path, cx + 1,  MEDIA_IPC_PATH_CLIENT[sock_info->port], tzplatform_getuid(TZ_USER_NAME), getpid());
+			snprintf(sock_info->sock_path, cx + 1, MEDIA_IPC_PATH_CLIENT[sock_info->port], tzplatform_getuid(TZ_USER_NAME), getpid());
 		}
 
 		/* Create a datagram/UDP socket */
@@ -372,7 +372,7 @@ int ms_ipc_wait_message(int sockfd, void *recv_msg, unsigned int msg_size, struc
 	}
 
 	if (addr_size != NULL)
-		*addr_size  = addr_len;
+		*addr_size = addr_len;
 
 	return MS_MEDIA_ERR_NONE;
 }
@@ -420,7 +420,7 @@ int ms_ipc_wait_block_message(int sockfd, void *recv_msg, unsigned int msg_size,
 		remain_size -= block_size;
 	}
 	if (addr_size != NULL)
-		*addr_size  = addr_len;
+		*addr_size = addr_len;
 
 	MS_SAFE_FREE(block_buf);
 
@@ -439,11 +439,11 @@ int ms_ipc_accept_client_tcp(int serv_sock, int* client_sock)
 	client_addr_len = sizeof(client_addr);
 	if ((sockfd = accept(serv_sock, (struct sockaddr*)&client_addr, &client_addr_len)) < 0) {
 		MSAPI_DBG_STRERROR("accept failed");
-		*client_sock  = -1;
+		*client_sock = -1;
 		return MS_MEDIA_ERR_SOCKET_ACCEPT;
 	}
 
-	*client_sock  = sockfd;
+	*client_sock = sockfd;
 
 	return MS_MEDIA_ERR_NONE;
 }
@@ -466,7 +466,7 @@ int ms_ipc_receive_message_tcp(int client_sock, ms_comm_msg_s *recv_msg)
 
 	if (!(recv_msg->msg_size > 0 && recv_msg->msg_size < MAX_FILEPATH_LEN)) {
 		MSAPI_DBG_ERR("IPC message is wrong. message size is %d", recv_msg->msg_size);
-		return  MS_MEDIA_ERR_INVALID_IPC_MESSAGE;
+		return MS_MEDIA_ERR_INVALID_IPC_MESSAGE;
 	}
 
 	return MS_MEDIA_ERR_NONE;

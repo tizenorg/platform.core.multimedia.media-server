@@ -1,5 +1,5 @@
 /*
- *  Media Utility
+ * Media Utility
  *
  * Copyright (c) 2000 - 2011 Samsung Electronics Co., Ltd. All rights reserved.
  *
@@ -262,7 +262,7 @@ int media_db_update_subscribe_internal(MediaNotiHandle *handle, db_update_cb use
 	dbus_bus_add_match(dbus, MS_MEDIA_DBUS_MATCH_RULE, &error);
 	if (!dbus_connection_add_filter(dbus, __message_filter_internal, noti_data, NULL)) {
 		dbus_bus_remove_match(dbus, MS_MEDIA_DBUS_MATCH_RULE, NULL);
-		ret =  MS_MEDIA_ERR_INTERNAL;
+		ret = MS_MEDIA_ERR_INTERNAL;
 		goto ERROR;
 	}
 

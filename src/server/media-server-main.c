@@ -1,5 +1,5 @@
 /*
- *  Media Server
+ * Media Server
  *
  * Copyright (c) 2000 - 2011 Samsung Electronics Co., Ltd. All rights reserved.
  *
@@ -291,7 +291,7 @@ static void __ms_remove_requst_receiver(GIOChannel *channel)
 
 	/*close an IO channel*/
 	fd = g_io_channel_unix_get_fd(channel);
-	g_io_channel_shutdown(channel,  FALSE, NULL);
+	g_io_channel_shutdown(channel, FALSE, NULL);
 	g_io_channel_unref(channel);
 
 	if (fd > 0) {
