@@ -65,16 +65,18 @@ static int __media_db_busy_handler(void *pData, int count)
 
 static char* __media_get_media_DB(uid_t uid)
 {
-	char *result_psswd = NULL;
+	char *result_passwd = NULL;
 	struct group *grpinfo = NULL;
 	if (uid == getuid()) {
-		result_psswd = strdup(MEDIA_DB_NAME);
 		grpinfo = getgrnam("users");
 		if (grpinfo == NULL) {
 			MSAPI_DBG_ERR("getgrnam(users) returns NULL !");
 			return NULL;
 		}
+		if (MS_STRING_VALID(MEDIA_DB_NAME))
+			result_passwd = strdup(MEDIA_DB_NAME);
 	} else {
+		char passwd_str[MAX_FILEPATH_LEN] = {0, };
 		struct passwd *userinfo = getpwuid(uid);
 		if (userinfo == NULL) {
 			MSAPI_DBG_ERR("getpwuid(%d) returns NULL !", uid);
@@ -90,22 +92,30 @@ static char* __media_get_media_DB(uid_t uid)
 			MSAPI_DBG_ERR("UID [%d] does not belong to 'users' group!", uid);
 			return NULL;
 		}
-		asprintf(&result_psswd, "%s/.applications/dbspace/.media.db", userinfo->pw_dir);
+		snprintf(passwd_str, sizeof(passwd_str), "%s/.applications/dbspace/.media.db", userinfo->pw_dir);
+		result_passwd = g_strdup(passwd_str);
 	}
 
-	return result_psswd;
+	return result_passwd;
 }
 
 static int __media_db_connect_db_with_handle(sqlite3 **db_handle, uid_t uid, bool need_write)
 {
 	int ret = SQLITE_OK;
+	char *db_info = __media_get_media_DB(uid);
+
+	if (!MS_STRING_VALID(db_info)) {
+		MSAPI_DBG_ERR("__media_get_media_DB failed");
+		return MS_MEDIA_ERR_DB_CONNECT_FAIL;
+	}
 
 	/*Connect DB*/
 	if (need_write) {
-		ret = db_util_open_with_options(__media_get_media_DB(uid), db_handle, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE, NULL);
+		ret = db_util_open_with_options(db_info, db_handle, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE, NULL);
 	} else {
-		ret = db_util_open_with_options(__media_get_media_DB(uid), db_handle, SQLITE_OPEN_READONLY, NULL);
+		ret = db_util_open_with_options(db_info, db_handle, SQLITE_OPEN_READONLY, NULL);
 	}
+	MS_SAFE_FREE(db_info);
 	if (SQLITE_OK != ret) {
 		MSAPI_DBG_ERR("error when db open [%s]", __media_get_media_DB(uid));
 		*db_handle = NULL;

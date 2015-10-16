@@ -109,7 +109,8 @@ int ms_ipc_create_client_socket(ms_protocol_e protocol, int timeout_sec, ms_sock
 			free(path);
 			cx = snprintf(NULL, 0, MEDIA_IPC_PATH_CLIENT[sock_info->port], tzplatform_getuid(TZ_USER_NAME), getpid());
 			sock_info->sock_path = (char*)malloc((cx + 1)*sizeof(char));
-			snprintf(sock_info->sock_path, cx + 1, MEDIA_IPC_PATH_CLIENT[sock_info->port], tzplatform_getuid(TZ_USER_NAME), getpid());
+			if (sock_info->sock_path != NULL)
+				snprintf(sock_info->sock_path, cx + 1, MEDIA_IPC_PATH_CLIENT[sock_info->port], tzplatform_getuid(TZ_USER_NAME), getpid());
 		}
 
 		/* Create a datagram/UDP socket */

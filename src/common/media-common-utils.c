@@ -91,17 +91,17 @@ bool ms_is_mmc_inserted(void)
 
 static char* __media_get_path(uid_t uid)
 {
-	char *result_psswd = NULL;
+	char *result_passwd = NULL;
 	struct group *grpinfo = NULL;
 
 	if (uid == getuid()) {
-		result_psswd = strndup(MEDIA_ROOT_PATH_INTERNAL, strlen(MEDIA_ROOT_PATH_INTERNAL));
 		grpinfo = getgrnam("users");
 		if (grpinfo == NULL) {
 			MS_DBG_ERR("getgrnam(users) returns NULL !");
-			MS_SAFE_FREE(result_psswd);
 			return NULL;
 		}
+		if (MS_STRING_VALID(MEDIA_ROOT_PATH_INTERNAL))
+			result_passwd = strndup(MEDIA_ROOT_PATH_INTERNAL, strlen(MEDIA_ROOT_PATH_INTERNAL));
 	} else {
 		struct passwd *userinfo = getpwuid(uid);
 		if (userinfo == NULL) {
@@ -118,10 +118,10 @@ static char* __media_get_path(uid_t uid)
 			MS_DBG_ERR("UID [%d] does not belong to 'users' group!", uid);
 			return NULL;
 		}
-		result_psswd = strndup(userinfo->pw_dir, strlen(userinfo->pw_dir));
+		result_passwd = strndup(userinfo->pw_dir, strlen(userinfo->pw_dir));
 	}
 
-	return result_psswd;
+	return result_passwd;
 }
 
 ms_storage_type_t ms_get_storage_type_by_full(const char *path, uid_t uid)
@@ -141,9 +141,9 @@ ms_storage_type_t ms_get_storage_type_by_full(const char *path, uid_t uid)
 
 	if (strncmp(path, user_path, length_path) == 0) {
 		ret = MS_STORAGE_INTERNAL;
-	} else if (strncmp(path, MEDIA_ROOT_PATH_SDCARD, strlen(MEDIA_ROOT_PATH_SDCARD)) == 0) {
+	} else if (MS_STRING_VALID(MEDIA_ROOT_PATH_SDCARD) && (strncmp(path, MEDIA_ROOT_PATH_SDCARD, strlen(MEDIA_ROOT_PATH_SDCARD)) == 0)) {
 		ret = MS_STORAGE_EXTERNAL;
-	} else if (strncmp(path, MEDIA_ROOT_PATH_USB, strlen(MEDIA_ROOT_PATH_USB)) == 0) {
+	} else if (MS_STRING_VALID(MEDIA_ROOT_PATH_USB) && (strncmp(path, MEDIA_ROOT_PATH_USB, strlen(MEDIA_ROOT_PATH_USB)) == 0)) {
 		ret = MS_STORAGE_EXTERNAL_USB;
 	} else {
 		ret = MS_MEDIA_ERR_INVALID_PATH;

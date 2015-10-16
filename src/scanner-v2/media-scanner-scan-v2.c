@@ -88,16 +88,18 @@ static char* __msc_get_path(uid_t uid);
 static char* __msc_get_path(uid_t uid)
 {
 	int result_size = 0;
-	char *result_psswd = NULL;
+	char *result_passwd = NULL;
 	struct group *grpinfo = NULL;
 	if (uid == getuid()) {
-		result_psswd = strndup(MEDIA_ROOT_PATH_INTERNAL, strlen(MEDIA_ROOT_PATH_INTERNAL));
 		grpinfo = getgrnam("users");
 		if (grpinfo == NULL) {
 			MS_DBG_ERR("getgrnam(users) returns NULL !");
 			return NULL;
 		}
+		if (MS_STRING_VALID(MEDIA_ROOT_PATH_INTERNAL))
+			result_passwd = strndup(MEDIA_ROOT_PATH_INTERNAL, strlen(MEDIA_ROOT_PATH_INTERNAL));
 	} else {
+		char passwd_str[MAX_FILEPATH_LEN] = {0, };
 		struct passwd *userinfo = getpwuid(uid);
 		if (userinfo == NULL) {
 			MS_DBG_ERR("getpwuid(%d) returns NULL !", uid);
@@ -115,11 +117,11 @@ static char* __msc_get_path(uid_t uid)
 		}
 		result_size = strlen(userinfo->pw_dir) + strlen(MEDIA_CONTENT_PATH) + 2;
 
-		MS_MALLOC(result_psswd, result_size);
-		snprintf(result_psswd, result_size, "%s/%s", userinfo->pw_dir, MEDIA_CONTENT_PATH);
+		snprintf(passwd_str, sizeof(passwd_str), "%s/%s", userinfo->pw_dir, MEDIA_CONTENT_PATH);
+		result_passwd = g_strdup(passwd_str);
 	}
 
-	return result_psswd;
+	return result_passwd;
 }
 
 static int __msc_set_power_mode(ms_db_status_type_t status)
@@ -216,6 +218,11 @@ static int __msc_check_scan_ignore(char * path)
 	if (fd == -1) {
 		MS_DBG_ERR("%s folder opendir fails", path);
 		ret = MS_MEDIA_ERR_INVALID_PATH;
+
+		if (!MS_STRING_VALID(MEDIA_ROOT_PATH_USB)) {
+			MS_DBG_ERR("Fail to get USB path");
+			goto ERROR;
+		}
 
 		if (strstr(path, MEDIA_ROOT_PATH_USB) != NULL) {
 			if (errno == ENOENT) {
@@ -1154,9 +1161,9 @@ static bool __msc_is_valid_path(const char *path, uid_t uid)
 
 	if (strncmp(path, usr_path, strlen(usr_path)) == 0) {
 		ret = true;
-	} else if (strncmp(path, MEDIA_ROOT_PATH_SDCARD, strlen(MEDIA_ROOT_PATH_SDCARD)) == 0) {
+	} else if (MS_STRING_VALID(MEDIA_ROOT_PATH_SDCARD) && (strncmp(path, MEDIA_ROOT_PATH_SDCARD, strlen(MEDIA_ROOT_PATH_SDCARD)) == 0)) {
 		ret = true;
-	} else if (strncmp(path, MEDIA_ROOT_PATH_USB, strlen(MEDIA_ROOT_PATH_USB)) == 0) {
+	} else if (MS_STRING_VALID(MEDIA_ROOT_PATH_USB) && (strncmp(path, MEDIA_ROOT_PATH_USB, strlen(MEDIA_ROOT_PATH_USB)) == 0)) {
 		ret = true;
 	} else {
 		ret = false;
@@ -1248,9 +1255,9 @@ static int __msc_check_ignore_dir(const char *full_path, uid_t uid)
 		/*If root path, Stop Scanning*/
 		if (strcmp(dir_path, __msc_get_path(uid)) == 0)
 			break;
-		else if (strcmp(dir_path, MEDIA_ROOT_PATH_SDCARD) == 0)
+		else if (MS_STRING_VALID(MEDIA_ROOT_PATH_SDCARD) && (strcmp(dir_path, MEDIA_ROOT_PATH_SDCARD) == 0))
 			break;
-		else if (strcmp(dir_path, MEDIA_ROOT_PATH_USB) == 0)
+		else if (MS_STRING_VALID(MEDIA_ROOT_PATH_USB) && (strcmp(dir_path, MEDIA_ROOT_PATH_USB) == 0))
 			break;
 
 		leaf_path = strrchr(dir_path, '/');
@@ -1586,7 +1593,12 @@ static bool __msc_storage_mount_status(const char* start_path)
 	int remain_len = 0;
 	GArray *dev_list = NULL;
 
-	remain_path = strstr(start_path+strlen(MEDIA_ROOT_PATH_EXTERNAL) +1, "/");
+	if (!MS_STRING_VALID(MEDIA_ROOT_PATH_EXTERNAL)) {
+		MS_DBG_ERR("Fail to get external path");
+		return FALSE;
+	}
+
+	remain_path = strstr(start_path  +strlen(MEDIA_ROOT_PATH_EXTERNAL) + 1, "/");
 	if (remain_path != NULL)
 		remain_len = strlen(remain_path);
 

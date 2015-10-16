@@ -61,6 +61,7 @@ gboolean ms_db_thread(void *data)
 	}
 
 	if (ms_cynara_enable_credentials_passing(sockfd) != MS_MEDIA_ERR_NONE) {
+		close(sockfd);
 		MS_DBG_ERR("Failed to set up credentials passing\n");
 		return FALSE;
 	}

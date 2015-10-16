@@ -114,10 +114,15 @@ static int _ms_token_data(char *buf, char **name)
 
 static bool _ms_load_config()
 {
-	int ret;
+	int ret = MS_MEDIA_ERR_NONE;
 	FILE *fp;
 	char *so_name = NULL;
-	char buf[256] = {0};
+	char buf[256] = {0, };
+
+	if (!MS_STRING_VALID(CONFIG_PATH)) {
+		MS_DBG_ERR("CONFIG_PATH is NULL");
+		return MS_MEDIA_ERR_INTERNAL;
+	}
 
 	fp = fopen(CONFIG_PATH, "rt");
 	if (fp == NULL) {
