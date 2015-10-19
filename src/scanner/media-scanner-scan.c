@@ -265,7 +265,7 @@ static int __msc_check_stop_status(ms_storage_type_t storage_type)
 	/*check SD card in out */
 #if 0
 	if ((mmc_state != MS_STG_INSERTED) && (storage_type == MS_STORAGE_EXTERNAL)) {
-		MS_DBG_ERR(fmt,args...)("Directory scanning is stopped");
+		MS_DBG_ERR("Directory scanning is stopped");
 		ret = MS_MEDIA_ERR_SCANNER_FORCE_STOP;
 	}
 #endif
@@ -772,7 +772,7 @@ gboolean msc_directory_scan_thread(void *data)
 				MS_DBG_SLOG("delete count %d", delete_count);
 				MS_DBG_SLOG("insert count %d", insert_count);
 
-				if (!(delete_count == 0 && insert_count == 0) 
+				if (!(delete_count == 0 && insert_count == 0)
 					|| !(before_count == after_count)
 					|| delete_folder_count != 0) {
 					ms_send_dir_update_noti(handle, storage_id, scan_data->msg, folder_uuid, noti_type, scan_data->pid);
