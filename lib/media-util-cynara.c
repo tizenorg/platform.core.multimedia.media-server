@@ -152,9 +152,11 @@ int ms_cynara_receive_untrusted_message_thumb(int sockfd, thumbMsg *recv_msg, ms
 	if ((recv_msg_size = recv(sockfd, buf, header_size, 0)) < 0) {
 		if (errno == EWOULDBLOCK) {
 			MSAPI_DBG_ERR("Timeout. Can't try any more");
+			MS_SAFE_FREE(buf);
 			return MS_MEDIA_ERR_SOCKET_RECEIVE_TIMEOUT;
 		} else {
 			MSAPI_DBG_ERR("recv failed");
+			MS_SAFE_FREE(buf);
 			return MS_MEDIA_ERR_SOCKET_RECEIVE;
 		}
 	}

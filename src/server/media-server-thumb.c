@@ -360,6 +360,7 @@ gboolean _ms_thumb_agent_recv_msg_from_server()
 	recv_msg_size = ms_ipc_receive_message(sockfd, & recv_msg, sizeof(ms_thumb_server_msg));
 	if (recv_msg_size != MS_MEDIA_ERR_NONE) {
 		MS_DBG_STRERROR("ms_ipc_receive_message failed");
+		close(sockfd);
 		return FALSE;
 	}
 
