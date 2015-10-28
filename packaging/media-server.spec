@@ -86,11 +86,6 @@ mkdir -p %{buildroot}/usr/etc
 cp -rf %{_builddir}/%{name}-%{version}/media_content_config.ini %{buildroot}/usr/etc/
 
 %post
-vconftool set -t int db/filemanager/dbupdate "1" -f
-vconftool set -t int memory/filemanager/Mmc "0" -i -f
-vconftool set -t string db/private/mediaserver/mmc_info "" -f
-vconftool set -t int file/private/mediaserver/scan_internal "1" -f
-vconftool set -t int file/private/mediaserver/scan_directory "1" -f
 chgrp -R %TZ_SYS_USER_GROUP %{TZ_SYS_DATA}/data-media
 chgrp -R %TZ_SYS_USER_GROUP %{TZ_SYS_DATA}/file-manager-service
 
