@@ -67,28 +67,12 @@ mkdir -p %{buildroot}%{_unitdir_user}
 install -m 644 %{SOURCE2} %{buildroot}%{_unitdir_user}/media-server-user.service
 install -m 644 %{SOURCE3} %{buildroot}%{_unitdir_user}/media-server-user.path
 ln -s ../media-server.service %{buildroot}%{_unitdir}/multi-user.target.wants/media-server.service
-mkdir -p %{buildroot}%{TZ_SYS_DATA}/data-media/Camera
-mkdir -p %{buildroot}%{TZ_SYS_DATA}/data-media/Downloads
-mkdir -p %{buildroot}%{TZ_SYS_DATA}/data-media/Images
-mkdir -p %{buildroot}%{TZ_SYS_DATA}/data-media/Sounds/Voice\ recorder
-mkdir -p %{buildroot}%{TZ_SYS_DATA}/data-media/Videos
-mkdir -p %{buildroot}%{TZ_SYS_DATA}/file-manager-service/.thumb/mmc
-mkdir -p %{buildroot}%{TZ_SYS_DATA}/file-manager-service/.thumb/phone
-install -m 0775 ./data-media/Images/* %{buildroot}%{TZ_SYS_DATA}/data-media/Images/
-install -m 0775 ./data-media/dbspace/file-manager-service/.thumb/thumb_default.png %{buildroot}%{TZ_SYS_DATA}/file-manager-service/.thumb/
-install -D -m 0775 ./data-media/dbspace/file-manager-service/.thumb/mmc/* %{buildroot}%{TZ_SYS_DATA}/file-manager-service/.thumb/mmc/
-install -m 0775 ./data-media/dbspace/file-manager-service/.thumb/phone/PHONE_THUMB_HERE %{buildroot}%{TZ_SYS_DATA}/file-manager-service/.thumb/phone/
-install -m 0775 ./data-media/dbspace/file-manager-service/.thumb/phone/.jpg* %{buildroot}%{TZ_SYS_DATA}/file-manager-service/.thumb/phone/
-install -D -m 0775 ./data-media/dbspace/file-manager-service/* %{buildroot}%{TZ_SYS_DATA}/file-manager-service/
-
 #ini file
 mkdir -p %{buildroot}/usr/etc
 cp -rf %{_builddir}/%{name}-%{version}/media_content_config.ini %{buildroot}/usr/etc/
+cp -rf %{_builddir}/%{name}-%{version}/media-server-plugin %{buildroot}/usr/etc/media-server-plugin
 
 %post
-chgrp -R %TZ_SYS_USER_GROUP %{TZ_SYS_DATA}/data-media
-chgrp -R %TZ_SYS_USER_GROUP %{TZ_SYS_DATA}/file-manager-service
-
 # setup dbupdate in user session
 mkdir -p %{_unitdir_user}/default.target.wants/
 ln -sf ../media-server-user.path  %{_unitdir_user}/default.target.wants/
@@ -112,10 +96,8 @@ ln -sf ../media-server-user.path  %{_unitdir_user}/default.target.wants/
 %{_unitdir_user}/media-server-user.service
 %{_unitdir_user}/media-server-user.path
 /usr/etc/media_content_config.ini
+/usr/etc/media-server-plugin
 %license LICENSE.APLv2.0
-%{TZ_SYS_DATA}/data-media/*
-%{TZ_SYS_DATA}/file-manager-service/.thumb/*
-%{TZ_SYS_DATA}/file-manager-service/plugin-config
 
 %files -n libmedia-utils
 %manifest libmedia-utils.manifest
