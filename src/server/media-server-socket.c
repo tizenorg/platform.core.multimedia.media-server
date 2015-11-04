@@ -601,7 +601,7 @@ ERROR:
 
 gboolean ms_read_db_tcp_batch_socket(GIOChannel *src, GIOCondition condition, gpointer data)
 {
-#define MAX_THREAD_NUM 3
+#define MAX_THREAD_NUM 4
 
 	static GThreadPool *gtp = NULL;
 	GError *error = NULL;
