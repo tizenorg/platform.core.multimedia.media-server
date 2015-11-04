@@ -465,7 +465,7 @@ int ms_ipc_receive_message_tcp(int client_sock, ms_comm_msg_s *recv_msg)
 
 	MSAPI_DBG_SLOG("receive msg from [%d] %d, %s", recv_msg->pid, recv_msg->msg_type, recv_msg->msg);
 
-	if (!(recv_msg->msg_size > 0 && recv_msg->msg_size < MAX_FILEPATH_LEN)) {
+	if (!(recv_msg->msg_size > 0 && recv_msg->msg_size < MAX_MSG_SIZE)) {
 		MSAPI_DBG_ERR("IPC message is wrong. message size is %d", recv_msg->msg_size);
 		return MS_MEDIA_ERR_INVALID_IPC_MESSAGE;
 	}
