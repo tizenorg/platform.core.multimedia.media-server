@@ -739,7 +739,7 @@ int ms_remove_request_owner(int pid, const char *req_path)
 	return MS_MEDIA_ERR_NONE;
 }
 
-int ms_send_storage_otg_scan_request(const char *path, const char *device_uuid, ms_dir_scan_type_t scan_type)
+int ms_send_storage_otg_scan_request(const char *path, const char *device_uuid, ms_dir_scan_type_t scan_type, uid_t uid)
 {
 	int ret = MS_MEDIA_ERR_NONE;
 
@@ -756,6 +756,7 @@ int ms_send_storage_otg_scan_request(const char *path, const char *device_uuid, 
 	ms_comm_msg_s scan_msg = {
 		.msg_type = MS_MSG_STORAGE_INVALID,
 		.pid = 0, /* pid 0 means media-server */
+		.uid = 0,
 		.result = -1,
 		.msg_size = 0,
 		.storage_id = {0},
@@ -784,6 +785,12 @@ int ms_send_storage_otg_scan_request(const char *path, const char *device_uuid, 
 	scan_msg.msg_size = strlen(path);
 	strncpy(scan_msg.msg, path, scan_msg.msg_size);
 	strncpy(scan_msg.storage_id, device_uuid, MS_UUID_SIZE-1);
+
+	if (uid == 0) {
+		ms_sys_get_uid(&uid);
+	}
+
+	scan_msg.uid = uid;
 
 	ret = ms_send_scan_request(&scan_msg, -1);
 

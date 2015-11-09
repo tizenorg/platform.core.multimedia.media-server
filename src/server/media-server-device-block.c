@@ -108,7 +108,7 @@ int ms_usb_insert_handler(const char *mount_path)
 		}
 
 		/* request to update media db */
-		ms_send_storage_otg_scan_request(mount_path, storage_id, scan_type);
+		ms_send_storage_otg_scan_request(mount_path, storage_id, scan_type, uid);
 	}
 
 ERROR:
@@ -148,7 +148,7 @@ int ms_usb_remove_handler(const char *mount_path)
 
 			if (strlen(device_id) == (MS_UUID_SIZE-1)) {
 				ms_set_storage_validity(handle, device_id, 0, uid);
-				ms_send_storage_otg_scan_request(mount_path, device_id, MS_SCAN_INVALID);
+				ms_send_storage_otg_scan_request(mount_path, device_id, MS_SCAN_INVALID, uid);
 			} else {
 				MS_DBG_ERR("Device ID is INVALID");
 				break;
