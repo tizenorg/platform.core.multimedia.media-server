@@ -33,6 +33,6 @@ int ms_send_scan_request(ms_comm_msg_s *send_msg, int client_sock);
 int ms_send_storage_scan_request(const char *root_path, const char *storage_id, ms_dir_scan_type_t scan_type, uid_t uid);
 gboolean ms_receive_message_from_scanner(GIOChannel *src, GIOCondition condition, gpointer data);
 int ms_remove_request_owner(int pid, const char *req_path);
-int ms_send_storage_otg_scan_request(const char *path, const char *device_uuid, ms_dir_scan_type_t scan_type);
+int ms_send_storage_otg_scan_request(const char *path, const char *device_uuid, ms_dir_scan_type_t scan_type, uid_t uid);
 
 #endif /*_MEDIA_SERVER_SOCKET_H_*/
