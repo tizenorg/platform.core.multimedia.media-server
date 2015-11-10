@@ -39,6 +39,8 @@
 #include "media-util-dbg.h"
 #include "media-util.h"
 
+static GMutex scan_req_mutex;
+
 typedef struct media_callback_data {
 	GSource *source;
 	scan_complete_cb user_callback;
@@ -164,6 +166,7 @@ gboolean _read_socket(GIOChannel *src, GIOCondition condition, gpointer data)
 	int sockfd = -1;
 	char *sock_path = NULL;
 	int recv_msg_size = 0;
+	media_scan_data *req_data = NULL;
 
 	sockfd = g_io_channel_unix_get_fd(src);
 	if (sockfd < 0) {
@@ -199,27 +202,48 @@ gboolean _read_socket(GIOChannel *src, GIOCondition condition, gpointer data)
 	MSAPI_DBG("request_type :%d", req_result.request_type);
 
 ERROR:
-	source = ((media_callback_data *)data)->source;
-	user_callback = ((media_callback_data *)data)->user_callback;
-	user_data = ((media_callback_data *)data)->user_data;
-	sock_path = ((media_callback_data *)data)->sock_path;
+	 /*NEED MUTEX*/
+	 g_mutex_lock(&scan_req_mutex);
+	 if (req_list != NULL) {
+		int i = 0;
+		int list_len = req_list->len;
 
-	/*call user define function*/
-	user_callback(&req_result, user_data);
+		for (i = 0; i < list_len; i++) {
+			req_data = g_array_index(req_list, media_scan_data*, i);
+			if (strcmp(req_data->req_path, req_result.complete_path) == 0) {
+				MSAPI_DBG("FIND REQUEST [%s]", req_data->req_path);
+				g_array_remove_index (req_list, i);
 
-	MS_SAFE_FREE(req_result.complete_path);
+				source = ((media_callback_data *)data)->source;
+				user_callback = ((media_callback_data *)data)->user_callback;
+				user_data = ((media_callback_data *)data)->user_data;
+				sock_path = ((media_callback_data *)data)->sock_path;
 
-	/*close an IO channel*/
-	g_io_channel_shutdown(src, FALSE, NULL);
-	g_io_channel_unref(src);
+				/*call user define function*/
+				user_callback(&req_result, user_data);
 
-	g_source_destroy(source);
-	close(sockfd);
-	if (sock_path != NULL) {
-		MSAPI_DBG("delete path :%s", sock_path);
-		unlink(sock_path);
-		MS_SAFE_FREE(sock_path);
+				MS_SAFE_FREE(req_result.complete_path);
+
+				/*close an IO channel*/
+				g_io_channel_shutdown(src, FALSE, NULL);
+				g_io_channel_unref(src);
+
+				g_source_destroy(source);
+				close(sockfd);
+				if (sock_path != NULL) {
+					MSAPI_DBG("delete path :%s", sock_path);
+					unlink(sock_path);
+					MS_SAFE_FREE(sock_path);
+				}
+
+				MSAPI_DBG("REMOVE OK");
+
+				break;
+			}
+		}
 	}
+
+	g_mutex_unlock(&scan_req_mutex);
 	MS_SAFE_FREE(data);
 
 	return TRUE;
@@ -229,18 +253,23 @@ static int _add_request(const char * req_path, media_callback_data *cb_data, GIO
 {
 	media_scan_data *req_data = NULL;
 
+	 /*NEED MUTEX*/
+	 g_mutex_lock(&scan_req_mutex);
+
 	if (req_list == NULL) {
 		req_list = g_array_new(FALSE, FALSE, sizeof(media_scan_data*));
 	}
 
 	if (req_list == NULL) {
 		MSAPI_DBG_ERR("g_array_new falied");
+		g_mutex_unlock(&scan_req_mutex);
 		return MS_MEDIA_ERR_OUT_OF_MEMORY;
 	}
 
 	req_data = malloc(sizeof(media_scan_data));
 	if (req_data == NULL) {
 		MSAPI_DBG_ERR("malloc falied");
+		g_mutex_unlock(&scan_req_mutex);
 		return MS_MEDIA_ERR_OUT_OF_MEMORY;
 	}
 
@@ -249,6 +278,8 @@ static int _add_request(const char * req_path, media_callback_data *cb_data, GIO
 	req_data->src = channel;
 
 	g_array_append_val(req_list, req_data);
+
+	g_mutex_unlock(&scan_req_mutex);
 
 	return MS_MEDIA_ERR_NONE;
 
@@ -268,8 +299,11 @@ static int _remove_request(const char * req_path)
 	GIOChannel *src = NULL;
 	media_request_result_s req_result;
 
+	 /*NEED MUTEX*/
+	g_mutex_lock(&scan_req_mutex);
 	if (req_list == NULL) {
 		MSAPI_DBG_ERR("The request list is NULL. This is invalid operation.");
+		g_mutex_unlock(&scan_req_mutex);
 		return MS_MEDIA_ERR_INVALID_PARAMETER;
 	}
 
@@ -280,44 +314,51 @@ static int _remove_request(const char * req_path)
 		if (strcmp(req_data->req_path, req_path) == 0) {
 			flag = true;
 			g_array_remove_index(req_list, i);
+
+			req_result.pid = -1;
+			req_result.result = MS_MEDIA_ERR_NONE;
+			req_result.complete_path = strndup(req_path, strlen(req_path));
+			req_result.request_type = MEDIA_FILES_REGISTER;
+
+			src = req_data->src;
+			cb_data = req_data->cb_data;
+			source = ((media_callback_data *)cb_data)->source;
+			sock_path = ((media_callback_data *)cb_data)->sock_path;
+			user_callback = ((media_callback_data *)cb_data)->user_callback;
+			user_data = ((media_callback_data *)cb_data)->user_data;
+
+			/*call user define function*/
+			user_callback(&req_result, user_data);
+
+			/*close an IO channel*/
+			g_io_channel_shutdown(src, FALSE, NULL);
+			g_io_channel_unref(src);
+
+			g_source_destroy(source);
+
+			if (sock_path != NULL) {
+				MSAPI_DBG("delete path :%s", sock_path);
+				unlink(sock_path);
+				MS_SAFE_FREE(sock_path);
+			}
+
+			MS_SAFE_FREE(req_data->req_path);
+			MS_SAFE_FREE(req_data);
+
+			MSAPI_DBG("CANCEL OK");
+
+			break;
 		}
+
+		if (flag == false) {
+			MSAPI_DBG("Not in scan queue :%s", req_path);
+			g_mutex_unlock(&scan_req_mutex);
+			return MS_MEDIA_ERR_INVALID_PARAMETER;
+		}
+
 	}
 
-	if (flag == false) {
-		MSAPI_DBG("Not in scan queue :%s", req_path);
-		return MS_MEDIA_ERR_INVALID_PARAMETER;
-	}
-
-	req_result.pid = -1;
-	req_result.result = MS_MEDIA_ERR_NONE;
-	req_result.complete_path = strndup(req_path, strlen(req_path));
-	req_result.request_type = MEDIA_FILES_REGISTER;
-
-	src = req_data->src;
-	cb_data = req_data->cb_data;
-	source = ((media_callback_data *)cb_data)->source;
-	sock_path = ((media_callback_data *)cb_data)->sock_path;
-	user_callback = ((media_callback_data *)cb_data)->user_callback;
-	user_data = ((media_callback_data *)cb_data)->user_data;
-
-	/*call user define function*/
-	user_callback(&req_result, user_data);
-
-
-	/*close an IO channel*/
-	g_io_channel_shutdown(src, FALSE, NULL);
-	g_io_channel_unref(src);
-
-	g_source_destroy(source);
-
-	if (sock_path != NULL) {
-		MSAPI_DBG("delete path :%s", sock_path);
-		unlink(sock_path);
-		MS_SAFE_FREE(sock_path);
-	}
-
-	MS_SAFE_FREE(req_data->req_path);
-	MS_SAFE_FREE(req_data);
+	g_mutex_unlock(&scan_req_mutex);
 
 	return MS_MEDIA_ERR_NONE;
 
