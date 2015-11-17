@@ -212,7 +212,7 @@ ERROR:
 			req_data = g_array_index(req_list, media_scan_data*, i);
 			if (strcmp(req_data->req_path, req_result.complete_path) == 0) {
 				MSAPI_DBG("FIND REQUEST [%s]", req_data->req_path);
-				g_array_remove_index (req_list, i);
+				g_array_remove_index(req_list, i);
 
 				source = ((media_callback_data *)data)->source;
 				user_callback = ((media_callback_data *)data)->user_callback;
