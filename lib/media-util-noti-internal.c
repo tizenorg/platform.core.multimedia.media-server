@@ -33,9 +33,7 @@
 #include <sys/stat.h>
 #include <string.h>
 #include <glib.h>
-#include <dbus/dbus-glib.h>
-#include <dbus/dbus.h>
-#include <dbus/dbus-glib-lowlevel.h>
+#include <gio/gio.h>
 
 #include "media-util-internal.h"
 #include "media-util-dbg.h"
@@ -44,12 +42,12 @@
 
 GArray *handle_list_internal;
 static GMutex mutex_internal;
-int ref_count;
 
 #define MS_MEDIA_DBUS_NAME_INTERNAL "ms_db_updated_internal"
 
 typedef struct internal_noti_cb_data {
-	DBusConnection *dbus;
+	GDBusConnection *gdbus;
+	int handler;
 	db_update_cb user_callback;
 	void *user_data;
 } internal_noti_cb_data;
@@ -63,191 +61,165 @@ int media_db_update_send_internal(int pid, /* mandatory */
 							char *mime_type /* optional */
 							)
 {
-	DBusMessage *message = NULL;
-	DBusConnection *bus = NULL;
-	DBusError error;
+	GVariant *message = NULL;
+	GDBusConnection *bus = NULL;
+	GError *error = NULL;
 	unsigned char *path_array = NULL;
 	int path_length = strlen(path) + 1;
 
-	/* Get a connection to the session bus */
-	dbus_error_init(&error);
-	bus = dbus_bus_get(DBUS_BUS_SYSTEM, &error);
+	bus = g_bus_get_sync(G_BUS_TYPE_SYSTEM, NULL, &error);
 	if (!bus) {
-		MSAPI_DBG("Failed to connect to the D-BUS daemon: %s", error.message);
-		dbus_error_free(&error);
+		MSAPI_DBG("Failed to get gdbus connection: %s", error->message);
+		g_error_free(error);
 		return MS_MEDIA_ERR_INTERNAL;
 	}
 
-	message = dbus_message_new_signal(MS_MEDIA_DBUS_PATH, MS_MEDIA_DBUS_INTERFACE, MS_MEDIA_DBUS_NAME_INTERNAL);
-	if (message != NULL) {
-		path_array = malloc(sizeof(unsigned char) * path_length);
-		memcpy(path_array, path, path_length);
+	MSAPI_DBG("update path[%s]", path);
 
-		if (item == MS_MEDIA_ITEM_FILE) {
-			MSAPI_DBG("FILE CHANGED");
-			if (uuid != NULL && mime_type != NULL) {
+	path_array = malloc(sizeof(unsigned char) * path_length);
+	memcpy(path_array, path, path_length);
+
+	if (item == MS_MEDIA_ITEM_FILE) {
+		MSAPI_DBG("FILE CHANGED");
+		if (uuid != NULL && mime_type != NULL) {
 			/* fill all datas */
-				dbus_message_append_args(message,
-										DBUS_TYPE_INT32, &item,
-										DBUS_TYPE_INT32, &pid,
-										DBUS_TYPE_INT32, &update_type,
-										DBUS_TYPE_ARRAY, DBUS_TYPE_BYTE, &path_array, path_length,
-										DBUS_TYPE_STRING, &uuid,
-										DBUS_TYPE_INT32, &media_type,
-										DBUS_TYPE_STRING, &mime_type,
-										DBUS_TYPE_INVALID);
-			} else {
-				MSAPI_DBG_ERR("uuid or mime_type is NULL");
-				MS_SAFE_FREE(path_array);
-				dbus_message_unref(message);
-				return MS_MEDIA_ERR_INVALID_PARAMETER;
-			}
-		} else if (item == MS_MEDIA_ITEM_DIRECTORY) {
-			MSAPI_DBG("DIRECTORY CHANGED");
-			/* fill all datas */
-			if (uuid != NULL) {
-				dbus_message_append_args(message,
-										DBUS_TYPE_INT32, &item,
-										DBUS_TYPE_INT32, &pid,
-										DBUS_TYPE_INT32, &update_type,
-										DBUS_TYPE_ARRAY, DBUS_TYPE_BYTE, &path_array, path_length,
-										DBUS_TYPE_STRING, &uuid,
-										DBUS_TYPE_INVALID);
-			} else {
-				dbus_message_append_args(message,
-										DBUS_TYPE_INT32, &item,
-										DBUS_TYPE_INT32, &pid,
-										DBUS_TYPE_INT32, &update_type,
-										DBUS_TYPE_ARRAY, DBUS_TYPE_BYTE, &path_array, path_length,
-										DBUS_TYPE_INVALID);
-			}
+			message = g_variant_new("(iiioisis)", item, pid, update_type, path_array, path_length, uuid, media_type, mime_type);
 		} else {
 			MSAPI_DBG("this request is wrong");
 		}
-
-		MS_SAFE_FREE(path_array);
-
-		/* Send the signal */
-		dbus_connection_send(bus, message, NULL);
-
-		/* Free the signal now we have finished with it */
-		dbus_message_unref(message);
-
-		MSAPI_DBG_ERR("success send notification");
+	} else if (item == MS_MEDIA_ITEM_DIRECTORY) {
+		MSAPI_DBG("DIRECTORY CHANGED");
+		if (uuid != NULL) {
+			/* fill all datas */
+			message = g_variant_new("(iiiois)", item, pid, update_type, path_array, path_length, uuid);
+		} else {
+			MSAPI_DBG("this request is wrong");
+		}
 	} else {
-		MSAPI_DBG_ERR("dbus_message_new_signal failed");
+		MSAPI_DBG("this request is wrong");
 	}
 
-	dbus_connection_unref(bus);
+	MS_SAFE_FREE(path_array);
+
+	if (message == NULL) {
+		MSAPI_DBG_ERR("g_dbus_message_new_signal failed");
+		return MS_MEDIA_ERR_INTERNAL;
+	}
+
+	/* Send the signal */
+	gboolean emmiting = g_dbus_connection_emit_signal(
+					bus,
+					NULL,
+					MS_MEDIA_DBUS_PATH,
+					MS_MEDIA_DBUS_INTERFACE,
+					MS_MEDIA_DBUS_NAME_INTERNAL,
+					message,
+					&error);
+	if (!emmiting) {
+		MSAPI_DBG_ERR("g_dbus_connection_emit_signal failed : %s", error ? error->message : "none");
+		if (error) {
+			MSAPI_DBG_ERR("Error in g_dbus_connection_emit_signal");
+			g_object_unref(bus);
+			g_error_free(error);
+		}
+		return MS_MEDIA_ERR_INTERNAL;
+	}
+	MSAPI_DBG_ERR("success send notification");
+
+	g_object_unref(bus);
 
 	/* Return TRUE to tell the event loop we want to be called again */
 	return MS_MEDIA_ERR_NONE;
 }
 
-
-DBusHandlerResult
-__get_message_internal(DBusMessage *message, db_update_cb user_cb, void *userdata)
+static bool __gdbus_message_is_signal(const char *iface, const char *signal)
 {
-	/* A Ping signal on the com.burtonini.dbus.Signal interface */
-	if (dbus_message_is_signal(message, MS_MEDIA_DBUS_INTERFACE, MS_MEDIA_DBUS_NAME_INTERNAL)) {
-		int i = 0;
-		int current_type = DBUS_TYPE_INVALID;
-		DBusError error;
-		DBusMessageIter read_iter;
-		DBusBasicValue value[6];
+	if ((strcmp(iface, MS_MEDIA_DBUS_INTERFACE) == 0) && (strcmp(signal, MS_MEDIA_DBUS_NAME_INTERNAL) == 0))
+		return TRUE;
 
-		dbus_int32_t item = -1;
-		dbus_int32_t pid = 0;
-		dbus_int32_t update_type = MS_MEDIA_UNKNOWN;
-		dbus_int32_t content_type = -1;
-		char *update_path = NULL;
-		char *uuid = NULL;
-		char *mime_type = NULL;
-		void *recevie_path = NULL;
-		int path_len = 0;
-
-		dbus_error_init(&error);
-		MSAPI_DBG("size [%d]", sizeof(value));
-		memset(value, 0x0, sizeof(value));
-
-		/* get data from dbus message */
-		dbus_message_iter_init(message, &read_iter);
-		while ((current_type = dbus_message_iter_get_arg_type(&read_iter)) != DBUS_TYPE_INVALID) {
-			if (current_type == DBUS_TYPE_ARRAY) {
-				DBusMessageIter sub;
-				dbus_message_iter_recurse(&read_iter, &sub);
-				dbus_message_iter_get_fixed_array(&sub, &recevie_path, &path_len);
-			} else {
-				dbus_message_iter_get_basic(&read_iter, &value[i]);
-				i++;
-			}
-			dbus_message_iter_next(&read_iter);
-		}
-
-		item = value[0].i32;
-		pid = value[1].i32;
-		update_type = value[2].i32;
-		update_path = strndup(recevie_path, path_len);
-		if (value[3].str != NULL) uuid = strdup(value[3].str);
-		content_type = value[4].i32;
-		if (value[5].str != NULL) mime_type = strdup(value[5].str);
-
-		if (item == MS_MEDIA_ITEM_DIRECTORY)
-			content_type = MS_MEDIA_UNKNOWN;
-
-		/* getting data complete */
-		MSAPI_DBG("update type[%d]", update_type);
-		user_cb(pid,
-				item,
-				update_type,
-				update_path,
-				uuid,
-				content_type,
-				mime_type,
-				userdata);
-
-		MS_SAFE_FREE(update_path);
-		MS_SAFE_FREE(uuid);
-		MS_SAFE_FREE(mime_type);
-
-		return DBUS_HANDLER_RESULT_HANDLED;
-	}
-
-	return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
+	return FALSE;
 }
 
-DBusHandlerResult
-__message_filter_internal(DBusConnection *connection, DBusMessage *message, void *user_data)
+static void __get_message_internal(GVariant *message, db_update_cb user_cb, void *userdata)
 {
-	db_update_cb user_cb = ((internal_noti_cb_data*)user_data)->user_callback;
-	void *userdata = ((internal_noti_cb_data*)user_data)->user_data;
-	DBusHandlerResult ret;
+	gint32 item = -1;
+	gint32 pid = 0;
+	gint32 update_type = MS_MEDIA_UNKNOWN;
+	gint32 content_type = -1;
+	char *update_path = NULL;
+	char *uuid = NULL;
+	char *mime_type = NULL;
+	char *receive_path = NULL;
+	int path_len = 0;
 
-	ret = __get_message_internal(message, user_cb, userdata);
+	int item_number = g_variant_n_children(message);
 
-	return ret;
+	if (item_number == 8)
+		g_variant_get(message, "(iiioisis)", &item, &pid, &update_type, &receive_path, &path_len, &uuid, &content_type, &mime_type);
+	else if (item_number == 6)
+		g_variant_get(message, "(iiiois)", &item, &pid, &update_type, &receive_path, &path_len, &uuid);
+
+	update_path = strndup(receive_path, path_len);
+	MSAPI_DBG("update path[%s]", update_path);
+
+	if (item == MS_MEDIA_ITEM_DIRECTORY)
+		content_type = MS_MEDIA_UNKNOWN;
+
+	/* getting data complete */
+	user_cb(pid,
+			item,
+			update_type,
+			update_path,
+			uuid,
+			content_type,
+			mime_type,
+			userdata);
+
+	MS_SAFE_FREE(update_path);
+	MS_SAFE_FREE(uuid);
+	MS_SAFE_FREE(mime_type);
+}
+
+static void __message_filter_internal(GDBusConnection* connection,
+					const gchar* sender_name,
+					const gchar* object_path,
+					const gchar* interface_name,
+					const gchar* signal_name,
+					GVariant* parameters,
+					gpointer user_data)
+{
+	if (__gdbus_message_is_signal(interface_name, signal_name)) {
+		db_update_cb user_cb = ((internal_noti_cb_data*)user_data)->user_callback;
+		void *userdata = ((internal_noti_cb_data*)user_data)->user_data;
+
+		__get_message_internal(parameters, user_cb, userdata);
+	}
 }
 
 int media_db_update_subscribe_internal(MediaNotiHandle *handle, db_update_cb user_cb, void *user_data)
 {
 	int ret = MS_MEDIA_ERR_NONE;
+	int handler = 0;
 	internal_noti_cb_data *noti_data = NULL;
-	DBusError error;
-	DBusConnection *dbus;
+	GError *error = NULL;
+	GDBusConnection *gdbus = NULL;
 
-	dbus_g_thread_init();
-
-	dbus_error_init(&error);
-
-	dbus = dbus_bus_get_private(DBUS_BUS_SYSTEM, &error);
-	if (!dbus) {
-		MSAPI_DBG("Failed to connect to the D-BUS daemon: %s", error.message);
-		dbus_error_free(&error);
-		ret = MS_MEDIA_ERR_INTERNAL;
-		goto ERROR;
+	if (gdbus == NULL) {
+		gchar *address = g_dbus_address_get_for_bus_sync(G_BUS_TYPE_SYSTEM, NULL, &error);
+		if (!address) {
+			MSAPI_DBG_ERR("Failed to get the address: %s", error ? error->message : "none");
+			g_error_free(error);
+			return MS_MEDIA_ERR_INTERNAL;
+		}
+		MSAPI_DBG("\tType(%s)", address);
+		gdbus = g_dbus_connection_new_for_address_sync(address, G_DBUS_CONNECTION_FLAGS_NONE, NULL, NULL, &error);
+//		gdbus = g_bus_get_sync(G_BUS_TYPE_SYSTEM, NULL, &error);
+		if (!gdbus) {
+			MSAPI_DBG_ERR("Failed to connect to the g D-BUS daemon: %s", error ? error->message : "none");
+			g_error_free(error);
+			return MS_MEDIA_ERR_INTERNAL;
+		}
 	}
-
-	dbus_connection_setup_with_g_main(dbus, NULL);
 
 	MS_MALLOC(noti_data, sizeof(internal_noti_cb_data));
 	if (noti_data == NULL) {
@@ -258,15 +230,20 @@ int media_db_update_subscribe_internal(MediaNotiHandle *handle, db_update_cb use
 	noti_data->user_callback = user_cb;
 	noti_data->user_data = user_data;
 
-	/* listening to messages from all objects as no path is specified */
-	dbus_bus_add_match(dbus, MS_MEDIA_DBUS_MATCH_RULE, &error);
-	if (!dbus_connection_add_filter(dbus, __message_filter_internal, noti_data, NULL)) {
-		dbus_bus_remove_match(dbus, MS_MEDIA_DBUS_MATCH_RULE, NULL);
-		ret = MS_MEDIA_ERR_INTERNAL;
-		goto ERROR;
-	}
+	handler = g_dbus_connection_signal_subscribe(
+						gdbus,
+						NULL,
+						MS_MEDIA_DBUS_INTERFACE,
+						MS_MEDIA_DBUS_NAME_INTERNAL,
+						MS_MEDIA_DBUS_PATH,
+						NULL,
+						G_DBUS_SIGNAL_FLAGS_NONE,
+						__message_filter_internal,
+						noti_data,
+						NULL);
 
-	noti_data->dbus = dbus;
+	noti_data->gdbus = gdbus;
+	noti_data->handler = handler;
 	*handle = noti_data;
 
 	g_mutex_lock(&mutex_internal);
@@ -288,10 +265,9 @@ int media_db_update_subscribe_internal(MediaNotiHandle *handle, db_update_cb use
 
 ERROR:
 
-	if (dbus != NULL) {
-		dbus_connection_close(dbus);
-		dbus_connection_unref(dbus);
-		dbus = NULL;
+	if (gdbus != NULL) {
+		g_object_unref(gdbus);
+		gdbus = NULL;
 	}
 
 	MS_SAFE_FREE(noti_data);
@@ -343,12 +319,9 @@ int media_db_update_unsubscribe_internal(MediaNotiHandle handle, clear_user_data
 
 	err = _find_handle(handle, &idx);
 	if (err == MS_MEDIA_ERR_NONE) {
-		DBusConnection *dbus = ((internal_noti_cb_data*)handle)->dbus;
-
-		dbus_connection_remove_filter(dbus, __message_filter_internal, (internal_noti_cb_data*)handle);
-		dbus_bus_remove_match(dbus, MS_MEDIA_DBUS_MATCH_RULE, NULL);
-		dbus_connection_close(dbus);
-		dbus_connection_unref(dbus);
+		GDBusConnection *gdbus = ((internal_noti_cb_data*)handle)->gdbus;
+		g_dbus_connection_signal_unsubscribe(gdbus, ((internal_noti_cb_data*)handle)->handler);
+		g_object_unref(gdbus);
 		g_array_remove_index(handle_list_internal, idx);
 
 		if (clear_cb != NULL)

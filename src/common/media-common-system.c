@@ -24,9 +24,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <gio/gio.h>
-#include <dbus/dbus-glib.h>
 #include <dbus/dbus.h>
-#include <dbus/dbus-glib-lowlevel.h>
 #include <sys/stat.h>
 
 #include "media-util.h"
@@ -367,70 +365,98 @@ int ms_sys_release_device_list(GArray **dev_list)
 #define UID_DBUS_INTERFACE	 UID_DBUS_NAME".Manager"
 #define UID_DBUS_METHOD		 "ListUsers"
 
-static int __ms_dbus_get_uid(const char *dest, const char *path, const char *interface, const char *method, uid_t *uid)
+static int __ms_gdbus_get_uid(const char *dest, const char *path, const char *interface, const char *method, uid_t *uid)
 {
-	DBusConnection *conn;
-	DBusMessage *msg;
-	DBusMessageIter iiiter;
-	DBusMessage *reply;
-	DBusError err;
-	DBusMessageIter iter;
-	DBusMessageIter aiter, piter;
-	int result;
+	GDBusConnection *gdbus = NULL;
+	GError *error = NULL;
+	GDBusMessage *message = NULL;
+	GDBusMessage *reply = NULL;
+	GVariant *reply_var = NULL;
+	GVariantIter *iter;
+	char *type_str = NULL;
+	int val_int = 0;
+	char *val_str = NULL;
+	char *val_str2 = NULL;
 
-	int val_int;
-	char *val_str;
+	int result = 0;
+	int ret = MS_MEDIA_ERR_NONE;
 
-	conn = dbus_bus_get(DBUS_BUS_SYSTEM, NULL);
-	if (!conn) {
-		MS_DBG_ERR("dbus_bus_get error");
-		return MS_MEDIA_ERR_INTERNAL;
+	MS_DBG_FENTER();
+
+	if (gdbus == NULL) {
+		gdbus = g_bus_get_sync(G_BUS_TYPE_SYSTEM, NULL, &error);
+		if (!gdbus) {
+			MS_DBG_ERR("Failed to connect to the g D-BUS daemon: %s", error ? error->message : "none");
+			g_error_free(error);
+			ret = MS_MEDIA_ERR_INTERNAL;
+			goto ERROR;
+		}
 	}
 
-	msg = dbus_message_new_method_call(dest, path, interface, method);
-	if (!msg) {
-		MS_DBG_ERR("dbus_message_new_method_call(%s:%s-%s)",
+	message = g_dbus_message_new_method_call (dest, path, interface, method);
+	if (!message) {
+		MS_DBG_ERR("g_dbus_message_new_method_call(%s:%s-%s)",
 		path, interface, method);
-		return MS_MEDIA_ERR_INTERNAL;
+		ret = MS_MEDIA_ERR_INTERNAL;
+		goto ERROR;
 	}
 
-	dbus_message_iter_init_append(msg, &iiiter);
-
-	dbus_error_init(&err);
-
-	reply = dbus_connection_send_with_reply_and_block(conn, msg, DBUS_REPLY_TIMEOUT, &err);
-	dbus_message_unref(msg);
+	reply = g_dbus_connection_send_message_with_reply_sync(gdbus, message, G_DBUS_SEND_MESSAGE_FLAGS_NONE, DBUS_REPLY_TIMEOUT, NULL, NULL, &error);
 	if (!reply) {
-		MS_DBG_ERR("dbus_connection_send error(%s:%s) %s %s:%s-%s",
-		err.name, err.message, dest, path, interface, method);
-		dbus_error_free(&err);
-		return MS_MEDIA_ERR_INTERNAL;
+		MS_DBG_ERR("Failed to connect to the g D-BUS daemon: %s", error ? error->message : "none");
+		g_error_free(error);
+		ret = MS_MEDIA_ERR_INTERNAL;
+		goto ERROR;
 	}
 
-	dbus_message_iter_init(reply, &iter);
-	dbus_message_iter_recurse(&iter, &aiter);
+	reply_var = g_dbus_message_get_body(reply);
+	if (!reply_var) {
+		MS_DBG_ERR("Failed to get the body of message");
+		ret = MS_MEDIA_ERR_INTERNAL;
+		goto ERROR;
+	}
 
-	result = 0;
-	while (dbus_message_iter_get_arg_type(&aiter) != DBUS_TYPE_INVALID) {
+	type_str = (char *)g_variant_get_type_string(reply_var);
+	if (!type_str) {
+		MS_DBG_ERR("Failed to get the type-string of message");
+		ret = MS_MEDIA_ERR_INTERNAL;
+		goto ERROR;
+	}
+
+	g_variant_get(reply_var, type_str, &iter);
+
+	while(g_variant_iter_loop(iter, "(uso)", &val_int, &val_str, &val_str2)) {
 		result++;
 		MS_DBG("(%d)th block device information", result);
-
-		dbus_message_iter_recurse(&aiter, &piter);
-		dbus_message_iter_get_basic(&piter, &val_int);
 		MS_DBG("\tType(%d)", val_int);
-
-		dbus_message_iter_next(&piter);
-		dbus_message_iter_get_basic(&piter, &val_str);
 		MS_DBG("\tdevnode(%s)", val_str);
-
-		dbus_message_iter_next(&piter);
-		dbus_message_iter_get_basic(&piter, &val_str);
-		MS_DBG("\tsyspath(%s)", val_str);
-
-		dbus_message_iter_next(&aiter);
+		MS_DBG("\tsyspath(%s)", val_str2);
+		*uid = (uid_t) val_int;
+		MS_SAFE_FREE(val_str);
+		MS_SAFE_FREE(val_str2);
 	}
 
-	*uid = (uid_t) val_int;
+ERROR:
+
+	if (iter != NULL)
+		g_variant_iter_free(iter);
+
+	if (reply_var != NULL)
+		g_variant_unref(reply_var);
+
+	if (message != NULL)
+		g_object_unref(message);
+
+	if (reply != NULL)
+		g_object_unref(reply);
+
+	if (gdbus != NULL)
+		g_object_unref(gdbus);
+
+	MS_DBG_FLEAVE();
+
+	if (ret != MS_MEDIA_ERR_NONE)
+		return ret;
 
 	return result;
 }
@@ -439,7 +465,7 @@ int ms_sys_get_uid(uid_t *uid)
 {
 	int ret;
 
-	ret = __ms_dbus_get_uid(UID_DBUS_NAME, UID_DBUS_PATH, UID_DBUS_INTERFACE, UID_DBUS_METHOD, uid);
+	ret = __ms_gdbus_get_uid(UID_DBUS_NAME, UID_DBUS_PATH, UID_DBUS_INTERFACE, UID_DBUS_METHOD, uid);
 	if (ret < 0) {
 		MS_DBG("Failed to send dbus (%d)", ret);
 	} else {
@@ -463,73 +489,73 @@ typedef struct pwoff_cb_data {
 	void *usr_data;
 } pwoff_cb_data;
 
-DBusConnection *g_pwr_dbus;
+static GDBusConnection *g_pwr_bus;
+static int g_pwr_handler;
 
 pwoff_cb_data *g_pwr_cb_data = NULL;
 
-static DBusHandlerResult __poweroff_msg_filter(DBusConnection *connection, DBusMessage *message, void *user_data)
+static void __poweroff_signal_cb(GDBusConnection *connection,
+									const gchar *sender_name,
+									const gchar *object_path,
+									const gchar *interface_name,
+									const gchar *signal_name,
+									GVariant *parameters,
+									gpointer user_data)
 {
 	pwoff_cb_data *cb_data = (pwoff_cb_data *)user_data;
 	void *usr_cb = cb_data->usr_cb;
 	void *usr_data = cb_data->usr_data;
+	char *type_str = NULL;
+	int val_int = 0;
+
+	power_off_cb cb_func = (power_off_cb)usr_cb;
+	ms_power_info_s *power_info = NULL;
 
 	MS_DBG_FENTER();
 
-	/* A Ping signal on the com.burtonini.dbus.Signal interface */
-	if (dbus_message_is_signal(message, POWER_DBUS_INTERFACE, POWER_DBUS_NAME)) {
-		int current_type = DBUS_TYPE_INVALID;
-		DBusError error;
-		DBusMessageIter read_iter;
-		DBusBasicValue value;
-		power_off_cb cb_func = (power_off_cb)usr_cb;
-		ms_power_info_s *power_info = NULL;
-
-		dbus_error_init(&error);
-
-		/* get data from dbus message */
-		dbus_message_iter_init(message, &read_iter);
-		while ((current_type = dbus_message_iter_get_arg_type(&read_iter)) != DBUS_TYPE_INVALID) {
-			dbus_message_iter_get_basic(&read_iter, &value);
-			switch (current_type) {
-				case DBUS_TYPE_INT32:
-					MS_DBG_WARN("value[%d]", value.i32);
-					break;
-				default:
-					MS_DBG_ERR("current type : %d", current_type);
-					break;
-			}
-
-			if (value.i32 == 2 || value.i32 == 3) {
-				MS_DBG_WARN("PREPARE POWER OFF");
-				break;
-			}
-
-			dbus_message_iter_next(&read_iter);
-		}
-
-		if (value.i32 == 2 || value.i32 == 3)
-			cb_func(power_info, usr_data);
-
-		return DBUS_HANDLER_RESULT_HANDLED;
+	if (!parameters) {
+		MS_DBG_ERR("Error - The body of message is NULL!");
+		return ;
 	}
 
-	return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
+	type_str = strdup((char *)g_variant_get_type_string(parameters));
+	if (!type_str) {
+		MS_DBG_ERR("Failed to get the type-string of message");
+		return ;
+	}
+
+	if (strcmp(type_str, "(i)") == 0) {
+		g_variant_get(parameters, type_str, &val_int);
+		MS_DBG_WARN("value[%d]", val_int);
+	} else {
+		MS_DBG_ERR("current type : %s", type_str);
+	}
+
+	if (val_int == 2 || val_int == 3) {
+		MS_DBG_WARN("PREPARE POWER OFF");
+	}
+
+	if (val_int == 2 || val_int == 3)
+		cb_func(power_info, usr_data);
+
+	MS_SAFE_FREE(type_str);
 }
 
 int ms_sys_set_poweroff_cb(power_off_cb user_callback, void *user_data)
 {
-	DBusError error;
+	GError *error = NULL;
+
+	MS_DBG_FENTER();
 
 	/*add noti receiver for power off*/
-	dbus_error_init(&error);
-
-	g_pwr_dbus = dbus_bus_get(DBUS_BUS_SYSTEM, &error);
-	if (!g_pwr_dbus) {
-		MS_DBG_ERR("Failed to connect to the D-BUS daemon: %s", error.message);
-		return MS_MEDIA_ERR_INTERNAL;
+	if (g_pwr_bus == NULL) {
+		g_pwr_bus = g_bus_get_sync(G_BUS_TYPE_SYSTEM, NULL, &error);
+		if (!g_pwr_bus) {
+			MS_DBG_ERR("Failed to connect to the g D-BUS daemon: %s", error?error->message:"none");
+			g_error_free(error);
+			return MS_MEDIA_ERR_INTERNAL;
+		}
 	}
-
-	dbus_connection_setup_with_g_main(g_pwr_dbus, NULL);
 
 	g_pwr_cb_data = malloc(sizeof(pwoff_cb_data));
 	if (g_pwr_cb_data == NULL) {
@@ -541,26 +567,31 @@ int ms_sys_set_poweroff_cb(power_off_cb user_callback, void *user_data)
 	g_pwr_cb_data->usr_data = user_data;
 
 	/* listening to messages from all objects as no path is specified */
-	dbus_bus_add_match(g_pwr_dbus, POWER_DBUS_MATCH_RULE, &error);
-	if (!dbus_connection_add_filter(g_pwr_dbus, __poweroff_msg_filter, g_pwr_cb_data, NULL)) {
-		dbus_bus_remove_match(g_pwr_dbus, POWER_DBUS_MATCH_RULE, NULL);
-		MS_DBG_ERR("dbus_connection_add_filter failed");
-		return MS_MEDIA_ERR_INTERNAL;
-	}
+	g_pwr_handler = g_dbus_connection_signal_subscribe(g_pwr_bus,
+		NULL,
+		POWER_DBUS_INTERFACE,
+		POWER_DBUS_NAME,
+		NULL,
+		NULL,
+		G_DBUS_SIGNAL_FLAGS_NONE,
+		__poweroff_signal_cb,
+		g_pwr_cb_data,
+		NULL);
+
+	MS_DBG_FLEAVE();
 
 	return MS_MEDIA_ERR_NONE;
 }
 
 int ms_sys_unset_poweroff_cb(void)
 {
-	if (g_pwr_dbus == NULL) {
+	if (g_pwr_bus == NULL) {
 		return MS_MEDIA_ERR_NONE;
 	}
 
-	dbus_connection_remove_filter(g_pwr_dbus, __poweroff_msg_filter, g_pwr_cb_data);
-	dbus_bus_remove_match(g_pwr_dbus, MS_MEDIA_DBUS_MATCH_RULE, NULL);
-	dbus_connection_unref(g_pwr_dbus);
-	g_pwr_dbus = NULL;
+	g_dbus_connection_signal_unsubscribe(g_pwr_bus, g_pwr_handler);
+	g_object_unref(g_pwr_bus);
+	g_pwr_bus = NULL;
 
 	MS_SAFE_FREE(g_pwr_cb_data);
 
