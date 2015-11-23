@@ -628,7 +628,7 @@ static int __msc_db_update(void **handle, const char *storage_id, const ms_comm_
 			MS_DBG_ERR("error : %d", err);
 		}
 
-		ms_set_folder_validity(handle, MMC_STORAGE_ID, start_path, 0, TRUE, scan_data->uid);
+		ms_set_folder_validity(handle, storage_id, start_path, 0, TRUE, scan_data->uid);
 
 		MS_SAFE_FREE(start_path);
 	}
