@@ -202,120 +202,121 @@ int ms_sys_unset_device_block_event_cb(void)
 }
 
 #define DBUS_REPLY_TIMEOUT (-1)
-static int __ms_dbus_method_sync(const char *dest, const char *path, const char *interface, const char *method, const char *param, GArray **dev_list)
+static int __ms_gdbus_method_sync(const char *dest, const char *path, const char *interface, const char *method, const char *param, GArray **dev_list)
 {
-	DBusConnection *conn;
-	DBusMessage *msg;
-	DBusMessageIter iiiter;
-	DBusMessage *reply;
-	DBusError err;
-	DBusMessageIter iter;
-	DBusMessageIter aiter, piter;
-	int result;
+	GDBusConnection *g_bus = NULL;
+	GError *error = NULL;
+	GDBusMessage *message = NULL;
+	GDBusMessage *reply = NULL;
+	GVariant *reply_var = NULL;
+	GVariantIter *iter = NULL;
+	char *type_str = NULL;
+	int val_int[3] = {0, };
+	char *val_str[7] = {NULL, };
+	gboolean val_bool = FALSE;
 
-	int val_int;
-	char *val_str;
-	bool val_bool;
+	int result = 0;
+	int ret = MS_MEDIA_ERR_NONE;
 
-	conn = dbus_bus_get(DBUS_BUS_SYSTEM, NULL);
-	if (!conn) {
-		MS_DBG_ERR("dbus_bus_get error");
+	MS_DBG_FENTER();
+
+	g_bus = g_bus_get_sync(G_BUS_TYPE_SYSTEM, NULL, &error);
+	if (!g_bus) {
+		MS_DBG_ERR("Failed to connect to the g D-BUS daemon: %s", error ? error->message : "none");
+		g_error_free(error);
 		return MS_MEDIA_ERR_INTERNAL;
 	}
 
-	msg = dbus_message_new_method_call(dest, path, interface, method);
-	if (!msg) {
-		MS_DBG_ERR("dbus_message_new_method_call(%s:%s-%s)",
-		path, interface, method);
+	message = g_dbus_message_new_method_call (dest, path, interface, method);
+	if (!message) {
+		MS_DBG_ERR("g_dbus_message_new_method_call(%s:%s-%s)", path, interface, method);
+		g_object_unref(g_bus);
 		return MS_MEDIA_ERR_INTERNAL;
 	}
 
-	dbus_message_iter_init_append(msg, &iiiter);
-	dbus_message_iter_append_basic(&iiiter, DBUS_TYPE_STRING, &param);
+	g_dbus_message_set_body(message, g_variant_new("(s)", (gchar*)param));
 
-	dbus_error_init(&err);
-
-	reply = dbus_connection_send_with_reply_and_block(conn, msg, DBUS_REPLY_TIMEOUT, &err);
-	dbus_message_unref(msg);
+	reply = g_dbus_connection_send_message_with_reply_sync(g_bus, message, G_DBUS_SEND_MESSAGE_FLAGS_NONE, DBUS_REPLY_TIMEOUT, NULL, NULL, &error);
+	g_object_unref(message);
 	if (!reply) {
-		MS_DBG_ERR("dbus_connection_send error(%s:%s) %s %s:%s-%s",
-		err.name, err.message, dest, path, interface, method);
-		dbus_error_free(&err);
+		MS_DBG_ERR("dbus_connection_send error(%s) %s %s:%s-%s",
+		error ? error->message : "none", dest, path, interface, method);
+		g_error_free(error);
+		g_object_unref(message);
+		g_object_unref(g_bus);
 		return MS_MEDIA_ERR_INTERNAL;
 	}
 
-	dbus_message_iter_init(reply, &iter);
-	dbus_message_iter_recurse(&iter, &aiter);
+	reply_var = g_dbus_message_get_body(reply);
+	if (!reply_var) {
+		MS_DBG_ERR("Failed to get the body of message");
+		g_object_unref(reply);
+		g_object_unref(g_bus);
+		return MS_MEDIA_ERR_INTERNAL;
+	}
 
-	result = 0;
-	while (dbus_message_iter_get_arg_type(&aiter) != DBUS_TYPE_INVALID) {
+	type_str = strdup((char*)g_variant_get_type_string(reply_var));
+	if (!type_str) {
+		MS_DBG_ERR("Failed to get the type-string of message");
+		g_variant_unref(reply_var);
+		g_object_unref(reply);
+		g_object_unref(g_bus);
+		return MS_MEDIA_ERR_INTERNAL;
+	}
+
+	MS_DBG("\tTYPE STR:%s", type_str);
+
+	g_variant_get(reply_var, type_str, &iter);
+
+	while(g_variant_iter_loop(iter, "(issssssisib)", &val_int[0], &val_str[0], &val_str[1], &val_str[2]
+		, &val_str[3], &val_str[4], &val_str[5], &val_int[1], &val_str[6], &val_int[2], &val_bool)) {
 		result++;
-		MS_DBG("(%d)th block device information", result);
-
+		int i = 0;
 		ms_block_info_s *data = NULL;
 		data = malloc(sizeof(ms_block_info_s));
 
-		dbus_message_iter_recurse(&aiter, &piter);
-		dbus_message_iter_get_basic(&piter, &val_int);
-		MS_DBG("\tType(%d)", val_int);
-		data->block_type = val_int;
-
-		dbus_message_iter_next(&piter);
-		dbus_message_iter_get_basic(&piter, &val_str);
-		MS_DBG("\tdevnode(%s)", val_str);
-
-		dbus_message_iter_next(&piter);
-		dbus_message_iter_get_basic(&piter, &val_str);
-		MS_DBG("\tsyspath(%s)", val_str);
-
-		dbus_message_iter_next(&piter);
-		dbus_message_iter_get_basic(&piter, &val_str);
-		MS_DBG("\tfs_usage(%s)", val_str);
-
-		dbus_message_iter_next(&piter);
-		dbus_message_iter_get_basic(&piter, &val_str);
-		MS_DBG("\tfs_type(%s)", val_str);
-
-		dbus_message_iter_next(&piter);
-		dbus_message_iter_get_basic(&piter, &val_str);
-		MS_DBG("\tfs_version(%s)", val_str);
-
-		dbus_message_iter_next(&piter);
-		dbus_message_iter_get_basic(&piter, &val_str);
-		MS_DBG("\tfs_uuid_enc(%s)", val_str);
-
-		dbus_message_iter_next(&piter);
-		dbus_message_iter_get_basic(&piter, &val_int);
-		MS_DBG("\treadonly(%d)", val_int);
-
-		dbus_message_iter_next(&piter);
-		dbus_message_iter_get_basic(&piter, &val_str);
-		MS_DBG("\tmount point(%s)", val_str);
-		data->mount_path = strdup(val_str);
-
-		dbus_message_iter_next(&piter);
-		dbus_message_iter_get_basic(&piter, &val_int);
-		MS_DBG("\tstate(%d)", val_int);
-		data->state = val_int;
-
-		dbus_message_iter_next(&piter);
-		dbus_message_iter_get_basic(&piter, &val_bool);
-		MS_DBG("\tprimary(%d)", val_bool ? "true" : "false");
-
-		dbus_message_iter_next(&aiter);
+		data->block_type = val_int[0];
+		data->mount_path = strdup(val_str[6]);
+		data->state = val_int[2];
 
 		if (*dev_list == NULL) {
 			MS_DBG_ERR("DEV LIST IS NULL");
 			*dev_list = g_array_new(FALSE, FALSE, sizeof(ms_block_info_s*));
 		}
 		g_array_append_val(*dev_list, data);
+
+		MS_DBG("(%d)th block device information", result);
+		MS_DBG("\tType(%d)", val_int[0]);
+		MS_DBG("\tdevnode(%s)", val_str[0]);
+		MS_DBG("\tsyspath(%s)", val_str[1]);
+		MS_DBG("\tfs_usage(%s)", val_str[2]);
+		MS_DBG("\tfs_type(%s)", val_str[3]);
+		MS_DBG("\tfs_version(%s)", val_str[4]);
+		MS_DBG("\tfs_uuid_enc(%s)", val_str[5]);
+		MS_DBG("\treadonly(%d)", val_int[1]);
+		MS_DBG("\tmount point(%s)", val_str[6]);
+		MS_DBG("\tstate(%d)", val_int[2]);
+		MS_DBG("\tprimary(%s)", val_bool ? "true" : "false");
+
+		for (i = 0; i < 7; i++) {
+			MS_SAFE_FREE(val_str[i]);
+		}
 	}
 
-	dbus_message_unref(reply);
+	g_variant_iter_free(iter);
+
+	g_variant_unref(reply_var);
+	g_object_unref(reply);
+	g_object_unref(g_bus);
+	MS_SAFE_FREE(type_str);
+
+	MS_DBG_FLEAVE();
+
+	if (ret != MS_MEDIA_ERR_NONE)
+		return ret;
 
 	return result;
 }
-
 
 int ms_sys_get_device_list(ms_stg_type_e stg_type, GArray **dev_list)
 {
@@ -325,7 +326,7 @@ int ms_sys_get_device_list(ms_stg_type_e stg_type, GArray **dev_list)
 		BLOCK_DEVICE_ALL,
 		};
 
-	ret = __ms_dbus_method_sync(DEVICED_BUS_NAME,
+	ret = __ms_gdbus_method_sync(DEVICED_BUS_NAME,
 		DEVICED_PATH_BLOCK_MANAGER,
 		DEVICED_INTERFACE_BLOCK_MANAGER,
 		BLOCK_DEVICE_METHOD,
@@ -416,7 +417,7 @@ static int __ms_gdbus_get_uid(const char *dest, const char *path, const char *in
 		goto ERROR;
 	}
 
-	type_str = (char *)g_variant_get_type_string(reply_var);
+	type_str = strdup((char *)g_variant_get_type_string(reply_var));
 	if (!type_str) {
 		MS_DBG_ERR("Failed to get the type-string of message");
 		ret = MS_MEDIA_ERR_INTERNAL;
@@ -452,6 +453,8 @@ ERROR:
 
 	if (gdbus != NULL)
 		g_object_unref(gdbus);
+
+	MS_SAFE_FREE(type_str);
 
 	MS_DBG_FLEAVE();
 
