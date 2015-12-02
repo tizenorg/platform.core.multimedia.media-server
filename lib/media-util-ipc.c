@@ -122,9 +122,10 @@ int ms_ipc_create_client_socket(ms_protocol_e protocol, int timeout_sec, ms_sock
 		memset(&serv_addr, 0, sizeof(serv_addr));
 		serv_addr.sun_family = AF_UNIX;
 		MSAPI_DBG("%s", sock_info->sock_path);
-		unlink(sock_info->sock_path);
-		strncpy(serv_addr.sun_path, sock_info->sock_path, strlen(sock_info->sock_path));
-
+		if (sock_info->sock_path != NULL) {
+			unlink(sock_info->sock_path);
+			strncpy(serv_addr.sun_path, sock_info->sock_path, strlen(sock_info->sock_path));
+		}
 		/* Bind to the local address */
 		if (bind(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
 			MSAPI_DBG_STRERROR("bind failed");

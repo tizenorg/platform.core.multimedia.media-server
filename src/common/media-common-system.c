@@ -216,7 +216,6 @@ static int __ms_gdbus_method_sync(const char *dest, const char *path, const char
 	gboolean val_bool = FALSE;
 
 	int result = 0;
-	int ret = MS_MEDIA_ERR_NONE;
 
 	MS_DBG_FENTER();
 
@@ -309,9 +308,6 @@ static int __ms_gdbus_method_sync(const char *dest, const char *path, const char
 	MS_SAFE_FREE(type_str);
 
 	MS_DBG_FLEAVE();
-
-	if (ret != MS_MEDIA_ERR_NONE)
-		return ret;
 
 	return result;
 }

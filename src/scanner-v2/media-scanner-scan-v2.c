@@ -1232,6 +1232,7 @@ static int __msc_check_ignore_dir(const char *full_path, uid_t uid)
 	int ret = MS_MEDIA_ERR_NONE;
 	char *dir_path = NULL;
 	char *leaf_path = NULL;
+	char *user_path = NULL;
 
 	ret = __msc_check_file_path(full_path, uid);
 	if (ret != MS_MEDIA_ERR_NONE) {
@@ -1253,7 +1254,13 @@ static int __msc_check_ignore_dir(const char *full_path, uid_t uid)
 		}
 
 		/*If root path, Stop Scanning*/
-		if (strcmp(dir_path, __msc_get_path(uid)) == 0)
+		user_path = __msc_get_path(uid);
+		if (user_path == NULL) {
+			ret = MS_MEDIA_ERR_INTERNAL;
+			break;
+		}
+
+		if (strcmp(dir_path, user_path) == 0)
 			break;
 		else if (MS_STRING_VALID(MEDIA_ROOT_PATH_SDCARD) && (strcmp(dir_path, MEDIA_ROOT_PATH_SDCARD) == 0))
 			break;
@@ -1272,6 +1279,7 @@ static int __msc_check_ignore_dir(const char *full_path, uid_t uid)
 	}
 
 	MS_SAFE_FREE(dir_path);
+	MS_SAFE_FREE(user_path);
 
 	return ret;
 }
