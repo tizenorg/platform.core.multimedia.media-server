@@ -64,8 +64,6 @@ int media_db_update_send_internal(int pid, /* mandatory */
 	GVariant *message = NULL;
 	GDBusConnection *bus = NULL;
 	GError *error = NULL;
-	unsigned char *path_array = NULL;
-	int path_length = strlen(path) + 1;
 
 	bus = g_bus_get_sync(G_BUS_TYPE_SYSTEM, NULL, &error);
 	if (!bus) {
@@ -74,32 +72,26 @@ int media_db_update_send_internal(int pid, /* mandatory */
 		return MS_MEDIA_ERR_INTERNAL;
 	}
 
-	MSAPI_DBG("update path[%s]", path);
-
-	path_array = malloc(sizeof(unsigned char) * path_length);
-	memcpy(path_array, path, path_length);
-
 	if (item == MS_MEDIA_ITEM_FILE) {
 		MSAPI_DBG("FILE CHANGED");
 		if (uuid != NULL && mime_type != NULL) {
 			/* fill all datas */
-			message = g_variant_new("(iiioisis)", item, pid, update_type, path_array, path_length, uuid, media_type, mime_type);
+			message = g_variant_new("(iiissis)", item, pid, update_type, path, uuid, media_type, mime_type);
 		} else {
-			MSAPI_DBG("this request is wrong");
+			MSAPI_DBG_ERR("uuid or mime_type is NULL");
+			return MS_MEDIA_ERR_INVALID_PARAMETER;
 		}
 	} else if (item == MS_MEDIA_ITEM_DIRECTORY) {
 		MSAPI_DBG("DIRECTORY CHANGED");
+		/* fill all datas */
 		if (uuid != NULL) {
-			/* fill all datas */
-			message = g_variant_new("(iiiois)", item, pid, update_type, path_array, path_length, uuid);
+			message = g_variant_new("(iiiss)", item, pid, update_type, path, uuid);
 		} else {
-			MSAPI_DBG("this request is wrong");
+			message = g_variant_new("(iiis)", item, pid, update_type, path);
 		}
 	} else {
 		MSAPI_DBG("this request is wrong");
 	}
-
-	MS_SAFE_FREE(path_array);
 
 	if (message == NULL) {
 		MSAPI_DBG_ERR("g_dbus_message_new_signal failed");
@@ -149,18 +141,15 @@ static void __get_message_internal(GVariant *message, db_update_cb user_cb, void
 	char *update_path = NULL;
 	char *uuid = NULL;
 	char *mime_type = NULL;
-	char *receive_path = NULL;
-	int path_len = 0;
 
 	int item_number = g_variant_n_children(message);
 
-	if (item_number == 8)
-		g_variant_get(message, "(iiioisis)", &item, &pid, &update_type, &receive_path, &path_len, &uuid, &content_type, &mime_type);
-	else if (item_number == 6)
-		g_variant_get(message, "(iiiois)", &item, &pid, &update_type, &receive_path, &path_len, &uuid);
-
-	update_path = strndup(receive_path, path_len);
-	MSAPI_DBG("update path[%s]", update_path);
+	if (item_number == 7)
+		g_variant_get(message, "(iiissis)", &item, &pid, &update_type, &update_path, &uuid, &content_type, &mime_type);
+	else if (item_number == 5)
+		g_variant_get(message, "(iiiss)", &item, &pid, &update_type, &update_path, &uuid);
+	else if (item_number == 4)
+		g_variant_get(message, "(iiis)", &item, &pid, &update_type, &update_path);
 
 	if (item == MS_MEDIA_ITEM_DIRECTORY)
 		content_type = MS_MEDIA_UNKNOWN;
@@ -178,6 +167,7 @@ static void __get_message_internal(GVariant *message, db_update_cb user_cb, void
 	MS_SAFE_FREE(update_path);
 	MS_SAFE_FREE(uuid);
 	MS_SAFE_FREE(mime_type);
+
 }
 
 static void __message_filter_internal(GDBusConnection* connection,
@@ -205,6 +195,7 @@ int media_db_update_subscribe_internal(MediaNotiHandle *handle, db_update_cb use
 	GDBusConnection *gdbus = NULL;
 
 	if (gdbus == NULL) {
+#if 0
 		gchar *address = g_dbus_address_get_for_bus_sync(G_BUS_TYPE_SYSTEM, NULL, &error);
 		if (!address) {
 			MSAPI_DBG_ERR("Failed to get the address: %s", error ? error->message : "none");
@@ -213,7 +204,8 @@ int media_db_update_subscribe_internal(MediaNotiHandle *handle, db_update_cb use
 		}
 		MSAPI_DBG("\tType(%s)", address);
 		gdbus = g_dbus_connection_new_for_address_sync(address, G_DBUS_CONNECTION_FLAGS_NONE, NULL, NULL, &error);
-//		gdbus = g_bus_get_sync(G_BUS_TYPE_SYSTEM, NULL, &error);
+#endif
+		gdbus = g_bus_get_sync(G_BUS_TYPE_SYSTEM, NULL, &error);
 		if (!gdbus) {
 			MSAPI_DBG_ERR("Failed to connect to the g D-BUS daemon: %s", error ? error->message : "none");
 			g_error_free(error);
