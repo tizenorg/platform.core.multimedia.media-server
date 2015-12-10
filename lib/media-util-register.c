@@ -202,6 +202,10 @@ gboolean _read_socket(GIOChannel *src, GIOCondition condition, gpointer data)
 	MSAPI_DBG("request_type :%d", req_result.request_type);
 
 ERROR:
+	if (req_result.complete_path == NULL) {
+		MSAPI_DBG_ERR("complete_path is NULL");
+		return TRUE;
+	}
 	 /*NEED MUTEX*/
 	 g_mutex_lock(&scan_req_mutex);
 	 if (req_list != NULL) {
