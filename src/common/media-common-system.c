@@ -226,7 +226,7 @@ static int __ms_gdbus_method_sync(const char *dest, const char *path, const char
 		return MS_MEDIA_ERR_INTERNAL;
 	}
 
-	message = g_dbus_message_new_method_call (dest, path, interface, method);
+	message = g_dbus_message_new_method_call(dest, path, interface, method);
 	if (!message) {
 		MS_DBG_ERR("g_dbus_message_new_method_call(%s:%s-%s)", path, interface, method);
 		g_object_unref(g_bus);
@@ -265,7 +265,7 @@ static int __ms_gdbus_method_sync(const char *dest, const char *path, const char
 
 	g_variant_get(reply_var, type_str, &iter);
 
-	while(g_variant_iter_loop(iter, "(issssssisib)", &val_int[0], &val_str[0], &val_str[1], &val_str[2]
+	while (g_variant_iter_loop(iter, "(issssssisib)", &val_int[0], &val_str[0], &val_str[1], &val_str[2]
 		, &val_str[3], &val_str[4], &val_str[5], &val_int[1], &val_str[6], &val_int[2], &val_bool)) {
 		result++;
 		int i = 0;
@@ -388,7 +388,7 @@ static int __ms_gdbus_get_uid(const char *dest, const char *path, const char *in
 		}
 	}
 
-	message = g_dbus_message_new_method_call (dest, path, interface, method);
+	message = g_dbus_message_new_method_call(dest, path, interface, method);
 	if (!message) {
 		MS_DBG_ERR("g_dbus_message_new_method_call(%s:%s-%s)",
 		path, interface, method);
@@ -420,7 +420,7 @@ static int __ms_gdbus_get_uid(const char *dest, const char *path, const char *in
 
 	g_variant_get(reply_var, type_str, &iter);
 
-	while(g_variant_iter_loop(iter, "(uso)", &val_int, &val_str, &val_str2)) {
+	while (g_variant_iter_loop(iter, "(uso)", &val_int, &val_str, &val_str2)) {
 		result++;
 		MS_DBG("(%d)th block device information", result);
 		MS_DBG("\tType(%d)", val_int);
@@ -548,7 +548,7 @@ int ms_sys_set_poweroff_cb(power_off_cb user_callback, void *user_data)
 	if (g_pwr_bus == NULL) {
 		g_pwr_bus = g_bus_get_sync(G_BUS_TYPE_SYSTEM, NULL, &error);
 		if (!g_pwr_bus) {
-			MS_DBG_ERR("Failed to connect to the g D-BUS daemon: %s", error?error->message:"none");
+			MS_DBG_ERR("Failed to connect to the g D-BUS daemon: %s", error ? error->message : "none");
 			g_error_free(error);
 			return MS_MEDIA_ERR_INTERNAL;
 		}
