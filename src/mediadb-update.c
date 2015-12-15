@@ -192,8 +192,10 @@ check_result check_path(char *path)
 int main(int argc, char **argv)
 {
 	int ret;
+	int len;
 	char *argv1 = NULL;
 	char *argv2 = NULL;
+	char req_path[1024] = {0, };
 
 	if (argc > 3 || argc < 2) {
 		print_help();
@@ -216,7 +218,14 @@ int main(int argc, char **argv)
 		}
 
 		if (check_path(argv1) == DIRECTORY_OK) {
-			ret = dir_scan_non_recursive(argv1);
+			len = strlen(argv1);
+
+			if (argv1[len - 1] == '/')
+				strncpy(req_path, argv1, len - 1);
+			else
+				strncpy(req_path, argv1, len);
+
+			ret = dir_scan_non_recursive(req_path);
 			if (ret != 0) {
 				printf("error : %d\n", ret);
 				exit(1);
@@ -230,7 +239,14 @@ int main(int argc, char **argv)
 		argv2 = strdup(argv[2]);
 		if (strcmp(argv1, "-r") == 0) {
 			if (check_path(argv2) == DIRECTORY_OK) {
-				ret = dir_scan_recursive(argv2);
+				len = strlen(argv2);
+				
+				if (argv2[len - 1] == '/')
+					strncpy(req_path, argv2, len - 1);
+				else
+					strncpy(req_path, argv2, len);
+
+				ret = dir_scan_recursive(req_path);
 				if (ret != 0) {
 					printf("error : %d\n", ret);
 					exit(1);
