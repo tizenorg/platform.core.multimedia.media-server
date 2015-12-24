@@ -78,6 +78,7 @@ static void __ms_block_changed(GDBusConnection* connection,
 {
 	const char *devnode = NULL;
 	const char *mount_path = NULL;
+	const char *mount_uuid = NULL;
 	GVariant *tmp;
 	gsize size = 0;
 	block_cb_data *cb_data = (block_cb_data *)user_data;
@@ -99,6 +100,13 @@ static void __ms_block_changed(GDBusConnection* connection,
 	devnode = g_variant_get_string(tmp, &size);
 	MS_DBG_ERR("devnode : %s", devnode);
 
+	tmp = g_variant_get_child_value(parameters, 6);
+	mount_uuid = g_variant_get_string(tmp, &size);
+	if (mount_uuid != NULL) {
+		block_info->mount_uuid = strdup(mount_uuid);
+		MS_DBG_ERR("mount_uuid : %s", block_info->mount_uuid);
+	}
+
 	tmp = g_variant_get_child_value(parameters, 8);
 	mount_path = g_variant_get_string(tmp, &size);
 	if (mount_path != NULL) {
@@ -112,6 +120,7 @@ static void __ms_block_changed(GDBusConnection* connection,
 
 	((block_changed_cb)usr_cb)(block_info, usr_data);
 	MS_SAFE_FREE(block_info->mount_path);
+	MS_SAFE_FREE(block_info->mount_uuid);
 	MS_SAFE_FREE(block_info);
 
 	MS_DBG_ERR("user callback done");
@@ -275,6 +284,7 @@ static int __ms_gdbus_method_sync(const char *dest, const char *path, const char
 		data->block_type = val_int[0];
 		data->mount_path = strdup(val_str[6]);
 		data->state = val_int[2];
+		data->mount_uuid = strdup(val_str[5]);
 
 		if (*dev_list == NULL) {
 			MS_DBG_ERR("DEV LIST IS NULL");
@@ -343,6 +353,7 @@ int ms_sys_release_device_list(GArray **dev_list)
 			g_array_remove_index(*dev_list, 0);
 			MS_DBG("MOUNT PATH [%s] RELEASED", data->mount_path);
 			MS_SAFE_FREE(data->mount_path);
+			MS_SAFE_FREE(data->mount_uuid);
 			MS_SAFE_FREE(data);
 		}
 		g_array_free(*dev_list, FALSE);
