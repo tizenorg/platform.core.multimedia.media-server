@@ -40,6 +40,7 @@ typedef struct ms_block_info_s{
 	char *mount_path;
 	int state;
 	int block_type;
+	char *mount_uuid;
 } ms_block_info_s;
 
 typedef void (*block_changed_cb)(ms_block_info_s *block_info, void *user_data);

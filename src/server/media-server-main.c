@@ -415,7 +415,7 @@ static int __ms_check_usb_status(void)
 
 			for (i = 0; i < dev_num; i++) {
 				block_info = (ms_block_info_s *)g_array_index(dev_list , ms_stg_type_e*, i);
-				ms_usb_insert_handler(block_info->mount_path);
+				ms_usb_insert_handler(block_info->mount_path, block_info->mount_uuid);
 			}
 
 			ms_sys_release_device_list(&dev_list);
