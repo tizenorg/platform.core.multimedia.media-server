@@ -28,6 +28,7 @@
 #include "media-server-socket.h"
 #include "media-server-device-block.h"
 
+#if 0
 static int __ms_get_added_stroage_path(void **handle, const char *add_path, char **device_id)
 {
 	int ret = MS_MEDIA_ERR_NONE;
@@ -53,11 +54,11 @@ static int __ms_get_added_stroage_path(void **handle, const char *add_path, char
 
 	return ret;
 }
+#endif
 
-int ms_usb_insert_handler(const char *mount_path)
+int ms_usb_insert_handler(const char *mount_path, const char *mount_uuid)
 {
 	int ret = MS_MEDIA_ERR_NONE;
-	char *storage_id = NULL;
 	char *storage_path = NULL;
 	void **handle = NULL;
 	int validity = 0;
@@ -73,46 +74,35 @@ int ms_usb_insert_handler(const char *mount_path)
 	ms_sys_get_uid(&uid);
 	ms_connect_db(&handle, uid);
 
-	if (mount_path != NULL) {
-		MS_DBG_ERR("added path [%s]", mount_path);
+	if (mount_path != NULL && mount_uuid != NULL) {
+		/* update storage information into media DB */
+		ret = ms_check_storage(handle, mount_uuid, NULL, &storage_path, &validity);
+		if (ret == 0) {
+			if (validity == 1) {
+				MS_DBG_ERR("This storage is already updated. So ignore this event.");
+				ret = MS_MEDIA_ERR_NONE;
+				goto ERROR;
+			}
 
-		__ms_get_added_stroage_path(handle, mount_path, &storage_id);
-
-		if (storage_id != NULL) {
-			/* update storage information into media DB */
-			ret = ms_check_storage(handle, storage_id, NULL, &storage_path, &validity);
-			if (ret == 0) {
-				if (validity == 1) {
-					MS_DBG_ERR("This storage is already updated. So ignore this event.");
-					ret = MS_MEDIA_ERR_NONE;
-					goto ERROR;
-				}
-
-				if (strcmp(mount_path, storage_path)) {
-					/* update storage path */
-					ret = ms_update_storage(handle, storage_id, mount_path, uid);
-				}
-				scan_type = MS_SCAN_PART;
-				ms_set_storage_validity(handle, storage_id, 1, uid);
-				if (ms_set_storage_scan_status(handle, storage_id, MEDIA_SCAN_PREPARE, uid) != MS_MEDIA_ERR_NONE) {
-					MS_DBG_ERR("ms_set_storage_scan_status failed");
-				}
-			} else {
-				/* there is no information of this storage in Media DB */
-				ret = ms_insert_storage(handle, storage_id, NULL, mount_path, uid);
+			if (strcmp(mount_path, storage_path)) {
+				/* update storage path */
+				ret = ms_update_storage(handle, mount_uuid, mount_path, uid);
+			}
+			scan_type = MS_SCAN_PART;
+			ms_set_storage_validity(handle, mount_uuid, 1, uid);
+			if (ms_set_storage_scan_status(handle, mount_uuid, MEDIA_SCAN_PREPARE, uid) != MS_MEDIA_ERR_NONE) {
+				MS_DBG_ERR("ms_set_storage_scan_status failed");
 			}
 		} else {
-			MS_DBG_ERR("STORAGE ID IS NUILL");
-			ret = MS_MEDIA_ERR_INVALID_PARAMETER;
-			goto ERROR;
+			/* there is no information of this storage in Media DB */
+			ret = ms_insert_storage(handle, mount_uuid, NULL, mount_path, uid);
 		}
 
 		/* request to update media db */
-		ms_send_storage_otg_scan_request(mount_path, storage_id, scan_type, uid);
+		ms_send_storage_otg_scan_request(mount_path, mount_uuid, scan_type, uid);
 	}
 
 ERROR:
-	MS_SAFE_FREE(storage_id);
 	MS_SAFE_FREE(storage_path);
 
 	ms_disconnect_db(&handle);
@@ -122,14 +112,13 @@ ERROR:
 	return ret;
 }
 
-int ms_usb_remove_handler(const char *mount_path)
+int ms_usb_remove_handler(const char *mount_path, const char *mount_uuid)
 {
 	int ret = MS_MEDIA_ERR_NONE;
 	void **handle = NULL;
-	char device_id[MS_UUID_SIZE] = {0,};
 	uid_t uid;
 
-	if (mount_path != NULL) {
+	if (mount_path != NULL && mount_uuid != NULL) {
 		ret = ms_load_functions();
 		if (ret != MS_MEDIA_ERR_NONE) {
 			MS_DBG_ERR("ms_load_functions failed [%d]", ret);
@@ -137,23 +126,9 @@ int ms_usb_remove_handler(const char *mount_path)
 		}
 
 		ms_sys_get_uid(&uid);
-
 		ms_connect_db(&handle, uid);
-
-		while (1) {
-			memset(device_id, 0x0, sizeof(device_id));
-			ms_get_storage_id(handle, mount_path, device_id);
-
-			MS_DBG_ERR("removed path [%s %s]", mount_path, device_id);
-
-			if (strlen(device_id) == (MS_UUID_SIZE-1)) {
-				ms_set_storage_validity(handle, device_id, 0, uid);
-				ms_send_storage_otg_scan_request(mount_path, device_id, MS_SCAN_INVALID, uid);
-			} else {
-				MS_DBG_ERR("Device ID is INVALID");
-				break;
-			}
-		}
+		ms_set_storage_validity(handle, mount_uuid, 0, uid);
+		ms_send_storage_otg_scan_request(mount_path, mount_uuid, MS_SCAN_INVALID, uid);
 
 		ms_disconnect_db(&handle);
 
@@ -349,13 +324,24 @@ void _ms_mmc_changed_event(const char *mount_path, ms_stg_status_e mount_status)
 	return;
 }
 
-void _ms_usb_changed_event(const char *mount_path, ms_stg_status_e mount_status)
+void _ms_usb_changed_event(const char *mount_path, const char *mount_uuid, ms_stg_status_e mount_status)
 {
 	if (mount_status == MS_STG_INSERTED) {
-		ms_usb_insert_handler(mount_path);
+		if (mount_path != NULL && mount_uuid != NULL) {
+			MS_DBG("usb_mount_path[%s], usb_mount_uuid[%s]", mount_path, mount_uuid);
+			ms_usb_insert_handler(mount_path, mount_uuid);
+		} else {
+			MS_DBG_ERR("usb_mount_path[%s] or usb_mount_uuid[%s] is NULL", mount_path, mount_uuid);
+			return;
+		}
 	} else if (mount_status == MS_STG_REMOVED) {
-		/*remove added watch descriptors */
-		ms_usb_remove_handler(mount_path);
+		if (mount_path != NULL && mount_uuid != NULL) {
+			MS_DBG("usb_mount_path[%s], usb_mount_uuid[%s]", mount_path, mount_uuid);
+			ms_usb_remove_handler(mount_path, mount_uuid);
+		} else {
+			MS_DBG_ERR("usb_mount_path[%s] or usb_mount_uuid[%s] is NULL", mount_path, mount_uuid);
+			return;
+		}
 	}
 
 	return;
@@ -365,7 +351,7 @@ void ms_device_block_changed_cb(ms_block_info_s *block_info, void *user_data)
 {
 	if (block_info->block_type == 0) {
 		MS_DBG_ERR("GET THE USB EVENT");
-		_ms_usb_changed_event(block_info->mount_path, block_info->state);
+		_ms_usb_changed_event(block_info->mount_path, block_info->mount_uuid, block_info->state);
 	} else {
 		MS_DBG_ERR("GET THE MMC EVENT");
 		_ms_mmc_changed_event(block_info->mount_path, block_info->state);
