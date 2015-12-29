@@ -1,5 +1,5 @@
 Name:       media-server
-Summary:    File manager service server.
+Summary:    File manager service server
 Version:    0.2.65
 Release:    0
 Group:      Multimedia/Service
@@ -40,7 +40,7 @@ Description : media server runtime library
 
 %package -n libmedia-utils-devel
 Summary:   Media server development library
-Group:     Development/Multimedia
+Group:     Multimedia/Development
 Requires:  libmedia-utils = %{version}-%{release}
 Requires:  libtzplatform-config-devel
 
