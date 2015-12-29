@@ -1,5 +1,5 @@
 Name:       media-server
-Summary:    File manager service server.
+Summary:    A server for media content management
 Version:    0.2.65
 Release:    0
 Group:      Multimedia/Service
@@ -28,24 +28,24 @@ BuildRequires:  pkgconfig(cynara-client)
 BuildRequires:  pkgconfig(cynara-session)
 
 %description
-Description: File manager service server
+Description: A server for media content management.
 
 %package -n libmedia-utils
-Summary:   Media server runtime library
+Summary:   The media server runtime library
 Group:     Multimedia/Libraries
 Requires:  media-server = %{version}-%{release}
 
 %description -n libmedia-utils
-Description : media server runtime library
+Description : The media server runtime library.
 
 %package -n libmedia-utils-devel
-Summary:   Media server development library
-Group:     Development/Multimedia
+Summary:   The media server runtime library (development)
+Group:     Multimedia/Development
 Requires:  libmedia-utils = %{version}-%{release}
 Requires:  libtzplatform-config-devel
 
 %description -n libmedia-utils-devel
-Description: media server development library
+Description: The media server runtime library. (Development files included)
 
 %prep
 %setup -q
