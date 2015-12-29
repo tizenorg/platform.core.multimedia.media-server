@@ -1,5 +1,5 @@
 Name:       media-server
-Summary:    File manager service server.
+Summary:    File manager service server
 Version:    0.2.65
 Release:    0
 Group:      Multimedia/Service
