@@ -719,15 +719,23 @@ int msc_stop_extract_thread(void)
 	if (storage_extract_queue) {
 		/*notify to register thread*/
 		MS_MALLOC(data, sizeof(ms_comm_msg_s));
-		data->pid = POWEROFF;
-		msc_push_extract_request(MS_EXTRACT_STORAGE, data);
+		if (data != NULL) {
+			data->pid = POWEROFF;
+			msc_push_extract_request(MS_EXTRACT_STORAGE, data);
+		} else {
+			MS_DBG_ERR("memory allocation failed");
+		}
 	}
 
 	if (folder_extract_queue) {
 		/*notify to register thread*/
 		MS_MALLOC(data, sizeof(ms_comm_msg_s));
-		data->pid = POWEROFF;
-		msc_push_extract_request(MS_EXTRACT_DIRECTORY, data);
+		if (data != NULL) {
+			data->pid = POWEROFF;
+			msc_push_extract_request(MS_EXTRACT_DIRECTORY, data);
+		} else {
+			MS_DBG_ERR("memory allocation failed");
+		}
 	}
 
 	return MS_MEDIA_ERR_NONE;

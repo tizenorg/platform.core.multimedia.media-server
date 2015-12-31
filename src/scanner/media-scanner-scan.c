@@ -1270,7 +1270,7 @@ static int __msc_check_ignore_dir(const char *full_path, uid_t uid)
 	}
 
 	dir_path = g_path_get_dirname(full_path);
-	if (strcmp(dir_path, ".") == 0) {
+	if (dir_path == NULL || strcmp(dir_path, ".") == 0) {
 		MS_DBG_ERR("getting directory path is failed : %s", full_path);
 		MS_SAFE_FREE(dir_path);
 		return MS_MEDIA_ERR_INVALID_PATH;
@@ -1837,22 +1837,34 @@ int msc_send_power_off_request(void)
 	if (scan_queue) {
 		/*notify to scannig thread*/
 		MS_MALLOC(data, sizeof(ms_comm_msg_s));
-		data->pid = POWEROFF;
-		msc_push_scan_request(MS_SCAN_DIRECTORY, data);
+		if (data != NULL) {
+			data->pid = POWEROFF;
+			msc_push_scan_request(MS_SCAN_DIRECTORY, data);
+		} else {
+			MS_DBG_ERR("memory allocation fail");
+		}
 	}
 
 	if (reg_queue) {
 		/*notify to register thread*/
 		MS_MALLOC(data, sizeof(ms_comm_msg_s));
-		data->pid = POWEROFF;
-		msc_push_scan_request(MS_SCAN_REGISTER, data);
+		if (data != NULL) {
+			data->pid = POWEROFF;
+			msc_push_scan_request(MS_SCAN_REGISTER, data);
+		} else {
+			MS_DBG_ERR("memory allocation fail");
+		}
 	}
 
 	if (storage_queue) {
 		/*notify to register thread*/
 		MS_MALLOC(data, sizeof(ms_comm_msg_s));
-		data->pid = POWEROFF;
-		msc_push_scan_request(MS_SCAN_STORAGE, data);
+		if (data != NULL) {
+			data->pid = POWEROFF;
+			msc_push_scan_request(MS_SCAN_STORAGE, data);
+		} else {
+			MS_DBG_ERR("memory allocation fail");
+		}
 	}
 
 	return MS_MEDIA_ERR_NONE;
