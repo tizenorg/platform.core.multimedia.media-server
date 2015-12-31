@@ -1738,22 +1738,34 @@ int msc_stop_scan_thread(void)
 	if (scan_queue2) {
 		/*notify to scannig thread*/
 		MS_MALLOC(data, sizeof(ms_comm_msg_s));
-		data->pid = POWEROFF;
-		msc_push_scan_request(MS_SCAN_DIRECTORY, data);
+		if (data != NULL) {
+			data->pid = POWEROFF;
+			msc_push_scan_request(MS_SCAN_DIRECTORY, data);
+		} else {
+			MS_DBG_ERR("memory allocation failed");
+		}
 	}
 
 	if (reg_queue2) {
 		/*notify to register thread*/
 		MS_MALLOC(data, sizeof(ms_comm_msg_s));
-		data->pid = POWEROFF;
-		msc_push_scan_request(MS_SCAN_REGISTER, data);
+		if (data != NULL) {
+			data->pid = POWEROFF;
+			msc_push_scan_request(MS_SCAN_REGISTER, data);
+		} else {
+			MS_DBG_ERR("memory allocation failed");
+		}
 	}
 
 	if (storage_queue2) {
 		/*notify to register thread*/
 		MS_MALLOC(data, sizeof(ms_comm_msg_s));
-		data->pid = POWEROFF;
-		msc_push_scan_request(MS_SCAN_STORAGE, data);
+		if (data != NULL) {
+			data->pid = POWEROFF;
+			msc_push_scan_request(MS_SCAN_STORAGE, data);
+		} else {
+			MS_DBG_ERR("memory allocation failed");
+		}
 	}
 
 	return MS_MEDIA_ERR_NONE;
