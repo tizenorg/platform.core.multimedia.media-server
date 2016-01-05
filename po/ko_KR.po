@@ -1,0 +1,6 @@
+msgid "IDS_MEDIABR_POP_PREPARING_SD_CARD_ING"
+msgstr "SD 카드 준비 중..."
+
+msgid "IDS_MUSIC_BODY_SD_CARD_UNEXPECTEDLY_REMOVED"
+msgstr "예상치 못한 상황에서 SD 카드를 분리하였습니다."
+
