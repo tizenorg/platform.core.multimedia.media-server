@@ -1,0 +1,6 @@
+msgid "IDS_MEDIABR_POP_PREPARING_SD_CARD_ING"
+msgstr "正在准备SD卡…"
+
+msgid "IDS_MUSIC_BODY_SD_CARD_UNEXPECTEDLY_REMOVED"
+msgstr "SD 卡已意外移除。"
+

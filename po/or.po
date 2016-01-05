@@ -1,0 +1,6 @@
+msgid "IDS_MEDIABR_POP_PREPARING_SD_CARD_ING"
+msgstr "SD କାର୍ଡ୍ ପ୍ରସ୍ତୁତ କରୁଛି..."
+
+msgid "IDS_MUSIC_BODY_SD_CARD_UNEXPECTEDLY_REMOVED"
+msgstr "SD କାର୍ଡ୍ ଅଣଆଶାଦିତ ଭାବେ ଅପସାରିତ।"
+

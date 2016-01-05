@@ -101,7 +101,7 @@ int ms_get_mmc_id(char **cid)
 	return MS_MEDIA_ERR_NONE;
 }
 
-#define _GETSYSTEMSTR(ID)	dgettext("sys_string", (ID))
+#define _GETSYSTEMSTR(ID)	dgettext("media_svr", (ID))
 
 void update_lang(void)
 {
@@ -128,9 +128,9 @@ int ms_present_mmc_status(ms_sdcard_status_type_t status)
 	update_lang();
 
 	if (status == MS_SDCARD_INSERTED)
-		ret = notification_status_message_post(_GETSYSTEMSTR("IDS_COM_BODY_PREPARING_SD_CARD"));
+		ret = notification_status_message_post(_GETSYSTEMSTR("IDS_MEDIABR_POP_PREPARING_SD_CARD_ING"));
 	else if (status == MS_SDCARD_REMOVED)
-		ret = notification_status_message_post(_GETSYSTEMSTR("IDS_COM_BODY_SD_CARD_UNEXPECTEDLY_REMOVED"));
+		ret = notification_status_message_post(_GETSYSTEMSTR("IDS_MUSIC_BODY_SD_CARD_UNEXPECTEDLY_REMOVED"));
 
 	if (ret != NOTIFICATION_ERROR_NONE)
 		return MS_MEDIA_ERR_INTERNAL;
