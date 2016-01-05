@@ -1241,7 +1241,7 @@ static int __msc_check_ignore_dir(const char *full_path, uid_t uid)
 	}
 
 	dir_path = g_path_get_dirname(full_path);
-	if (strcmp(dir_path, ".") == 0) {
+	if (dir_path == NULL || strcmp(dir_path, ".") == 0) {
 		MS_DBG_ERR("getting directory path is failed : %s", full_path);
 		MS_SAFE_FREE(dir_path);
 		return MS_MEDIA_ERR_INVALID_PATH;
