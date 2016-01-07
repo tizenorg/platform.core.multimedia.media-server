@@ -29,6 +29,7 @@
 #include <media-util-noti-internal.h>
 #include <media-util-ipc.h>
 #include <media-util-cynara.h>
+#include <media-util-dcm.h>
 
 
 #include <tzplatform_config.h>

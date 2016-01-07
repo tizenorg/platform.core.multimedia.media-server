@@ -34,6 +34,9 @@ typedef enum{
 	MS_THUMB_CREATOR_PORT,	/**< Create thumbnail */
 	MS_THUMB_COMM_PORT,		/**< Port of communication between creator and server */
 	MS_THUMB_DAEMON_PORT, 	/**< Port of Thumbnail server */
+	MS_DCM_CREATOR_PORT,	/**< Create DCM service */
+	MS_DCM_COMM_PORT, 	/**< Port of communication between creator and server */
+	MS_DCM_DAEMON_PORT,	/**< Port of DCM service */
 	MS_PORT_MAX,
 }ms_msg_port_type_e;
 
@@ -61,6 +64,8 @@ typedef enum{
 	MS_MSG_DIRECTORY_SCANNING_CANCEL,	/**< Request cancel directory scan*/
 	MS_MSG_STORAGE_SCANNER_COMPLETE,	/**< Storage Scanner complete */
 	MS_MSG_DIRECTORY_SCANNER_COMPLETE,	/**< Directory Scanner complete */
+	MS_MSG_DCM_SERVER_READY,			/**< Ready from dcm server */
+	MS_MSG_DCM_EXTRACT_ALL_DONE,		/**< Done of all-dcm extracting */
 	MS_MSG_MAX							/**< Invalid msg type */
 }ms_msg_type_e;
 
@@ -119,5 +124,17 @@ typedef struct _thumbMsg{
 	char org_path[MAX_FILEPATH_LEN];
 	char dst_path[MAX_FILEPATH_LEN];
 } thumbMsg;
+
+typedef struct {
+	ms_msg_type_e msg_type;
+} ms_dcm_server_msg;
+
+typedef struct {
+	int msg_type;
+	int pid;
+	uid_t uid;
+	size_t msg_size;
+	char msg[MAX_FILEPATH_LEN];
+} dcmMsg;
 
 #endif /*_MEDIA_SERVER_IPC_H_*/
