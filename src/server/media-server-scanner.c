@@ -39,7 +39,7 @@
 #include <tzplatform_config.h>
 
 #define MS_NO_REMAIN_TASK 0
-
+#define VCONFKEY_PRIVATE_EXTRACTSTATUS "db/private/extractstatus"
 #define MEDIA_SERVER_PATH tzplatform_mkpath(TZ_SYS_BIN, "media-scanner")
 #define MEDIA_SERVER_PATH_V2 tzplatform_mkpath(TZ_SYS_BIN, "media-scanner-v2")
 
@@ -72,6 +72,13 @@ ms_db_status_type_t ms_check_scanning_status(void)
 
 	if (ms_config_get_int(VCONFKEY_FILEMANAGER_DB_STATUS, &status)) {
 		if (status == VCONFKEY_FILEMANAGER_DB_UPDATING) {
+			return MS_DB_UPDATING;
+		}
+	}
+
+	if (ms_config_get_int(VCONFKEY_PRIVATE_EXTRACTSTATUS, &status)) {
+		MS_DBG("extract status %d", status);
+		if (status == MS_DB_UPDATING) {
 			return MS_DB_UPDATING;
 		}
 	}

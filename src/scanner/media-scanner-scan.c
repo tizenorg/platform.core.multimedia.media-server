@@ -87,7 +87,6 @@ static char* __msc_get_path(uid_t uid);
 
 static char* __msc_get_path(uid_t uid)
 {
-	int result_size = 0;
 	char *result_passwd = NULL;
 	struct group *grpinfo = NULL;
 	if (uid == getuid()) {
@@ -115,7 +114,6 @@ static char* __msc_get_path(uid_t uid)
 			MS_DBG_ERR("UID [%d] does not belong to 'users' group!", uid);
 			return NULL;
 		}
-		result_size = strlen(userinfo->pw_dir) + strlen(MEDIA_CONTENT_PATH) + 2;
 
 		snprintf(passwd_str, sizeof(passwd_str), "%s/%s", userinfo->pw_dir, MEDIA_CONTENT_PATH);
 		result_passwd = g_strdup(passwd_str);

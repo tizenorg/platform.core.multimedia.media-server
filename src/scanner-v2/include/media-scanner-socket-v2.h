@@ -26,9 +26,8 @@
 #include "media-server-ipc.h"
 
 gboolean msc_receive_request(GIOChannel *src, GIOCondition condition, gpointer data);
-
 int msc_send_ready(void);
-
 int msc_send_result(int result, ms_comm_msg_s *scan_data);
+int msc_send_result_partial(int result, ms_msg_type_e msg_type, int pid, char *msg);
 
 #endif /*_MEDIA_SCANNER_SOCKET_V2_H_*/
