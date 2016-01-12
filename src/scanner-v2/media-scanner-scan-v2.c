@@ -48,16 +48,29 @@
 #include "media-scanner-extract-v2.h"
 #define MAX_SCAN_COUNT 300
 
+#define DIR_SCAN_NON_SCAN 	   0
+#define DIR_SCAN_RECURSIVE 	   1
+#define DIR_SCAN_NON_RECURSIVE 2
+
 GAsyncQueue *storage_queue2;
 GAsyncQueue *scan_queue2;
 GAsyncQueue *reg_queue2;
 GMutex scan_req_mutex2;
 GMutex blocked_mutex2;
+GMutex storage_scan_mutex2;
+GMutex dir_scan_mutex2;
+
 char *g_cancel_path2;
 char *g_blocked_path2;
-bool g_directory_scan_processing2;
 
-int stg_scan_status2;
+int insert_count_for_partial = 0;
+int set_count_for_partial = 0;
+int g_directory_scan_processing2 = DIR_SCAN_NON_SCAN;
+char *g_storage_scan_path;
+char* g_dir_scan_path;
+
+typedef int (*DIR_SCAN_CB)();
+DIR_SCAN_CB g_dir_scan_cb;
 
 #ifdef FMS_PERF
 extern struct timeval g_mmc_start_time;
@@ -75,19 +88,50 @@ static int __msc_pop_register_request(GArray *register_array, ms_comm_msg_s **re
 static int __msc_clear_file_list(GArray *path_array);
 static int __msc_check_scan_ignore(char * path);
 static bool __msc_is_valid_path(const char *path, uid_t uid);
-static void __msc_check_dir_path(char *dir_path);
+static void __msc_trim_dir_path(char *dir_path);
 static void __msc_insert_register_request(GArray *register_array, ms_comm_msg_s *insert_data);
 static void __msc_bacth_commit_enable(void* handle, bool ins_status, bool valid_status, bool noti_enable, int pid);
 static void __msc_bacth_commit_disable(void* handle, bool ins_status, bool valid_status, const char *path, int result, uid_t uid);
-static int __msc_set_storage_scan_status(ms_storage_scan_status_e status);
-static int __msc_get_storage_scan_status(ms_storage_scan_status_e *status);
-static int __msc_dir_scan(void **handle, const char *storage_id, const char*start_path, ms_storage_type_t storage_type, int scan_type, uid_t uid);
+static int __msc_dir_scan_for_folder(void **handle, const char *storage_id, const char*start_path, ms_storage_type_t storage_type, int scan_type, int pid, uid_t uid);
+static int __msc_dir_scan_for_storage(void **handle, const char *storage_id, const char*start_path, ms_storage_type_t storage_type, int scan_type, int pid, uid_t uid);
 static bool __msc_storage_mount_status(const char* start_path);
 static char* __msc_get_path(uid_t uid);
 
+static int __msc_get_null_scan_folder_list(void **handle, const char *stroage_id, char *path, GArray *dir_array);
+static int __msc_dir_scan_cb();
+static int __msc_check_scan_same_path(char *scan_path);
+static int __msc_set_storage_scan_cur_path(char *scan_path);
+static int __msc_set_dir_scan_cur_path(char *scan_path);
+static int __msc_dir_and_storage_scan_same_path(char *start_path);
+
+static int __msc_set_dir_scan_cb(DIR_SCAN_CB cb)
+{
+	g_dir_scan_cb = cb;
+
+	return MS_MEDIA_ERR_NONE;
+}
+
+static int __msc_call_dir_scan_cb()
+{
+	if (g_dir_scan_cb != NULL)
+	{
+		g_dir_scan_cb();
+
+		return MS_MEDIA_ERR_NONE;
+	}
+
+	return MS_MEDIA_ERR_INTERNAL;
+}
+
+static int __msc_remove_dir_scan_cb()
+{
+	g_dir_scan_cb = NULL;
+
+	return MS_MEDIA_ERR_NONE;
+}
+
 static char* __msc_get_path(uid_t uid)
 {
-	int result_size = 0;
 	char *result_passwd = NULL;
 	struct group *grpinfo = NULL;
 	if (uid == getuid()) {
@@ -115,7 +159,6 @@ static char* __msc_get_path(uid_t uid)
 			MS_DBG_ERR("UID [%d] does not belong to 'users' group!", uid);
 			return NULL;
 		}
-		result_size = strlen(userinfo->pw_dir) + strlen(MEDIA_CONTENT_PATH) + 2;
 
 		snprintf(passwd_str, sizeof(passwd_str), "%s/%s", userinfo->pw_dir, MEDIA_CONTENT_PATH);
 		result_passwd = g_strdup(passwd_str);
@@ -287,6 +330,10 @@ int msc_init_scan_thread()
 {
 	g_mutex_init(&data_mutex2);
 	g_mutex_init(&blocked_mutex2);
+	g_mutex_init(&scan_req_mutex2);
+	g_mutex_init(&storage_scan_mutex2);
+
+	g_mutex_init(&dir_scan_mutex2);
 
 	g_cond_init(&data_cond2);
 
@@ -297,6 +344,10 @@ int msc_deinit_scan_thread()
 {
 	g_mutex_clear(&data_mutex2);
 	g_mutex_clear(&blocked_mutex2);
+	g_mutex_clear(&scan_req_mutex2);
+	g_mutex_clear(&storage_scan_mutex2);
+
+	g_mutex_clear(&dir_scan_mutex2);
 
 	g_cond_clear(&data_cond2);
 
@@ -313,18 +364,17 @@ static int __msc_resume_scan()
 
 	return MS_MEDIA_ERR_NONE;
 }
+
 static int __msc_pause_scan()
 {
 	g_mutex_lock(&data_mutex2);
 
-	while (g_directory_scan_processing2)
-		g_cond_wait(&data_cond2, &data_mutex2);
+	g_cond_wait(&data_cond2, &data_mutex2);
 
 	g_mutex_unlock(&data_mutex2);
 
 	return MS_MEDIA_ERR_NONE;
 }
-
 
 static int __msc_check_stop_status(int scan_type, ms_storage_type_t storage_type, const char *start_path)
 {
@@ -367,12 +417,6 @@ static int __msc_check_stop_status(int scan_type, ms_storage_type_t storage_type
 	}
 
 	if (scan_type == MS_MSG_STORAGE_ALL || scan_type == MS_MSG_STORAGE_PARTIAL) {
-		if (g_directory_scan_processing2 == true) {
-			MS_DBG_ERR("Now directory scanning is start. So, storage scannig is stopped.");
-			__msc_pause_scan();
-			MS_DBG_ERR("Now directory scanning is end. So, storage scannig is resumed.");
-		}
-
 		g_mutex_lock(&blocked_mutex2);
 		/* check cancel path */
 		if (g_blocked_path2 != NULL) {
@@ -392,7 +436,7 @@ static int __msc_check_stop_status(int scan_type, ms_storage_type_t storage_type
 	return ret;
 }
 
-static void __msc_check_dir_path(char *dir_path)
+static void __msc_trim_dir_path(char *dir_path)
 {
 	/* need implementation */
 	/* if dir_path is not NULL terminated, this function will occure crash */
@@ -402,35 +446,26 @@ static void __msc_check_dir_path(char *dir_path)
 		dir_path[len -1] = '\0';
 }
 
-struct linux_dirent {
-	ino64_t			d_ino;	 /* 64-bit inode number */
-	off64_t			d_off;	 /* 64-bit offset to next structure */
-	unsigned short	d_reclen; /* Size of this dirent */
-	unsigned char	d_type;	 /* File type */
-	char				d_name[]; /* Filename (null-terminated) */
-};
-
 #define BUF_SIZE 1024
 
-static int __msc_dir_scan(void **handle, const char *storage_id, const char*start_path, ms_storage_type_t storage_type, int scan_type, uid_t uid)
+static int __msc_dir_scan_for_folder(void **handle, const char *storage_id, const char*start_path, ms_storage_type_t storage_type, int scan_type, int pid, uid_t uid)
 {
 	GArray *dir_array = NULL;
 	int ret = MS_MEDIA_ERR_NONE;
 	char *new_path = NULL;
 	char *current_path = NULL;
 	char path[MS_FILE_PATH_LEN_MAX] = {0, };
-	int (*scan_function)(void **, const char*, const char*, uid_t) = NULL;
 	bool is_recursive = true;
 	char *new_start_path = NULL;
 
-	int fd = -1;
-	int nread = 0;
-	char buf[BUF_SIZE] = {0, };
-	struct linux_dirent *d;
-	int bpos = 0;
+	DIR *dp = NULL;
+	struct dirent entry;
+	struct dirent *result = NULL;
 	int scan_count = 0;
-
 	const char *trash = "$RECYCLE.BIN";
+
+	insert_count_for_partial = 0;
+	set_count_for_partial = 0;
 
 	MS_DBG_ERR("storage id [%s] start path [%s]", storage_id, start_path);
 
@@ -449,20 +484,18 @@ static int __msc_dir_scan(void **handle, const char *storage_id, const char*star
 		return MS_MEDIA_ERR_OUT_OF_MEMORY;
 	}
 
-	MS_DBG_ERR("new start path [%s]", new_start_path);
+	//MS_DBG_ERR("new start path [%s]", new_start_path);
 	g_array_append_val(dir_array, start_path);
+	ms_insert_folder_end(handle, uid);
 	if (ms_insert_folder(handle, storage_id, new_start_path, uid) != MS_MEDIA_ERR_NONE) {
 		MS_DBG_ERR("insert folder failed");
 	}
 
-	scan_function = (scan_type == MS_MSG_STORAGE_ALL) ? ms_scan_item_batch : ms_scan_validate_item;
 	is_recursive = (scan_type == MS_MSG_DIRECTORY_SCANNING_NON_RECURSIVE) ? false : true;
 
 	/* folder validity set 0 under the start_path in folder table*/
-	if (scan_type == MS_MSG_DIRECTORY_SCANNING_NON_RECURSIVE || scan_type == MS_MSG_DIRECTORY_SCANNING) {
-		if (ms_set_folder_validity(handle, storage_id, new_start_path, MS_INVALID, is_recursive, uid) != MS_MEDIA_ERR_NONE) {
-			MS_DBG_ERR("set_folder_validity failed [%d] ", scan_type);
-		}
+	if (ms_set_folder_validity(handle, storage_id, new_start_path, MS_INVALID, is_recursive, uid) != MS_MEDIA_ERR_NONE) {
+		MS_DBG_ERR("set_folder_validity failed [%d] ", scan_type);
 	}
 
 	/*start db update. the number of element in the array , db update is complete.*/
@@ -470,11 +503,16 @@ static int __msc_dir_scan(void **handle, const char *storage_id, const char*star
 		/*check poweroff status*/
 		ret = __msc_check_stop_status(scan_type, storage_type, new_start_path);
 		if (ret != MS_MEDIA_ERR_NONE) {
+			if (is_recursive == true) {
+				ms_change_validity_item_batch(handle, storage_id, new_start_path, 1, 2, uid);
+			}
 			goto STOP_SCAN;
 		}
 		/* get the current path from directory array */
 		current_path = g_array_index(dir_array , char*, 0);
 		g_array_remove_index(dir_array, 0);
+
+		__msc_set_dir_scan_cur_path(current_path);
 
 		ret = __msc_check_scan_ignore(current_path);
 		if (ret != MS_MEDIA_ERR_NONE) {
@@ -490,75 +528,61 @@ static int __msc_dir_scan(void **handle, const char *storage_id, const char*star
 		}
 
 		ms_insert_folder_start(handle);
+		ms_set_folder_scan_status(handle, storage_id, current_path, MS_DIR_SCAN_PROCESSING, uid);
 
-		fd = open(current_path, O_RDONLY | O_DIRECTORY);
-		if (fd == -1) {
-			MS_DBG_STRERROR("open fails");
-			continue;
-		}
-
-		for ( ; ; ) {
-			nread = syscall(SYS_getdents64, fd, buf, BUF_SIZE);
-
-			if (nread == -1) {
-				MS_DBG_STRERROR("getdents");
-				break;
-			}
-
-			/*check poweroff status*/
-			ret = __msc_check_stop_status(scan_type, storage_type, new_start_path);
-			if (ret != MS_MEDIA_ERR_NONE) {
-				goto STOP_SCAN;
-			}
-
-			if (nread == 0)
-				break;
-
-			for (bpos = 0; bpos < nread;) {
+		dp = opendir(current_path);
+		if (dp != NULL) {
+			while (!readdir_r(dp, &entry, &result)) {
 				/*check poweroff status*/
 				ret = __msc_check_stop_status(scan_type, storage_type, new_start_path);
 				if (ret != MS_MEDIA_ERR_NONE) {
+					if (is_recursive == true) {
+						ms_change_validity_item_batch(handle, storage_id, new_start_path, 1, 2, uid);
+					}
 					goto STOP_SCAN;
 				}
 
-				d = (struct linux_dirent *) (buf + bpos);
+				if (result == NULL)
+					break;
 
-				if (d->d_name[0] == '.') {
-					bpos += d->d_reclen;
+				if (entry.d_name[0] == '.' ||strcmp(entry.d_name, trash) == 0)
 					continue;
-				}
 
-				if (strcmp(d->d_name, trash) == 0) {
-					MS_DBG_ERR("trash directory");
-					bpos += d->d_reclen;
-					continue;
-				}
-
-				if (ms_strappend(path, sizeof(path), "%s/%s", current_path, d->d_name) != MS_MEDIA_ERR_NONE) {
+				if (ms_strappend(path, sizeof(path), "%s/%s", current_path, entry.d_name) != MS_MEDIA_ERR_NONE) {
 					MS_DBG_ERR("ms_strappend failed");
-					bpos += d->d_reclen;
 					continue;
 				}
 
-				if (d->d_type == DT_REG) {
-					MS_DBG_ERR("INSERT DT_REG");
+				if (entry.d_type & DT_REG) {
 					/* insert into media DB */
-					if (scan_function(handle, storage_id, path, uid) != MS_MEDIA_ERR_NONE) {
+					if (ms_scan_validate_item(handle,storage_id, path, uid, &insert_count_for_partial, &set_count_for_partial) != MS_MEDIA_ERR_NONE) {
 						MS_DBG_ERR("failed to update db : %d\n", scan_type);
-						bpos += d->d_reclen;
 						continue;
 					} else {
 						++scan_count;
-						//MSC_DBG_ERR("insert count %d", nScanCount);
-						if (scan_count/MAX_SCAN_COUNT > 0) {
+						//MS_DBG_ERR("insert count %d", nScanCount);
+						if (scan_count >= MAX_SCAN_COUNT) {
 							scan_count = 0;
-							MS_DBG_ERR("storage_id = [%s]", storage_id);
+							//MS_DBG_ERR("storage_id = [%s]", storage_id);
 							msc_insert_exactor_request(scan_type, FALSE, storage_id, current_path, 0, uid);
 						}
+
+						if (insert_count_for_partial >= MAX_SCAN_COUNT) {
+							if (pid != 0) {
+								msc_send_result_partial(ret, MS_MSG_SCANNER_PARTIAL, pid, (char*)start_path);
+							}
+							insert_count_for_partial = 0;
+						}
+
+						if (set_count_for_partial >= MAX_SCAN_COUNT) {
+							if (pid != 0) {
+								msc_send_result_partial(ret, MS_MSG_SCANNER_PARTIAL, pid, (char*)start_path);
+							}
+							set_count_for_partial = 0;
+						}
 					}
-				} else if (d->d_type == DT_DIR) {
-					MS_DBG_ERR("INSERT DT_DIR");
-					if (scan_type != MS_MSG_DIRECTORY_SCANNING_NON_RECURSIVE) {
+				}else if (entry.d_type & DT_DIR) {
+					if  (scan_type != MS_MSG_DIRECTORY_SCANNING_NON_RECURSIVE) {
 						/* this request is recursive scanning */
 						/* add new directory to dir_array */
 						new_path = strdup(path);
@@ -572,50 +596,395 @@ static int __msc_dir_scan(void **handle, const char *storage_id, const char*star
 						/* don't add new directory to dir_array */
 						if (ms_insert_folder(handle, storage_id, path, uid) != MS_MEDIA_ERR_NONE) {
 							MS_DBG_ERR("insert folder failed");
-							bpos += d->d_reclen;
 							continue;
 						}
 					}
 				}
-
-				bpos += d->d_reclen;
 			}
+			/*update modifiec type for the internal storage*/
+			if (scan_type == MS_MSG_DIRECTORY_SCANNING_NON_RECURSIVE && storage_type == MS_STORAGE_INTERNAL)
+				ms_update_folder_time(handle, INTERNAL_STORAGE_ID, current_path, uid);			
+		} else {
+			MS_DBG_ERR("%s folder opendir fails", current_path);
+			ms_set_folder_scan_status(handle, storage_id, current_path, MS_DIR_SCAN_STOP, uid);
 		}
 
 		ms_insert_folder_end(handle, uid);
-//		msc_insert_exactor_request(scan_type, FALSE, storage_id, current_path, 0);
-//		scan_count = 0;
+		ms_set_folder_scan_status(handle, storage_id, current_path, MS_DIR_SCAN_DONE, uid);
 
-		if (fd != -1) {
-			close(fd);
-			fd = -1;
-		}
+		if (dp) closedir(dp);
+		dp = NULL;
 
 		MS_SAFE_FREE(current_path);
+		__msc_set_dir_scan_cur_path(NULL);
 	}
 
-	/*remove invalid folder in folder table.*/
-	if (scan_type == MS_MSG_STORAGE_ALL || scan_type == MS_MSG_STORAGE_PARTIAL) {
-		if (__msc_storage_mount_status(new_start_path)) {
-			if (ms_delete_invalid_folder(handle, storage_id, uid) != MS_MEDIA_ERR_NONE) {
-				MS_DBG_ERR("delete invalid folder failed");
-				ret = MS_MEDIA_ERR_DB_DELETE_FAIL;
-			}
-		} else {
-			MS_DBG_ERR("start path is unmounted");
-		}
-	}
 STOP_SCAN:
-	if (fd != -1) {
-		close(fd);
-		fd = -1;
-	}
-
+	if (dp) closedir(dp);
 	MS_SAFE_FREE(new_start_path);
+	__msc_set_dir_scan_cur_path(NULL);
 
 	__msc_clear_file_list(dir_array);
 
 	if (ret != MS_MEDIA_ERR_NONE) MS_DBG_INFO("ret : %d", ret);
+
+	return ret;
+}
+
+static int __msc_dir_scan_for_storage(void **handle, const char *storage_id, const char*start_path, ms_storage_type_t storage_type, int scan_type, int pid, uid_t uid)
+{
+	GArray *dir_array = NULL;
+	int ret = MS_MEDIA_ERR_NONE;
+	char *new_path = NULL;
+	char *current_path = NULL;
+	char path[MS_FILE_PATH_LEN_MAX] = { 0 };
+	int (*scan_function)(void **, const char*, const char*, uid_t, int *, int *) = NULL;
+	char *new_start_path = NULL;
+
+	DIR *dp = NULL;
+	struct dirent entry;
+	struct dirent *result = NULL;
+	int scan_count = 0;
+	const char *trash = "$RECYCLE.BIN";
+
+	bool is_missing = false;
+	ms_dir_scan_status_e scan_status = MS_DIR_SCAN_NONE;
+
+	MS_DBG_ERR("storage id [%s] start path [%s]", storage_id, start_path);
+
+	/* make new array for storing directory */
+	dir_array = g_array_new (FALSE, FALSE, sizeof (char*));
+
+	if (dir_array == NULL) {
+		MS_DBG_ERR("g_array_new failed");
+		return MS_MEDIA_ERR_OUT_OF_MEMORY;
+	}
+	/* add first direcotiry to directory array */
+	new_start_path = strdup(start_path);
+	if (new_start_path == NULL) {
+		MS_DBG_ERR("strdup failed");
+		return MS_MEDIA_ERR_OUT_OF_MEMORY;
+	}
+
+	g_array_append_val (dir_array, start_path);
+	ms_insert_folder_end(handle, uid);
+	if (ms_insert_folder(handle, storage_id, new_start_path, uid) != MS_MEDIA_ERR_NONE) {
+		MS_DBG_ERR("insert folder failed");
+	}
+
+	scan_function = (scan_type == MS_MSG_STORAGE_ALL) ? ms_scan_item_batch : ms_scan_validate_item;
+
+	/*start db update. the number of element in the array , db update is complete.*/
+	while (dir_array->len != 0) {
+		/*check poweroff status*/
+		ret = __msc_check_stop_status(scan_type, storage_type, new_start_path);
+		if (ret != MS_MEDIA_ERR_NONE) {
+			goto STOP_SCAN;
+		}
+		/* get the current path from directory array */
+		current_path = g_array_index(dir_array , char*, 0);
+		g_array_remove_index (dir_array, 0);
+
+		__msc_set_storage_scan_cur_path(current_path);
+
+		ret = __msc_check_scan_ignore(current_path);
+		if (ret != MS_MEDIA_ERR_NONE) {
+			MS_DBG_ERR("%s is ignore", current_path);
+			MS_SAFE_FREE(current_path);
+			if (ret == MS_MEDIA_ERR_USB_UNMOUNTED) {
+				goto STOP_SCAN;
+			} else {
+				ret = MS_MEDIA_ERR_NONE;
+			}
+
+			continue;
+		}
+
+		ms_get_folder_scan_status(handle, storage_id, current_path, (int*)&scan_status);
+
+		if (scan_status == MS_DIR_SCAN_PROCESSING && g_directory_scan_processing2 != DIR_SCAN_NON_SCAN) {
+
+			MS_DBG_ERR("%s is scanning, ignore current path, scan next path !!", current_path);
+
+			is_missing = true;
+			goto NEXT_SCAN;
+
+		} else if (scan_status == MS_DIR_SCAN_DONE) {
+			if (g_directory_scan_processing2 == DIR_SCAN_NON_RECURSIVE) {
+				MS_DBG_ERR("%s is scan done, ignore current path, get subfolder list!!", current_path);
+
+				__msc_get_null_scan_folder_list(handle, storage_id, current_path, dir_array);
+
+				continue;
+
+			} else if (g_directory_scan_processing2 == DIR_SCAN_RECURSIVE) {
+				MS_DBG_ERR("%s is scan done, ignore current path, scan next path!!", current_path);
+
+				is_missing = true;
+				goto NEXT_SCAN;
+			}
+		}
+
+		ms_insert_folder_start(handle);
+		ms_set_folder_scan_status(handle, storage_id, current_path, MS_DIR_SCAN_PROCESSING, uid);
+
+		dp = opendir(current_path);
+		if (dp != NULL) {
+			while (!readdir_r(dp, &entry, &result)) {
+				/*check poweroff status*/
+				ret = __msc_check_stop_status(scan_type, storage_type, new_start_path);
+				if (ret != MS_MEDIA_ERR_NONE) {
+					goto STOP_SCAN;
+				}
+	
+				if (result == NULL)
+					break;
+	
+				if (entry.d_name[0] == '.' ||strcmp(entry.d_name, trash) == 0)
+					continue;
+	
+				if (ms_strappend(path, sizeof(path), "%s/%s", current_path, entry.d_name) != MS_MEDIA_ERR_NONE) {
+					MS_DBG_ERR("ms_strappend failed");
+					continue;
+				}
+	
+				if (entry.d_type & DT_REG) {
+					/* insert into media DB */
+					if (scan_function(handle,storage_id, path, uid, &insert_count_for_partial, &set_count_for_partial) != MS_MEDIA_ERR_NONE) {
+						MS_DBG_ERR("failed to update db : %d\n", scan_type);
+						continue;
+					} else {
+						++scan_count;
+						//MS_DBG_ERR("insert count %d", nScanCount);
+						if (scan_count >= MAX_SCAN_COUNT) {
+							scan_count = 0;
+							//MS_DBG_ERR("storage_id = [%s]", storage_id);
+							msc_insert_exactor_request(scan_type, FALSE, storage_id, current_path, 0, uid);
+						}
+					}
+
+				}else if (entry.d_type & DT_DIR) {
+					/* this request is recursive scanning */
+					/* add new directory to dir_array */
+					new_path = strdup(path);
+					g_array_append_val (dir_array, new_path);
+
+					if (ms_insert_folder(handle, storage_id, new_path, uid) != MS_MEDIA_ERR_NONE) {
+						MS_DBG_ERR("insert folder failed");
+					}
+				}
+			}		
+		} else {
+			MS_DBG_ERR("%s folder opendir fails", current_path);
+			ms_set_folder_scan_status(handle, storage_id, current_path, MS_DIR_SCAN_STOP, uid);
+		}
+	
+		ms_insert_folder_end(handle, uid);
+		ms_set_folder_scan_status(handle, storage_id, current_path, MS_DIR_SCAN_DONE, uid);
+	
+		if (dp) closedir(dp);
+		dp = NULL;
+
+NEXT_SCAN:
+		MS_SAFE_FREE(current_path);
+		__msc_set_storage_scan_cur_path(NULL);
+
+		if (dir_array->len == 0 && is_missing) {
+			is_missing = false;
+
+			if (g_directory_scan_processing2 == DIR_SCAN_NON_SCAN) {
+				ret = __msc_get_null_scan_folder_list(handle, storage_id, NULL, dir_array);
+
+				MS_DBG_ERR("no wait folder scan callback");
+
+				if (ret != MS_MEDIA_ERR_NONE) {
+					break;
+				}
+			} else {
+				__msc_set_dir_scan_cb(__msc_dir_scan_cb);
+
+				__msc_pause_scan();
+
+				MS_DBG_ERR("wait folder scan callback");
+
+				__msc_remove_dir_scan_cb();
+
+				ret = __msc_get_null_scan_folder_list(handle, storage_id, NULL, dir_array);
+
+				if (ret != MS_MEDIA_ERR_NONE) {
+					break;
+				}
+			}
+		}
+	}
+
+	/*remove invalid folder in folder table.*/
+	if (__msc_storage_mount_status(new_start_path)) {
+		if((g_directory_scan_processing2 != DIR_SCAN_NON_SCAN)
+			&& (__msc_dir_and_storage_scan_same_path(new_start_path) == MS_MEDIA_ERR_NONE)) {
+			__msc_set_dir_scan_cb(__msc_dir_scan_cb);
+			MS_DBG_ERR("storage scan pause...\n");
+			__msc_pause_scan();
+
+			MS_DBG_ERR("wait folder scan callback");
+
+			__msc_remove_dir_scan_cb();
+		}
+		if (ms_delete_invalid_folder(handle, storage_id, uid) != MS_MEDIA_ERR_NONE) {
+			MS_DBG_ERR("delete invalid folder failed");
+			ret = MS_MEDIA_ERR_DB_DELETE_FAIL;
+		}
+	} else {
+		MS_DBG_ERR("start path is unmounted");
+	}
+
+STOP_SCAN:
+	if (dp) closedir(dp);
+	dp = NULL;
+
+	MS_SAFE_FREE(new_start_path);
+	__msc_set_storage_scan_cur_path(NULL);
+	__msc_clear_file_list(dir_array);
+
+	if (ret != MS_MEDIA_ERR_NONE) MS_DBG_INFO("ret : %d", ret);
+
+	return ret;
+}
+
+int __msc_get_null_scan_folder_list(void **handle, const char *stroage_id, char *path, GArray *dir_array)
+{
+	int ret = MS_MEDIA_ERR_NONE;
+	char *new_path = NULL;
+	char *current_path = NULL;
+	GArray *cur_dir_array = NULL;
+
+	ret = ms_get_null_scan_folder_list(handle, stroage_id, path, &cur_dir_array);
+
+	if (ret == MS_MEDIA_ERR_NONE) {
+		MS_DBG_ERR("cur_dir_array->len = [%d]", cur_dir_array->len);
+		while (cur_dir_array->len != 0) {
+			current_path = g_array_index(cur_dir_array , char*, 0);
+			g_array_remove_index (cur_dir_array, 0);
+			MS_DBG("current_path = [%s]", current_path);
+
+			new_path = strdup(current_path);
+			g_array_append_val (dir_array, new_path);
+			MS_SAFE_FREE(current_path);
+		}
+	}
+
+	__msc_clear_file_list(cur_dir_array);
+
+	return ret;
+}
+
+int __msc_check_scan_same_path(char *scan_path)
+{
+	int ret = MS_MEDIA_ERR_NONE;
+	unsigned int storage_len, folder_len, min_len;
+
+	g_mutex_lock(&storage_scan_mutex2);
+
+	if (NULL == scan_path || NULL == g_storage_scan_path)
+	{
+		g_mutex_unlock(&storage_scan_mutex2);
+
+		return MS_MEDIA_ERR_INTERNAL;
+	}
+
+	storage_len = strlen(g_storage_scan_path);
+	folder_len = strlen(scan_path);
+	min_len = storage_len > folder_len ? folder_len : storage_len;
+
+	ret = strncmp(g_storage_scan_path, scan_path, min_len);
+
+	g_mutex_unlock(&storage_scan_mutex2);
+
+	return abs(ret);
+}
+
+int __msc_set_storage_scan_cur_path(char *scan_path)
+{
+	int ret = MS_MEDIA_ERR_NONE;
+
+	g_mutex_lock(&storage_scan_mutex2);
+
+	if (NULL == scan_path)
+	{
+		MS_SAFE_FREE(g_storage_scan_path);
+	}
+	else
+	{
+		MS_SAFE_FREE(g_storage_scan_path);
+		g_storage_scan_path = strdup(scan_path);
+	}
+
+	g_mutex_unlock(&storage_scan_mutex2);
+
+	return ret;
+}
+
+static int __msc_dir_and_storage_scan_same_path(char *start_path)
+{
+	int ret = MS_MEDIA_ERR_NONE;
+	unsigned int storage_len, folder_len;
+
+	char *storage_path = NULL;
+	char *remain_path = NULL;
+	int remain_len = 0;
+
+	remain_path = strstr(start_path+strlen(MEDIA_ROOT_PATH_USB) +1, "/");
+	if (remain_path != NULL)
+		remain_len = strlen(remain_path);
+
+	storage_path = strndup(start_path, strlen(start_path) - remain_len);
+
+	g_mutex_lock(&dir_scan_mutex2);
+
+	if (NULL == g_dir_scan_path || NULL == storage_path)
+	{
+		MS_SAFE_FREE(storage_path);
+		g_mutex_unlock(&dir_scan_mutex2);
+
+		return MS_MEDIA_ERR_INTERNAL;
+	}
+
+	storage_len = strlen(storage_path);
+	folder_len = strlen(g_dir_scan_path);
+
+	if(folder_len < storage_len)
+	{
+		ret = -1;
+	}
+	else
+	{
+		ret = strncmp(storage_path, g_dir_scan_path, storage_len);
+	}
+
+	MS_SAFE_FREE(storage_path);
+	g_mutex_unlock(&dir_scan_mutex2);
+	
+	return abs(ret);
+}
+
+
+int __msc_set_dir_scan_cur_path(char *scan_path)
+{
+	int ret = MS_MEDIA_ERR_NONE;
+
+	g_mutex_lock(&dir_scan_mutex2);
+	
+	if (NULL == scan_path)
+	{
+		MS_SAFE_FREE(g_dir_scan_path);
+	}
+	else
+	{
+		MS_SAFE_FREE(g_dir_scan_path);
+		g_dir_scan_path = strdup(scan_path);
+	}
+
+	g_mutex_unlock(&dir_scan_mutex2);
 
 	return ret;
 }
@@ -634,14 +1003,21 @@ static int __msc_db_update(void **handle, const char *storage_id, const ms_comm_
 	if (scan_type != MS_MSG_STORAGE_INVALID) {
 		MS_DBG_ERR("INSERT");
 		start_path = strndup(scan_data->msg, scan_data->msg_size);
-		scan_type = scan_data->msg_type;
+		if (scan_type == MS_MSG_DIRECTORY_SCANNING || scan_type == MS_MSG_DIRECTORY_SCANNING_NON_RECURSIVE)
+		{
+			err = __msc_dir_scan_for_folder(handle, storage_id, start_path, storage_type, scan_type, scan_data->pid, scan_data->uid);
+		}
+		else if (scan_type == MS_MSG_STORAGE_ALL || scan_type == MS_MSG_STORAGE_PARTIAL)
+		{
+			err = __msc_dir_scan_for_storage(handle, storage_id, start_path, storage_type, scan_type, scan_data->pid, scan_data->uid);
+		}
 
-		err = __msc_dir_scan(handle, storage_id, start_path, storage_type, scan_type, scan_data->uid);
 		if (err != MS_MEDIA_ERR_NONE) {
 			MS_DBG_ERR("error : %d", err);
 		}
 	} else if (scan_type == MS_MSG_STORAGE_INVALID) {
 		MS_DBG_ERR("INVALID");
+#if 1
 		/*In this case, update just validation record*/
 		/*update just valid type*/
 		err = ms_validaty_change_all_items(handle, storage_id, storage_type, false, scan_data->uid);
@@ -653,6 +1029,7 @@ static int __msc_db_update(void **handle, const char *storage_id, const ms_comm_
 		if (ms_set_folder_validity(handle, storage_id, scan_data->msg, MS_INVALID, TRUE, scan_data->uid) != MS_MEDIA_ERR_NONE) {
 			MS_DBG_ERR("set_folder_validity failed");
 		}
+#endif
 		msc_remove_extract_request(scan_data);
 	}
 
@@ -667,15 +1044,39 @@ static int __msc_pop_new_request(ms_comm_msg_s **scan_data)
 	return MS_MEDIA_ERR_NONE;
 }
 
+static bool __msc_check_folder_path(const char *folder_path)
+{
+	DIR *dp = NULL;
+
+	dp = opendir(folder_path);
+	if (dp == NULL) {
+		MS_DBG_ERR("Deleted folder path");
+		return false;
+	}
+	closedir(dp);
+
+	return true;
+}
+
 gboolean msc_directory_scan_thread(void *data)
 {
 	ms_comm_msg_s *scan_data = NULL;
 	int err;
-	int ret;
+	int ret = MS_MEDIA_ERR_NONE;
 	void **handle = NULL;
 	int scan_type;
-	char *noti_path = NULL;
 	char *storage_id = NULL;
+	bool modified = FALSE;
+	int index = 0;
+	ms_storage_type_t storage_type = MS_STORAGE_INTERNAL;
+	ms_dir_scan_status_e scan_status = MS_DIR_SCAN_NONE;
+	ms_noti_type_e noti_type = MS_ITEM_INSERT;
+	int before_count = 0;
+	int after_count = 0;
+	int delete_count = 0;
+	int delete_folder_count = 0;
+	char *folder_uuid = NULL;
+	bool is_recursive = true;
 	bool power_off_status = FALSE;
 
 	while (1) {
@@ -688,7 +1089,7 @@ gboolean msc_directory_scan_thread(void *data)
 
 		MS_DBG_ERR("DIRECTORY SCAN START [%s, %d]", scan_data->msg, scan_data->msg_type);
 
-		g_directory_scan_processing2 = true;
+		g_directory_scan_processing2 = DIR_SCAN_NON_RECURSIVE;
 
 		/*connect to media db, if conneting is failed, db updating is stopped*/
 		err = ms_connect_db(&handle, scan_data->uid);
@@ -696,6 +1097,8 @@ gboolean msc_directory_scan_thread(void *data)
 			continue;
 
 		scan_type = scan_data->msg_type;
+		storage_type = ms_get_storage_type_by_full(scan_data->msg, scan_data->uid);
+		ms_reset_insert_count();
 
 		storage_id = strdup(scan_data->storage_id);
 		if (storage_id == NULL) {
@@ -719,14 +1122,135 @@ gboolean msc_directory_scan_thread(void *data)
 			goto NEXT;
 		}
 
-		__msc_check_dir_path(scan_data->msg);
+		__msc_trim_dir_path(scan_data->msg);
 
-		/*change validity before scanning*/
-		if (scan_type == MS_MSG_DIRECTORY_SCANNING) {
-			err = ms_set_folder_item_validity(handle, storage_id, scan_data->msg, MS_INVALID, MS_RECURSIVE, scan_data->uid);
+		if (__msc_check_folder_path(scan_data->msg)) {
+			is_recursive = (scan_type == MS_MSG_DIRECTORY_SCANNING_NON_RECURSIVE) ? false : true;
+
+			if (ms_check_folder_exist(handle, storage_id, scan_data->msg) == MS_MEDIA_ERR_NONE) {
+				/*already exist in media DB*/
+				noti_type = MS_ITEM_UPDATE;
+				MS_DBG_ERR("[%s] already exist", scan_data->msg);
+			} else {
+				noti_type = MS_ITEM_INSERT;
+				MS_DBG_ERR("[%s] new insert path", scan_data->msg);
+			}
 		} else {
+			/*directory is deleted*/
+			is_recursive = true;
+			noti_type = MS_ITEM_DELETE;
+			scan_type = MS_MSG_DIRECTORY_SCANNING;
+			scan_data->msg_type = MS_MSG_DIRECTORY_SCANNING;
 
-			err = ms_set_folder_item_validity(handle, storage_id, scan_data->msg, MS_INVALID, MS_NON_RECURSIVE, scan_data->uid);
+			/*get the UUID of deleted folder*/
+			ms_get_folder_id(handle, storage_id, scan_data->msg, &folder_uuid);
+
+			MS_DBG_ERR("[%s][%s] delete path", scan_data->msg, folder_uuid);
+		}
+
+		ms_check_subfolder_count(handle, storage_id, scan_data->msg, &before_count);
+		MS_DBG_ERR("BEFORE COUNT[%d]", before_count);
+
+		if (scan_type == MS_MSG_DIRECTORY_SCANNING) {
+
+			MS_DBG_ERR("start recursive dir scan!!");
+
+			g_directory_scan_processing2 = DIR_SCAN_RECURSIVE;
+			err = __msc_check_scan_same_path(scan_data->msg);
+
+			if (MS_MEDIA_ERR_NONE == err) {
+				MS_DBG_ERR("[%s] is scanning recursive, waiting...", scan_data->msg);
+
+				while (1) {
+					sleep(1);
+
+					ret = __msc_check_stop_status(scan_type, storage_type, scan_data->msg);
+					if (ret != MS_MEDIA_ERR_NONE) {
+						goto NEXT;
+					}
+
+					if ((++index) % 3 == 0)
+					{
+						msc_send_result_partial(ret, MS_MSG_SCANNER_PARTIAL, scan_data->pid, scan_data->msg);
+					}
+
+					err = __msc_check_scan_same_path(scan_data->msg);
+					if (err != MS_MEDIA_ERR_NONE) {
+						break;
+					}
+				}
+
+				index = 0;
+				MS_DBG_ERR("[%s] scan done, wait finished", scan_data->msg);
+				goto SCAN_DONE;
+
+			} else {
+				ms_get_folder_scan_status(handle, storage_id, scan_data->msg, (int*)&scan_status);
+				
+				if (scan_status == MS_DIR_SCAN_DONE) {
+					ms_set_folder_item_validity(handle, storage_id, scan_data->msg, MS_VALIND_V2, MS_RECURSIVE, scan_data->uid);
+				} else {
+					ms_set_folder_item_validity(handle, storage_id, scan_data->msg, MS_INVALID, MS_RECURSIVE, scan_data->uid);
+				}
+			}
+		} else {
+			MS_DBG_ERR("start non recursive dir scan!!");
+
+			g_directory_scan_processing2 = DIR_SCAN_NON_RECURSIVE;
+			ms_check_folder_modified(handle, scan_data->msg, storage_id, &modified);
+
+			if (modified == FALSE) {
+				MS_DBG_ERR("check [%s] has not been modified !!", scan_data->msg);
+				ms_get_folder_scan_status(handle, storage_id, scan_data->msg, (int*)&scan_status);
+				MS_DBG_ERR("folder scan status = [%d]", scan_status);
+
+				if (scan_status == MS_DIR_SCAN_DONE) {
+					/* do nothing */
+					MS_DBG_ERR("[%s] scan done", scan_data->msg);
+					err = ms_set_folder_item_validity(handle, storage_id, scan_data->msg, MS_VALIND, MS_NON_RECURSIVE, scan_data->uid);
+					goto SCAN_DONE;
+				} else if (scan_status == MS_DIR_SCAN_PROCESSING) {
+					MS_DBG_ERR("[%s] scanning, waiting...", scan_data->msg);
+
+					while (1) {
+						sleep(1);
+
+						ret = __msc_check_stop_status(scan_type, storage_type, scan_data->msg);
+						if (ret != MS_MEDIA_ERR_NONE) {
+							goto NEXT;
+						}
+
+						if ((++index) % 3 == 0)
+						{
+							msc_send_result_partial(ret, MS_MSG_SCANNER_PARTIAL, scan_data->pid, scan_data->msg);
+						}
+
+						ms_get_folder_scan_status(handle, storage_id, scan_data->msg, (int*)&scan_status);
+						if (scan_status == MS_DIR_SCAN_DONE) {
+							break;
+						}
+					}
+
+					index = 0;
+					MS_DBG_ERR("[%s] scan done, wait finished", scan_data->msg);
+					goto SCAN_DONE;
+				}else {
+					err = ms_set_folder_item_validity(handle, storage_id, scan_data->msg, MS_INVALID, MS_NON_RECURSIVE, scan_data->uid);
+				}
+			} else {
+				MS_DBG_ERR("check [%s] has been modified !!", scan_data->msg);
+				err = ms_set_folder_item_validity(handle, storage_id, scan_data->msg, MS_INVALID, MS_NON_RECURSIVE, scan_data->uid);
+#if 0
+				ms_get_folder_scan_status(handle, storage_id, scan_data->msg, &scan_status);
+				MS_DBG_ERR("folder scan status = [%d]", scan_status);
+
+				if (scan_status == MS_DIR_SCAN_PROCESSING) {
+					MS_DBG_ERR("[%s] scanning, notify storage scan to stop scan %s !!", scan_data->msg, scan_data->msg);
+
+					//add notify storage scan to stop scan
+				}
+#endif
+			}
 		}
 
 		if (err != MS_MEDIA_ERR_NONE)
@@ -742,34 +1266,53 @@ gboolean msc_directory_scan_thread(void *data)
 		/*call for bundle commit*/
 		__msc_bacth_commit_disable(handle, TRUE, TRUE, scan_data->msg, ret, scan_data->uid);
 
-		MS_DBG_ERR("storage_id = [%s], scan_data->storage_id = [%s]", storage_id, scan_data->storage_id);
-		msc_insert_exactor_request(scan_type, TRUE, scan_data->storage_id, scan_data->msg, scan_data->pid, scan_data->uid);
+		MS_DBG_ERR("folder scan done, sent cb event path = [%s]", scan_data->msg);
+		__msc_call_dir_scan_cb();
 
-		if (ret == MS_MEDIA_ERR_NONE) {
+		ms_check_subfolder_count(handle, storage_id, scan_data->msg, &after_count);
+		MS_DBG_ERR("BEFORE COUNT[%d]", before_count);
+
+		if (ms_count_delete_items_in_folder(handle, storage_id, scan_data->msg, &delete_count) != MS_MEDIA_ERR_NONE) {
+			MS_DBG_ERR("counting invalid items failed");
+		}
+
+		if (ms_delete_invalid_items_in_folder(handle, storage_id, scan_data->msg, is_recursive, scan_data->uid)  != MS_MEDIA_ERR_NONE) {
+			MS_DBG_ERR("deleting invalid items in folder failed");
+		}
+
+		/*remove invalid folder in folder table.*/
+		//if(ms_delete_invalid_folder_by_path(handle, storage_id, scan_data->msg, &delete_folder_count) != MS_MEDIA_ERR_NONE) {
+		//	MS_DBG_ERR("deleting invalid folder failed");
+		//}
+
+		MS_DBG_SLOG("delete folder count %d", delete_folder_count);
+
+		if (ret != MS_MEDIA_ERR_SCANNER_FORCE_STOP) {
 			MS_DBG_INFO("working normally");
-			int count = 0;
-			bool is_recursive = true;
-			int insert_count = ms_get_insert_count();
 
-			noti_path = strndup(scan_data->msg, scan_data->msg_size);
+			if (noti_type != MS_ITEM_UPDATE) {
+				ms_send_dir_update_noti(handle, storage_id, scan_data->msg, folder_uuid, noti_type, scan_data->pid);
+			} else {
+				int insert_count = ms_get_insert_count();
+				int delete_count = ms_get_delete_count();
 
-			ms_count_delete_items_in_folder(handle, storage_id, noti_path, &count);
+				MS_DBG_SLOG("delete count %d", delete_count);
+				MS_DBG_SLOG("insert count %d", insert_count);
 
-			MS_DBG_ERR("delete count %d", count);
-			MS_DBG_ERR("insert count %d", insert_count);
-
-			if (scan_type == MS_MSG_DIRECTORY_SCANNING_NON_RECURSIVE)
-				is_recursive = false;
-
-			ms_delete_invalid_items_in_folder(handle, storage_id, scan_data->msg, is_recursive, scan_data->uid);
-
-			if (!(count == 0 && insert_count == 0)) {
-				ms_send_dir_update_noti(handle, storage_id, noti_path, NULL, MS_ITEM_UPDATE, scan_data->pid);
+				if (!(delete_count == 0 && insert_count == 0) 
+					|| !(before_count == after_count)
+					|| delete_folder_count != 0) {
+					ms_send_dir_update_noti(handle, storage_id, scan_data->msg, folder_uuid, noti_type, scan_data->pid);
+				}
 			}
-			MS_SAFE_FREE(noti_path);
 		}
 
 		ms_reset_insert_count();
+		ms_reset_delete_count();
+
+SCAN_DONE:
+		MS_DBG_ERR("storage_id = [%s], dir Path = [%s]", storage_id, scan_data->msg);
+		msc_insert_exactor_request(scan_data->msg_type, TRUE, scan_data->storage_id, scan_data->msg, scan_data->pid, scan_data->uid);
 
 		msc_get_power_status(&power_off_status);
 		if (power_off_status) {
@@ -777,28 +1320,21 @@ gboolean msc_directory_scan_thread(void *data)
 			goto _POWEROFF;
 		}
 
+
 NEXT:
 		/*Active flush */
 		malloc_trim(0);
 
-//		msc_send_result(ret, scan_data);
+		scan_data->msg_type = MS_MSG_SCANNER_COMPLETE;
+		msc_send_result(ret, scan_data);
 
 		MS_SAFE_FREE(scan_data);
 		MS_SAFE_FREE(storage_id);
+		MS_SAFE_FREE(folder_uuid);
 
-		g_directory_scan_processing2 = false;
+		g_directory_scan_processing2 = DIR_SCAN_NON_SCAN;
 
 		MS_DBG_ERR("DIRECTORY SCAN END [%d]", ret);
-
-		ms_storage_scan_status_e storage_scan_status = MS_STORAGE_SCAN_NONE;
-		ret = __msc_get_storage_scan_status(&storage_scan_status);
-		if (ret == MS_MEDIA_ERR_NONE) {
-			/*get storage list and scan status from media db*/
-			if (storage_scan_status != MS_STORAGE_SCAN_DONE) {
-				__msc_resume_scan();
-				MS_DBG_ERR("RESUME OK");
-			}
-		}
 
 		/*disconnect form media db*/
 		if (handle) ms_disconnect_db(&handle);
@@ -892,7 +1428,7 @@ static int __msc_compare_with_db(void **handle, const char *storage_id, const ch
 		/* get the current path from directory array */
 		current_path = g_array_index(read_dir_array , char*, 0);
 		g_array_remove_index(read_dir_array, 0);
-//		MSC_DBG_ERR("%s", current_path);
+//		MS_DBG_ERR("%s", current_path);
 
 		if (__msc_check_scan_ignore(current_path) != MS_MEDIA_ERR_NONE) {
 			MS_DBG_ERR("%s is ignore", current_path);
@@ -939,7 +1475,7 @@ static int __msc_compare_with_db(void **handle, const char *storage_id, const ch
 	return ret;
 }
 
-static int _msc_db_update_partial(void **handle, const char *storage_id, ms_storage_type_t storage_type, GArray *dir_array, uid_t uid)
+static int _msc_db_update_partial(void **handle, const char *storage_id, ms_storage_type_t storage_type, GArray *dir_array, int pid, uid_t uid)
 {
 	unsigned int i;
 	int err = MS_MEDIA_ERR_NONE;
@@ -962,7 +1498,7 @@ static int _msc_db_update_partial(void **handle, const char *storage_id, ms_stor
 			}
 		}
 
-		__msc_dir_scan(handle, storage_id, update_path, storage_type, MS_MSG_DIRECTORY_SCANNING_NON_RECURSIVE, uid);
+		__msc_dir_scan_for_folder(handle, storage_id, update_path, storage_type, MS_MSG_DIRECTORY_SCANNING_NON_RECURSIVE, pid, uid);
 	}
 
 	/*delete all node*/
@@ -979,6 +1515,11 @@ static int _msc_db_update_partial(void **handle, const char *storage_id, ms_stor
 	return MS_MEDIA_ERR_NONE;
 }
 
+int __msc_dir_scan_cb()
+{
+	return __msc_resume_scan();
+}
+
 gboolean msc_storage_scan_thread(void *data)
 {
 	ms_comm_msg_s *scan_data = NULL;
@@ -993,14 +1534,12 @@ gboolean msc_storage_scan_thread(void *data)
 	bool power_off_status = FALSE;
 
 	while (1) {
-		__msc_set_storage_scan_status(MS_STORAGE_SCAN_PREPARE);
 		scan_data = g_async_queue_pop(storage_queue2);
 		if (scan_data->pid == POWEROFF) {
 			MS_DBG_ERR("power off");
 			goto _POWEROFF;
 		}
 
-		__msc_set_storage_scan_status(MS_STORAGE_SCAN_PROCESSING);
 		MS_DBG_ERR("STORAGE SCAN START [%s]", scan_data->msg);
 
 		scan_type = scan_data->msg_type;
@@ -1025,7 +1564,7 @@ gboolean msc_storage_scan_thread(void *data)
 		/*start db updating */
 		__msc_set_db_status(MS_DB_UPDATING, storage_type);
 
-		valid_status = (scan_type == MS_MSG_STORAGE_PARTIAL) ? TRUE : FALSE;
+		valid_status = (scan_type == MS_MSG_STORAGE_PARTIAL || MS_MSG_STORAGE_ALL == scan_type) ? TRUE : FALSE;
 
 		if (scan_type != MS_MSG_STORAGE_INVALID)
 			__msc_bacth_commit_enable(handle, TRUE, valid_status, MS_NOTI_SWITCH_OFF, 0);
@@ -1042,7 +1581,7 @@ gboolean msc_storage_scan_thread(void *data)
 
 			if (dir_array->len != 0) {
 				MS_DBG_INFO("DB UPDATING IS NEEDED");
-				ret = _msc_db_update_partial(handle, scan_data->storage_id, storage_type, dir_array, scan_data->uid);
+				ret = _msc_db_update_partial(handle, scan_data->storage_id, storage_type, dir_array, scan_data->pid, scan_data->uid);
 			} else {
 				MS_DBG_INFO("THERE IS NO UPDATE");
 			}
@@ -1066,27 +1605,8 @@ gboolean msc_storage_scan_thread(void *data)
 			__msc_bacth_commit_disable(handle, TRUE, valid_status, scan_data->msg, ret, scan_data->uid);
 		}
 
-		MS_DBG_ERR("scan_data->storage_id = [%s]", scan_data->storage_id);
-
-		msc_insert_exactor_request(scan_type, TRUE, scan_data->storage_id, scan_data->msg, scan_data->pid, scan_data->uid);
-
-		MS_DBG_ERR("PAUSE");
-		__msc_pause_scan();
-		MS_DBG_ERR("RESUME");
-		/* move to msc_tv_storage_extract_thread */
-		if (0) {
-			int del_count = 0;
-
-			/*check delete count*/
-			MS_DBG_INFO("update path : %s", update_path);
-
-			ms_count_delete_items_in_folder(handle, scan_data->storage_id, update_path, &del_count);
-
-			/*if there is no delete content, do not call delete API*/
-			if (del_count != 0) {
-				MS_DBG_ERR("storage thread delete count [%d]", del_count);
-				ms_delete_invalid_items(handle, scan_data->storage_id, storage_type, scan_data->uid);
-			}
+		if (scan_type == MS_MSG_STORAGE_PARTIAL && ret == MS_MEDIA_ERR_NONE) {
+			ms_delete_invalid_items(handle, scan_data->storage_id, storage_type, scan_data->uid);
 		}
 
 		/* send notification */
@@ -1094,15 +1614,16 @@ gboolean msc_storage_scan_thread(void *data)
 
 		if (ret == MS_MEDIA_ERR_SCANNER_FORCE_STOP) {
 			ms_set_storage_scan_status(handle, scan_data->storage_id, MEDIA_SCAN_STOP, scan_data->uid);
-			__msc_set_storage_scan_status(MS_STORAGE_SCAN_STOP);
 			/*set vconf key mmc loading for indicator */
 			__msc_set_db_status(MS_DB_STOPPED, storage_type);
 		} else {
 			ms_set_storage_scan_status(handle, scan_data->storage_id, MEDIA_SCAN_COMPLETE, scan_data->uid);
-			__msc_set_storage_scan_status(MS_STORAGE_SCAN_DONE);
 			/*set vconf key mmc loading for indicator */
 			__msc_set_db_status(MS_DB_UPDATED, storage_type);
 		}
+
+		MS_DBG_ERR("storage_id = [%s]", scan_data->storage_id);
+		msc_insert_exactor_request(scan_type, TRUE, scan_data->storage_id, scan_data->msg, scan_data->pid, scan_data->uid);
 
 NEXT:
 
@@ -1120,7 +1641,8 @@ NEXT:
 		/*Active flush */
 		malloc_trim(0);
 
-//		msc_send_result(ret, scan_data);
+		scan_data->msg_type = MS_MSG_SCANNER_COMPLETE;
+		msc_send_result(ret, scan_data);
 
 		MS_SAFE_FREE(scan_data);
 
@@ -1563,36 +2085,6 @@ int msc_del_cancel_path()
 	return MS_MEDIA_ERR_NONE;
 }
 
-static int __msc_set_storage_scan_status(ms_storage_scan_status_e status)
-{
-	int res = MS_MEDIA_ERR_NONE;
-#if 0
-	if (!ms_config_set_int(MS_SCANNER_STATUS, status)) {
-		res = MS_MEDIA_ERR_VCONF_SET_FAIL;
-		MSC_DBG_ERR("ms_config_set_int failed");
-	}
-#else
-	stg_scan_status2 = status;
-#endif
-	return res;
-}
-
-static int __msc_get_storage_scan_status(ms_storage_scan_status_e *status)
-{
-	int res = MS_MEDIA_ERR_NONE;
-
-#if 0
-	if (!ms_config_get_int(MS_SCANNER_STATUS, status)) {
-		res = MS_MEDIA_ERR_VCONF_SET_FAIL;
-		MSC_DBG_ERR("ms_config_get_int failed");
-	}
-#else
-	*status = stg_scan_status2;
-#endif
-
-	return res;
-}
-
 static bool __msc_storage_mount_status(const char* start_path)
 {
 	bool ret = false;
@@ -1606,7 +2098,7 @@ static bool __msc_storage_mount_status(const char* start_path)
 		return FALSE;
 	}
 
-	remain_path = strstr(start_path  +strlen(MEDIA_ROOT_PATH_EXTERNAL) + 1, "/");
+	remain_path = strstr(start_path + strlen(MEDIA_ROOT_PATH_EXTERNAL) + 1, "/");
 	if (remain_path != NULL)
 		remain_len = strlen(remain_path);
 

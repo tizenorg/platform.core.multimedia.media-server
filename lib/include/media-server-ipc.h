@@ -61,6 +61,9 @@ typedef enum{
 	MS_MSG_DIRECTORY_SCANNING_CANCEL,	/**< Request cancel directory scan*/
 	MS_MSG_STORAGE_SCANNER_COMPLETE,	/**< Storage Scanner complete */
 	MS_MSG_DIRECTORY_SCANNER_COMPLETE,	/**< Directory Scanner complete */
+	MS_MSG_SCANNER_PARTIAL,
+	MS_MSG_SCANNER_COMPLETE,
+	MS_MSG_EXTRACTOR_COMPLETE,
 	MS_MSG_MAX							/**< Invalid msg type */
 }ms_msg_type_e;
 

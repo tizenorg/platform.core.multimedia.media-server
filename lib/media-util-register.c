@@ -195,6 +195,9 @@ gboolean _read_socket(GIOChannel *src, GIOCondition condition, gpointer data)
 	} else if (recv_msg.msg_type == MS_MSG_SCANNER_BULK_RESULT) {
 		req_result.complete_path = strndup(recv_msg.msg, recv_msg.msg_size);
 		req_result.request_type = MEDIA_FILES_REGISTER;
+	} else if (recv_msg.msg_type == MS_MSG_SCANNER_COMPLETE) {
+		req_result.complete_path = strndup(recv_msg.msg, recv_msg.msg_size);
+		req_result.request_type = MEDIA_FILES_REGISTER;
 	}
 
 	MSAPI_DBG("pid :%d", req_result.pid);
