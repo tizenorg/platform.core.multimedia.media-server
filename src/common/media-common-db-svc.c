@@ -70,11 +70,17 @@ enum func_list {
 	eGET_STORAGE_ID,
 	eGET_STORAGE_SCAN_STATUS,
 	eSET_STORAGE_SCAN_STATUS,
+	eGET_STORAGE_LIST,
 	eINSERT_FOLDER,
 	eDELETE_INVALID_FOLDER,
 	eSET_FOLDER_VALIDITY,
 	eINSERT_FOLDER_BEGIN,
 	eINSERT_FOLDER_END,
+	eGET_FOLDER_SCAN_STATUS,
+	eSET_FOLDER_SCAN_STATUS,
+	eCHECK_FOLDER_MODIFIED,
+	eGET_NULL_SCAN_FOLDER_LIST,
+	eCHANGE_VALIDITY_ITEM_BATCH,
 	eCHECK_DB,
 	eGET_UUID,
 	eGET_MMC_INFO,
@@ -178,11 +184,17 @@ int ms_load_functions(void)
 		"get_storage_id",
 		"get_storage_scan_status",
 		"set_storage_scan_status",
+		"get_storage_list",
 		"insert_folder",
 		"delete_invalid_folder",
 		"set_folder_validity",
 		"insert_folder_begin",
 		"insert_folder_end",
+		"get_folder_scan_status",
+		"set_folder_scan_status",
+		"check_folder_modified",
+		"get_null_scan_folder_list",
+		"change_validity_item_batch",
 		"check_db",
 		"get_uuid",
 		"get_mmc_info",
@@ -436,7 +448,7 @@ int ms_validate_item(void **handle, const char *storage_id, const char *path, ui
 	return res;
 }
 
-int ms_scan_validate_item(void **handle, const char *storage_id, const char *path, uid_t uid)
+int ms_scan_validate_item(void **handle, const char *storage_id, const char *path, uid_t uid, int *insert_count_for_partial, int *set_count_for_partial)
 {
 	int lib_index;
 	int res = MS_MEDIA_ERR_NONE;
@@ -449,11 +461,12 @@ int ms_scan_validate_item(void **handle, const char *storage_id, const char *pat
 		ret = ((CHECK_ITEM_EXIST)func_array[lib_index][eEXIST])(handle[lib_index], storage_id, path, &modified, &err_msg); /*dlopen*/
 		if (ret != 0) {
 			MS_SAFE_FREE(err_msg);
-			ret = ms_scan_item_batch(handle, storage_id, path, uid);
+			ret = ms_scan_item_batch(handle, storage_id, path, uid, insert_count_for_partial, set_count_for_partial);
 			if (ret != 0) {
 				res = MS_MEDIA_ERR_DB_INSERT_FAIL;
 			} else {
 				insert_count++;
+				(*insert_count_for_partial)++;
 			}
 		} else {
 			if (modified == FALSE) {
@@ -463,6 +476,8 @@ int ms_scan_validate_item(void **handle, const char *storage_id, const char *pat
 					MS_DBG_ERR("error : %s [%s] %s", g_array_index(so_array, char*, lib_index), err_msg, path);
 					MS_SAFE_FREE(err_msg);
 					res = MS_MEDIA_ERR_DB_UPDATE_FAIL;
+				} else {
+					(*set_count_for_partial)++;
 				}
 			} else {
 				/* the file has same name but it is changed, so we have to update DB */
@@ -472,11 +487,12 @@ int ms_scan_validate_item(void **handle, const char *storage_id, const char *pat
 					MS_SAFE_FREE(err_msg);
 					res = MS_MEDIA_ERR_DB_DELETE_FAIL;
 				} else {
-					ret = ms_scan_item_batch(handle, storage_id, path, uid);
+					ret = ms_scan_item_batch(handle, storage_id, path, uid, insert_count_for_partial, set_count_for_partial);
 					if (ret != 0) {
 						res = MS_MEDIA_ERR_DB_INSERT_FAIL;
 					} else {
 						insert_count++;
+						(*insert_count_for_partial)++;
 					}
 				}
 			}
@@ -529,7 +545,7 @@ int ms_insert_item_batch(void **handle, const char* storage_id, const char *path
 	return res;
 }
 
-int ms_scan_item_batch(void **handle, const char* storage_id, const char *path, uid_t uid)
+int ms_scan_item_batch(void **handle, const char* storage_id, const char *path, uid_t uid, int *insert_count_for_partial, int *set_count_for_partial)
 {
 	int lib_index;
 	int res = MS_MEDIA_ERR_NONE;
@@ -553,18 +569,18 @@ int ms_scan_item_batch(void **handle, const char* storage_id, const char *path, 
 	return res;
 }
 
-int ms_insert_item_pass2(void **handle, const char* storage_id, const char *path, int scan_type, uid_t uid)
+int ms_insert_item_pass2(void **handle, const char* storage_id, int storage_type, const char *path, int scan_type, int burst, uid_t uid)
 {
 	int lib_index;
 	int res = MS_MEDIA_ERR_NONE;
 	int ret;
 	char *err_msg = NULL;
-	ms_storage_type_t storage_type;
+	//ms_storage_type_t storage_type;
 
-	storage_type = ms_get_storage_type_by_full(path, uid);
+	//storage_type = ms_get_storage_type_by_full(path, uid);
 
 	for (lib_index = 0; lib_index < lib_num; lib_index++) {
-		ret = ((UPDATE_ITEM_EXTRACT)func_array[lib_index][eUPDATE_EXTRACT])(handle[lib_index], storage_id, storage_type, scan_type, uid, path, &err_msg); /*dlopen*/
+		ret = ((UPDATE_ITEM_EXTRACT)func_array[lib_index][eUPDATE_EXTRACT])(handle[lib_index], storage_id, storage_type, scan_type, uid, path, burst, &err_msg); /*dlopen*/
 		if (ret != 0) {
 			MS_DBG_ERR("error : %s [%s] %s", g_array_index(so_array, char*, lib_index), err_msg, path);
 			MS_SAFE_FREE(err_msg);
@@ -891,6 +907,52 @@ int ms_set_storage_scan_status(void **handle, char *storage_id, media_scan_statu
 	MS_DBG("storage_id [%s], scan_status [%d]", storage_id, scan_status);
 
 	return res;
+}
+
+int ms_get_storage_list(void **handle, GArray **storage_array)
+{
+	int lib_index;
+	int ret;
+	char *err_msg = NULL;
+
+	char **storage_list = NULL;
+	char **storage_id_list = NULL;
+	int *scan_status = NULL;
+	int count = 0;
+	int i = 0;
+
+	ms_stg_info_s* stg_info = NULL;
+
+	for (lib_index = 0; lib_index < lib_num; lib_index++) {
+		ret = ((GET_STORAGE_LIST)func_array[lib_index][eGET_STORAGE_LIST])(handle[lib_index], &storage_list, &storage_id_list, &scan_status, &count, &err_msg); /*dlopen*/
+		if (ret != 0) {
+			MS_DBG_ERR("error : %s [%s]", g_array_index(so_array, char*, lib_index), err_msg);
+			MS_SAFE_FREE(err_msg);
+			return MS_MEDIA_ERR_INTERNAL;
+		}
+	}
+
+	MS_DBG_ERR("OK");
+
+	*storage_array = g_array_new(FALSE, FALSE, sizeof(ms_stg_info_s*));
+	if (count != 0) {
+		for(i = 0; i < count; i ++) {
+			stg_info = malloc(sizeof(ms_stg_info_s));
+			stg_info->stg_path = strdup(storage_list[i]);
+			stg_info->storage_id = strdup(storage_id_list[i]);
+			stg_info->scan_status = scan_status[i];
+			g_array_append_val(*storage_array, stg_info);
+			MS_SAFE_FREE(storage_list[i]);
+			MS_SAFE_FREE(storage_id_list[i]);
+			MS_DBG("%d get path : %s, %s", i, stg_info->stg_path, stg_info->storage_id);
+		}
+	}
+
+	MS_SAFE_FREE(storage_list);
+	MS_SAFE_FREE(storage_id_list);
+	MS_SAFE_FREE(scan_status);
+
+	return MS_MEDIA_ERR_NONE;
 }
 
 int ms_insert_folder(void **handle, const char *storage_id, const char *path, uid_t uid)
@@ -1393,3 +1455,149 @@ void ms_update_end(void **handle, uid_t uid)
 		}
 	}
 }
+
+int ms_get_folder_scan_status(void **handle, const char *storage_id, const char *path, int *scan_status)
+{
+	int lib_index;
+	int res = MS_MEDIA_ERR_NONE;
+	int ret;
+	char *err_msg = NULL;
+	int status = 0;
+
+	//MS_DBG("");
+	for (lib_index = 0; lib_index < lib_num; lib_index++) {
+		ret = ((GET_FOLDER_SCAN_STATUS)func_array[lib_index][eGET_FOLDER_SCAN_STATUS])(handle[lib_index], storage_id, path, &status, &err_msg); /*dlopen*/
+		if (ret != 0) {
+			MS_DBG_ERR("error : %s [%s]", g_array_index(so_array, char*, lib_index), err_msg);
+			MS_SAFE_FREE(err_msg);
+			res = MS_MEDIA_ERR_DB_UPDATE_FAIL;
+		} else {
+			*scan_status = status;
+		}
+	}
+
+	MS_DBG("OK path = [%s],  scan_status = [%d]", path, *scan_status);
+
+	return res;
+}
+
+int ms_set_folder_scan_status(void **handle, const char *storage_id, const char *path, int scan_status, uid_t uid)
+{
+	int lib_index;
+	int res = MS_MEDIA_ERR_NONE;
+	int ret;
+	char *err_msg = NULL;
+	int status = scan_status;
+
+	//MS_DBG("");
+	for (lib_index = 0; lib_index < lib_num; lib_index++) {
+		ret = ((SET_FOLDER_SCAN_STATUS)func_array[lib_index][eSET_FOLDER_SCAN_STATUS])(handle[lib_index], storage_id, path, status, uid, &err_msg); /*dlopen*/
+		if (ret != 0) {
+			MS_DBG_ERR("error : %s [%s]", g_array_index(so_array, char*, lib_index), err_msg);
+			MS_SAFE_FREE(err_msg);
+			res = MS_MEDIA_ERR_DB_UPDATE_FAIL;
+		}
+	}
+
+	MS_DBG("OK path = [%s],  scan_status = [%d]", path, scan_status);
+
+	return res;
+}
+
+int ms_check_folder_modified(void **handle, const char *path, const char *storage_id, bool *modified)
+{
+	MS_DBG("path = [%s], storage_id = [%s]", path, storage_id);
+
+	int lib_index;
+	int ret;
+	char *err_msg = NULL;
+
+	for (lib_index = 0; lib_index < lib_num; lib_index++) {
+		ret = ((CHECK_FOLDER_MODIFIED)func_array[lib_index][eCHECK_FOLDER_MODIFIED])(handle[lib_index], path, storage_id, modified, &err_msg); /*dlopen*/
+		if (ret != 0) {
+			MS_DBG_ERR("error : %s [%s]", g_array_index(so_array, char*, lib_index), err_msg);
+			MS_SAFE_FREE(err_msg);
+			return MS_MEDIA_ERR_INTERNAL;
+		}
+	}
+
+	return MS_MEDIA_ERR_NONE;
+}
+
+int ms_get_null_scan_folder_list(void **handle, const char *stroage_id, const char *path, GArray **dir_array)
+{
+	//MS_DBG("folder stroage_id: %s", stroage_id);
+
+	int lib_index;
+	int ret;
+	char *err_msg = NULL;
+	char **folder_list = NULL;
+	char *sub_path = NULL;
+	int count = 0;
+	int i = 0;
+
+	for (lib_index = 0; lib_index < lib_num; lib_index++) {
+		ret = ((GET_NULL_SCAN_FOLDER_LIST)func_array[lib_index][eGET_NULL_SCAN_FOLDER_LIST])(handle[lib_index], stroage_id, path, &folder_list, &count, &err_msg); /*dlopen*/
+		if (ret != 0) {
+			MS_DBG_ERR("error : %s [%s]", g_array_index(so_array, char*, lib_index), err_msg);
+			MS_SAFE_FREE(err_msg);
+			return MS_MEDIA_ERR_INTERNAL;
+		}
+	}
+
+	//MS_DBG("GET_NULL_SCAN_FOLDER_LIST OK");
+
+	*dir_array = g_array_new(FALSE, FALSE, sizeof (char*));
+	if (count != 0) {
+		for(i = 0; i < count; i ++) {
+			sub_path = strdup(folder_list[i]);
+			g_array_append_val(*dir_array, sub_path);
+			MS_SAFE_FREE(folder_list[i]);
+		}
+	}
+
+	MS_SAFE_FREE(folder_list);
+
+	return MS_MEDIA_ERR_NONE;
+}
+
+int ms_change_validity_item_batch(void **handle, const char *storage_id, const char *path, int des_validity, int src_validity, uid_t uid)
+{
+	int lib_index;
+	int res = MS_MEDIA_ERR_NONE;
+	int ret;
+	char *err_msg = NULL;
+
+	for (lib_index = 0; lib_index < lib_num; lib_index++) {
+		ret = ((CHANGE_VALIDITY_ITEM_BATCH)func_array[lib_index][eCHANGE_VALIDITY_ITEM_BATCH])(handle[lib_index], storage_id, path, des_validity, src_validity, uid, &err_msg); /*dlopen*/
+		if (ret != 0) {
+			MS_DBG_ERR("error : %s [%s] %s", g_array_index(so_array, char*, lib_index), err_msg, storage_id);
+			MS_SAFE_FREE(err_msg);
+			res = MS_MEDIA_ERR_DB_INSERT_FAIL;
+		}
+	}
+
+	return res;
+}
+
+#if 0
+int ms_get_scan_done_items(void **handle, const char *storage_id, const char *path, int validity, int *count)
+{
+	int lib_index;
+	int res = MS_MEDIA_ERR_NONE;
+	int ret;
+	char *err_msg = NULL;
+
+	for (lib_index = 0; lib_index < lib_num; lib_index++) {
+		ret = ((GET_SCAN_DONE_ITEMS)func_array[lib_index][eGET_SCAN_DONE_ITEMS])(handle[lib_index], storage_id, path, validity, count, &err_msg); /*dlopen*/
+		if (ret != 0) {
+			MS_DBG_ERR("error : %s [%s] %s", g_array_index(so_array, char*, lib_index), err_msg, storage_id);
+			MS_SAFE_FREE(err_msg);
+			res = MS_MEDIA_ERR_DB_INSERT_FAIL;
+		}
+	}
+
+	return res;
+}
+#endif
+

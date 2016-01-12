@@ -191,10 +191,22 @@ gboolean _read_socket(GIOChannel *src, GIOCondition condition, gpointer data)
 	if (recv_msg.msg_type == MS_MSG_SCANNER_RESULT) {
 		req_result.complete_path = strndup(recv_msg.msg, recv_msg.msg_size);
 		req_result.request_type = MEDIA_DIRECTORY_SCAN;
-		MSAPI_DBG("complete_path :%d", req_result.complete_path);
+		MSAPI_DBG("complete_path :%s", req_result.complete_path);
 	} else if (recv_msg.msg_type == MS_MSG_SCANNER_BULK_RESULT) {
 		req_result.complete_path = strndup(recv_msg.msg, recv_msg.msg_size);
 		req_result.request_type = MEDIA_FILES_REGISTER;
+	} else if (recv_msg.msg_type == MS_MSG_SCANNER_COMPLETE) {
+		req_result.complete_path = strndup(recv_msg.msg, recv_msg.msg_size);
+		req_result.request_type = MEDIA_REQUEST_SCAN_COMPLETE;
+	} else if (recv_msg.msg_type == MS_MSG_SCANNER_PARTIAL) {
+		req_result.complete_path = strndup(recv_msg.msg, recv_msg.msg_size);
+		req_result.request_type = MEDIA_REQUEST_SCAN_PARTIAL;
+	} else if (recv_msg.msg_type == MS_MSG_EXTRACTOR_COMPLETE) {
+		req_result.complete_path = strndup(recv_msg.msg, recv_msg.msg_size);
+		req_result.request_type = MEDIA_REQUEST_EXTRACT_COMPLETE;
+	} else {
+		MSAPI_DBG("The message is invalid!");
+		return FALSE;
 	}
 
 	MSAPI_DBG("pid :%d", req_result.pid);
@@ -202,42 +214,40 @@ gboolean _read_socket(GIOChannel *src, GIOCondition condition, gpointer data)
 	MSAPI_DBG("request_type :%d", req_result.request_type);
 
 ERROR:
-	if (req_result.complete_path == NULL) {
-		MSAPI_DBG_ERR("complete_path is NULL");
-		return TRUE;
-	}
-	 /*NEED MUTEX*/
-	 g_mutex_lock(&scan_req_mutex);
-	 if (req_list != NULL) {
-		int i = 0;
-		int list_len = req_list->len;
+	source = ((media_callback_data *)data)->source;
+	user_callback = ((media_callback_data *)data)->user_callback;
+	user_data = ((media_callback_data *)data)->user_data;
+	sock_path = ((media_callback_data *)data)->sock_path;
 
-		for (i = 0; i < list_len; i++) {
-			req_data = g_array_index(req_list, media_scan_data*, i);
-			if (strcmp(req_data->req_path, req_result.complete_path) == 0) {
-				MSAPI_DBG("FIND REQUEST [%s]", req_data->req_path);
-				g_array_remove_index(req_list, i);
+	/*call user define function*/
+	user_callback(&req_result, user_data);
 
-				source = ((media_callback_data *)data)->source;
-				user_callback = ((media_callback_data *)data)->user_callback;
-				user_data = ((media_callback_data *)data)->user_data;
-				sock_path = ((media_callback_data *)data)->sock_path;
+	if ((recv_msg.msg_type != MS_MSG_SCANNER_COMPLETE) &&
+	(recv_msg.msg_type != MS_MSG_SCANNER_PARTIAL) &&
+	req_result.complete_path != NULL) {
+		/*NEED MUTEX*/
+		g_mutex_lock(&scan_req_mutex);
+		if (req_list != NULL) {
+			int i = 0;
+			int list_len = req_list->len;
 
-				/*call user define function*/
-				user_callback(&req_result, user_data);
+			for (i = 0; i < list_len; i++) {
+				req_data = g_array_index(req_list, media_scan_data*, i);
+				if (strcmp(req_data->req_path, req_result.complete_path) == 0) {
+					MSAPI_DBG("FIND REQUEST [%s]", req_data->req_path);
+					g_array_remove_index(req_list, i);
 
-				MS_SAFE_FREE(req_result.complete_path);
+					/*close an IO channel*/
+					g_io_channel_shutdown(src, FALSE, NULL);
+					g_io_channel_unref(src);
 
-				/*close an IO channel*/
-				g_io_channel_shutdown(src, FALSE, NULL);
-				g_io_channel_unref(src);
-
-				g_source_destroy(source);
-				close(sockfd);
-				if (sock_path != NULL) {
-					MSAPI_DBG("delete path :%s", sock_path);
-					unlink(sock_path);
-					MS_SAFE_FREE(sock_path);
+					g_source_destroy(source);
+					close(sockfd);
+					if (sock_path != NULL) {
+						MSAPI_DBG("delete path :%s", sock_path);
+						unlink(sock_path);
+						MS_SAFE_FREE(sock_path);
+					}
 				}
 
 				MSAPI_DBG("REMOVE OK");
@@ -245,10 +255,11 @@ ERROR:
 				break;
 			}
 		}
+		g_mutex_unlock(&scan_req_mutex);
+		MS_SAFE_FREE(data);
 	}
 
-	g_mutex_unlock(&scan_req_mutex);
-	MS_SAFE_FREE(data);
+	MS_SAFE_FREE(req_result.complete_path);
 
 	return TRUE;
 }

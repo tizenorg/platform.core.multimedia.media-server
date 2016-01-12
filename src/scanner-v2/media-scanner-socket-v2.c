@@ -223,7 +223,12 @@ int msc_send_result(int result, ms_comm_msg_s *res_data)
 
 	/* send result message */
 	memset(&send_msg, 0x0, sizeof(ms_comm_msg_s));
-	send_msg.msg_type = MS_MSG_SCANNER_BULK_RESULT;
+	if(res_data->msg_type == MS_MSG_SCANNER_COMPLETE)
+		send_msg.msg_type = MS_MSG_SCANNER_COMPLETE;
+	else if(res_data->msg_type == MS_MSG_EXTRACTOR_COMPLETE)
+		send_msg.msg_type = MS_MSG_EXTRACTOR_COMPLETE;
+	else
+		send_msg.msg_type = MS_MSG_SCANNER_BULK_RESULT;
 	send_msg.pid = res_data->pid;
 	send_msg.result = result;
 	send_msg.msg_size = res_data->msg_size;
@@ -240,4 +245,39 @@ int msc_send_result(int result, ms_comm_msg_s *res_data)
 
 	return res;
 }
+
+int msc_send_result_partial(int result, ms_msg_type_e msg_type, int pid, char *msg)
+{
+	MS_DBG_SLOG("msc_send_result msg_type=%d", msg_type);
+	int res = MS_MEDIA_ERR_NONE;
+	ms_comm_msg_s send_msg;
+	int fd = -1;
+	int err = -1;
+
+	fd = open(MS_SCANNER_FIFO_PATH_RES, O_WRONLY);
+	if (fd < 0) {
+		MS_DBG_STRERROR("fifo open failed");
+		return MS_MEDIA_ERR_FILE_OPEN_FAIL;
+	}
+
+	/* send result message */
+	memset(&send_msg, 0x0, sizeof(ms_comm_msg_s));
+	send_msg.msg_type = MS_MSG_SCANNER_PARTIAL;
+	send_msg.pid = pid;
+	send_msg.result = result;
+	send_msg.msg_size = strlen(msg);
+	strncpy(send_msg.msg, msg, send_msg.msg_size);
+
+	/* send ready message */
+	err = write(fd, &send_msg, sizeof(send_msg));
+	if (err < 0) {
+		MS_DBG_STRERROR("fifo write failed");
+		res = MS_MEDIA_ERR_FILE_READ_FAIL;
+	}
+
+	close(fd);
+
+	return res;
+}
+
 

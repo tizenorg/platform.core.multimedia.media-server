@@ -34,6 +34,8 @@
 
 #define MS_VALIND 1
 #define MS_INVALID 0
+#define MS_VALIND_V2 2
+
 #define MS_RECURSIVE 1
 #define MS_NON_RECURSIVE 0
 
@@ -117,6 +119,18 @@ typedef enum {
 	MS_STORAGE_SCAN_META_STOP,		/**< Stop extract metadata*/
 	MS_STORAGE_SCAN_COMPLETE, 		/**< Complete scanning*/
 }ms_storage_scan_status_e;
+
+/*use for MS_DIR_SCANNER_STATUS */
+typedef enum {
+	MS_DIR_SCAN_NONE            	= 0,			/**< Media Scanner not detect storage yet*/
+	MS_DIR_SCAN_PREPARE				= 1,			/**< Media Scanner detect storage but not scanning yet*/
+	MS_DIR_SCAN_PROCESSING			= 2,			/**< Media Scanner Start Scanning storage*/
+	MS_DIR_SCAN_STOP				= 3, 			/**< Stop scanning storage*/
+	MS_DIR_SCAN_DONE				= 4, 			/**< Scanning Done but need to extract metadata*/
+	MS_DIR_SCAN_META_PROCESSING		= 5,			/**< Scanning Done and start to extract metadata*/
+	MS_DIR_SCAN_META_STOP			= 6,			/**< Stop extract metadata*/
+	MS_DIR_SCAN_COMPLETE			= 7, 			/**< Complete scanning*/
+}ms_dir_scan_status_e;
 
 typedef enum{
 	MEDIA_SCAN_PREPARE		= 0,	/**< Prepare scanning*/

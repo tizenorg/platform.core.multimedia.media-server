@@ -54,8 +54,9 @@ int stg_extract_status;
 
 GCond extract_data_cond;
 GMutex extract_data_mutex;
-
-
+#define VCONFKEY_PRIVATE_EXTRACTSTATUS "db/private/extractstatus"
+#define LAST_EVENT 1
+#define NORMAL_EVENT 0
 #ifdef FMS_PERF
 extern struct timeval g_mmc_start_time;
 extern struct timeval g_mmc_end_time;
@@ -66,8 +67,7 @@ static int __msc_set_storage_extract_status(ms_storage_scan_status_e status);
 static int __msc_get_storage_extract_status(ms_storage_scan_status_e *status);
 static int __msc_resume_extract();
 static int __msc_pause_extract();
-static int __msc_extract_set_db_status(ms_db_status_type_t status, ms_storage_type_t storage_type);
-static int __msc_extract_set_power_mode(ms_db_status_type_t status);
+static int __msc_extract_set_db_status(ms_db_status_type_t status);
 
 int msc_init_extract_thread()
 {
@@ -160,11 +160,10 @@ gboolean msc_folder_extract_thread(void *data)
 		}
 
 		/*insert data into media db */
-		ret = ms_insert_item_pass2(handle, extract_data->storage_id, update_path, scan_type, extract_data->uid);
-		msc_del_extract_cancel_path();
+		int end_flag = extract_data->result ? LAST_EVENT : NORMAL_EVENT;
 
-		/*call for bundle commit*/
-		//__msc_bacth_commit_disable(handle, TRUE, TRUE, extract_data->storage_id, ret);
+		ret = ms_insert_item_pass2(handle, extract_data->storage_id, storage_type, update_path, scan_type, end_flag, extract_data->uid);
+		msc_del_extract_cancel_path();
 
 NEXT :
 		msc_get_power_status(&power_off_status);
@@ -177,6 +176,7 @@ NEXT :
 		malloc_trim(0);
 
 		if (extract_data->result) {
+			extract_data->msg_type = MS_MSG_EXTRACTOR_COMPLETE;
 			msc_send_result(ret, extract_data);
 		}
 
@@ -256,8 +256,7 @@ gboolean msc_storage_extract_thread(void *data)
 		MS_DBG_ERR("extract storage_id is [%s], path [%s]", extract_data->storage_id, update_path);
 
 		ms_set_storage_scan_status(handle, extract_data->storage_id, MEDIA_EXTRACT_PROCESSING, extract_data->uid);
-		storage_type = ms_get_storage_type_by_full(extract_data->msg, extract_data->uid);
-		__msc_extract_set_db_status(MS_DB_UPDATING, storage_type);
+		__msc_extract_set_db_status(MS_DB_UPDATING);
 
 		ret = __msc_check_extract_stop_status(extract_data->msg_type, storage_type, update_path);
 		if (ret == MS_MEDIA_ERR_SCANNER_FORCE_STOP) {
@@ -265,11 +264,12 @@ gboolean msc_storage_extract_thread(void *data)
 			goto NEXT;
 		}
 
-		/*extract meta*/
-		ret = ms_insert_item_pass2(handle, extract_data->storage_id, update_path, scan_type, extract_data->uid);
 
 		storage_type = ms_get_storage_type_by_full(extract_data->msg, extract_data->uid);
-		//update_path = strndup(extract_data->msg, extract_data->msg_size);
+
+		/*extract meta*/
+		int end_flag = extract_data->result ? LAST_EVENT : NORMAL_EVENT;
+		ret = ms_insert_item_pass2(handle, extract_data->storage_id, storage_type, update_path, scan_type, end_flag, extract_data->uid);
 
 		msc_del_extract_blocked_path();
 
@@ -280,15 +280,14 @@ gboolean msc_storage_extract_thread(void *data)
 		if (ret == MS_MEDIA_ERR_SCANNER_FORCE_STOP) {
 			ms_set_storage_scan_status(handle, extract_data->storage_id, MEDIA_EXTRACT_STOP, extract_data->uid);
 			__msc_set_storage_extract_status(MS_STORAGE_SCAN_META_STOP);
-			/*set vconf key mmc loading for indicator */
-			__msc_extract_set_db_status(MS_DB_STOPPED, storage_type);
+			/* set vconf key db extract status */
+			__msc_extract_set_db_status(MS_DB_STOPPED);
 		} else if (extract_data->result == TRUE) {
 			MS_DBG_ERR("extract_data->result == TRUE, MS_STORAGE_SCAN_COMPLETE");
 			ms_set_storage_scan_status(handle, extract_data->storage_id, MEDIA_EXTRACT_COMPLETE, extract_data->uid);
 			__msc_set_storage_extract_status(MS_STORAGE_SCAN_COMPLETE);
-			ms_delete_invalid_items(handle, extract_data->storage_id, storage_type, extract_data->uid);
-			/*set vconf key mmc loading for indicator */
-			__msc_extract_set_db_status(MS_DB_UPDATED, storage_type);
+			/* set vconf key db extract status */
+			__msc_extract_set_db_status(MS_DB_UPDATED);
 		}
 
 #if 0
@@ -361,6 +360,7 @@ NEXT:
 		malloc_trim(0);
 
 		if (extract_data->result) {
+			extract_data->msg_type = MS_MSG_EXTRACTOR_COMPLETE;
 			msc_send_result(ret, extract_data);
 		}
 
@@ -421,7 +421,7 @@ int msc_remove_extract_request(const ms_comm_msg_s *recv_msg)
 	MS_DBG_WARN("exactor_req_mutex is LOCKED");
 	g_mutex_lock(&extract_req_mutex);
 
-	if (len == 0) {
+	if (len <= 0) {
 		MS_DBG_ERR("Request is not stacked");
 		goto END_REMOVE_REQUEST;
 	}
@@ -437,8 +437,15 @@ int msc_remove_extract_request(const ms_comm_msg_s *recv_msg)
 			g_async_queue_push(temp_queue, GINT_TO_POINTER(msg));
 		}
 	}
-	g_async_queue_unref(storage_extract_queue);
-	storage_extract_queue = temp_queue;
+	len = g_async_queue_length(temp_queue);
+	int j=0;
+	for (; j <len; j++) {
+		msg = g_async_queue_pop(temp_queue);
+		if (msg) {
+			g_async_queue_push(storage_extract_queue, GINT_TO_POINTER(msg));
+		}
+	}
+	g_async_queue_unref (temp_queue);
 
 END_REMOVE_REQUEST:
 	g_mutex_unlock(&extract_req_mutex);
@@ -616,77 +623,14 @@ static int __msc_pause_extract()
 	return MS_MEDIA_ERR_NONE;
 }
 
-static int __msc_extract_set_db_status(ms_db_status_type_t status, ms_storage_type_t storage_type)
+static int __msc_extract_set_db_status(ms_db_status_type_t status)
 {
 	int res = MS_MEDIA_ERR_NONE;
-	int err = 0;
+	//int err = 0;
 
-	if (status == MS_DB_UPDATING) {
-		if (!ms_config_set_int(VCONFKEY_FILEMANAGER_DB_STATUS, VCONFKEY_FILEMANAGER_DB_UPDATING)) {
-			res = MS_MEDIA_ERR_VCONF_SET_FAIL;
-			MS_DBG_ERR("ms_config_set_int failed");
-		}
-
-		if (storage_type == MS_STORAGE_EXTERNAL) {
-			if (!ms_config_set_int(VCONFKEY_FILEMANAGER_MMC_STATUS, VCONFKEY_FILEMANAGER_MMC_LOADING)) {
-				res = MS_MEDIA_ERR_VCONF_SET_FAIL;
-				MS_DBG_ERR("ms_config_set_int failed");
-			}
-		}
-	} else if (status == MS_DB_UPDATED) {
-		if (!ms_config_set_int(VCONFKEY_FILEMANAGER_DB_STATUS, VCONFKEY_FILEMANAGER_DB_UPDATED)) {
-			res = MS_MEDIA_ERR_VCONF_SET_FAIL;
-			MS_DBG_ERR("ms_config_set_int failed");
-		}
-
-		if (storage_type == MS_STORAGE_EXTERNAL) {
-			if (!ms_config_set_int(VCONFKEY_FILEMANAGER_MMC_STATUS, VCONFKEY_FILEMANAGER_MMC_LOADED)) {
-				res = MS_MEDIA_ERR_VCONF_SET_FAIL;
-				MS_DBG_ERR("ms_config_set_int failed");
-			}
-		}
-	} else {
-		if (!ms_config_set_int(VCONFKEY_FILEMANAGER_DB_STATUS, VCONFKEY_FILEMANAGER_DB_UPDATED)) {
-			res = MS_MEDIA_ERR_VCONF_SET_FAIL;
-			MS_DBG_ERR("ms_config_set_int failed");
-		}
-
-		if (storage_type == MS_STORAGE_EXTERNAL) {
-			if (!ms_config_set_int(VCONFKEY_FILEMANAGER_MMC_STATUS, VCONFKEY_FILEMANAGER_MMC_LOADED)) {
-				res = MS_MEDIA_ERR_VCONF_SET_FAIL;
-				MS_DBG_ERR("ms_config_set_int failed");
-			}
-		}
-	}
-
-	err = __msc_extract_set_power_mode(status);
-	if (err != MS_MEDIA_ERR_NONE) {
-		MS_DBG_ERR("__msc_tv_set_power_mode fail");
-		res = err;
-	}
-
-	return res;
-}
-
-static int __msc_extract_set_power_mode(ms_db_status_type_t status)
-{
-	int res = MS_MEDIA_ERR_NONE;
-	int err;
-
-	switch (status) {
-	case MS_DB_UPDATING:
-		err = pm_lock_state(LCD_OFF, STAY_CUR_STATE, 0);
-		if (err != 0)
-			res = MS_MEDIA_ERR_INTERNAL;
-		break;
-	case MS_DB_UPDATED:
-		err = pm_unlock_state(LCD_OFF, STAY_CUR_STATE);
-		if (err != 0)
-			res = MS_MEDIA_ERR_INTERNAL;
-		break;
-	default:
-		MS_DBG_ERR("Unacceptable type : %d", status);
-		break;
+	if (!ms_config_set_int(VCONFKEY_PRIVATE_EXTRACTSTATUS, status)) {
+		res = MS_MEDIA_ERR_VCONF_SET_FAIL;
+		MS_DBG_ERR("ms_config_set_int failed");
 	}
 
 	return res;

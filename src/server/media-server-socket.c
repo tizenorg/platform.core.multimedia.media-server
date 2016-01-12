@@ -46,7 +46,6 @@ GAsyncQueue* ret_queue;
 GArray *owner_list;
 GMutex scanner_mutex;
 gint cur_running_task;
-
 extern bool power_off;
 
 typedef struct ms_req_owner_data {
@@ -707,7 +706,11 @@ gboolean ms_receive_message_from_scanner(GIOChannel *src, GIOCondition condition
 	msg_type = recv_msg.msg_type;
 	pid = recv_msg.pid;
 	if ((msg_type == MS_MSG_SCANNER_RESULT) ||
-		(msg_type == MS_MSG_SCANNER_BULK_RESULT)) {
+		(msg_type == MS_MSG_SCANNER_BULK_RESULT) ||
+		(msg_type == MS_MSG_SCANNER_COMPLETE) ||
+		(msg_type == MS_MSG_SCANNER_PARTIAL)||
+		(msg_type == MS_MSG_EXTRACTOR_COMPLETE)||
+		(msg_type == MS_MSG_DIRECTORY_SCANNING_CANCEL)) {
 		MS_DBG_WARN("DB UPDATING IS DONE[%d]", msg_type);
 
 		if (pid != 0) {

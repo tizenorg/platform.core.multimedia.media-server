@@ -43,9 +43,10 @@ int (*svc_get_storage_id)		(void * handle, const char *path, char *storage_id, u
 
 void callback(media_request_result_s * result, void *user_data)
 {
-	printf("db updating done\n");
-
-	g_main_loop_quit(mainloop);
+	if (result->result != MEDIA_REQUEST_SCAN_PARTIAL) {
+		printf("db updating done\n");
+		g_main_loop_quit(mainloop);
+	}
 }
 
 void print_help()
