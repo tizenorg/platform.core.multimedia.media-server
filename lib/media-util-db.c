@@ -233,7 +233,7 @@ RETRY:
 		}
 
 		if (errno == EWOULDBLOCK) {
-			if (retry_count < MAX_RETRY_COUNT)	{
+			if (retry_count < MAX_RETRY_COUNT) {
 				MSAPI_DBG_ERR("TIME OUT[%d]", retry_count);
 				retry_count++;
 				goto RETRY;

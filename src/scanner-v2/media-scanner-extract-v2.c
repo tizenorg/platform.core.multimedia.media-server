@@ -165,7 +165,7 @@ gboolean msc_folder_extract_thread(void *data)
 		ret = ms_insert_item_pass2(handle, extract_data->storage_id, storage_type, update_path, scan_type, end_flag, extract_data->uid);
 		msc_del_extract_cancel_path();
 
-NEXT :
+NEXT:
 		msc_get_power_status(&power_off_status);
 		if (power_off_status) {
 			MS_DBG_ERR("power off");

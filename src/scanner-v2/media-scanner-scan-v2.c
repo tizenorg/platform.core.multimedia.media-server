@@ -581,7 +581,7 @@ static int __msc_dir_scan_for_folder(void **handle, const char *storage_id, cons
 							set_count_for_partial = 0;
 						}
 					}
-				}else if (entry.d_type & DT_DIR) {
+				} else if (entry.d_type & DT_DIR) {
 					if  (scan_type != MS_MSG_DIRECTORY_SCANNING_NON_RECURSIVE) {
 						/* this request is recursive scanning */
 						/* add new directory to dir_array */
@@ -762,8 +762,7 @@ static int __msc_dir_scan_for_storage(void **handle, const char *storage_id, con
 							msc_insert_exactor_request(scan_type, FALSE, storage_id, current_path, 0, uid);
 						}
 					}
-
-				}else if (entry.d_type & DT_DIR) {
+				} else if (entry.d_type & DT_DIR) {
 					/* this request is recursive scanning */
 					/* add new directory to dir_array */
 					new_path = strdup(path);
