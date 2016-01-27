@@ -936,7 +936,7 @@ int ms_get_storage_list(void **handle, GArray **storage_array)
 
 	*storage_array = g_array_new(FALSE, FALSE, sizeof(ms_stg_info_s*));
 	if (count != 0) {
-		for(i = 0; i < count; i ++) {
+		for (i = 0; i < count; i++) {
 			stg_info = malloc(sizeof(ms_stg_info_s));
 			stg_info->stg_path = strdup(storage_list[i]);
 			stg_info->storage_id = strdup(storage_id_list[i]);
@@ -1547,9 +1547,9 @@ int ms_get_null_scan_folder_list(void **handle, const char *stroage_id, const ch
 
 	//MS_DBG("GET_NULL_SCAN_FOLDER_LIST OK");
 
-	*dir_array = g_array_new(FALSE, FALSE, sizeof (char*));
+	*dir_array = g_array_new(FALSE, FALSE, sizeof(char*));
 	if (count != 0) {
-		for(i = 0; i < count; i ++) {
+		for (i = 0; i < count; i++) {
 			sub_path = strdup(folder_list[i]);
 			g_array_append_val(*dir_array, sub_path);
 			MS_SAFE_FREE(folder_list[i]);

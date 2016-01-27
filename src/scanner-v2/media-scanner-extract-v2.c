@@ -438,14 +438,14 @@ int msc_remove_extract_request(const ms_comm_msg_s *recv_msg)
 		}
 	}
 	len = g_async_queue_length(temp_queue);
-	int j=0;
-	for (; j <len; j++) {
+	int j = 0;
+	for (; j < len; j++) {
 		msg = g_async_queue_pop(temp_queue);
 		if (msg) {
 			g_async_queue_push(storage_extract_queue, GINT_TO_POINTER(msg));
 		}
 	}
-	g_async_queue_unref (temp_queue);
+	g_async_queue_unref(temp_queue);
 
 END_REMOVE_REQUEST:
 	g_mutex_unlock(&extract_req_mutex);

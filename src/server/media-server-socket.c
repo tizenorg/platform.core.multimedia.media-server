@@ -708,8 +708,8 @@ gboolean ms_receive_message_from_scanner(GIOChannel *src, GIOCondition condition
 	if ((msg_type == MS_MSG_SCANNER_RESULT) ||
 		(msg_type == MS_MSG_SCANNER_BULK_RESULT) ||
 		(msg_type == MS_MSG_SCANNER_COMPLETE) ||
-		(msg_type == MS_MSG_SCANNER_PARTIAL)||
-		(msg_type == MS_MSG_EXTRACTOR_COMPLETE)||
+		(msg_type == MS_MSG_SCANNER_PARTIAL) ||
+		(msg_type == MS_MSG_EXTRACTOR_COMPLETE) ||
 		(msg_type == MS_MSG_DIRECTORY_SCANNING_CANCEL)) {
 		MS_DBG_WARN("DB UPDATING IS DONE[%d]", msg_type);
 

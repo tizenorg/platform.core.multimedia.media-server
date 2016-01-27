@@ -223,9 +223,9 @@ int msc_send_result(int result, ms_comm_msg_s *res_data)
 
 	/* send result message */
 	memset(&send_msg, 0x0, sizeof(ms_comm_msg_s));
-	if(res_data->msg_type == MS_MSG_SCANNER_COMPLETE)
+	if (res_data->msg_type == MS_MSG_SCANNER_COMPLETE)
 		send_msg.msg_type = MS_MSG_SCANNER_COMPLETE;
-	else if(res_data->msg_type == MS_MSG_EXTRACTOR_COMPLETE)
+	else if (res_data->msg_type == MS_MSG_EXTRACTOR_COMPLETE)
 		send_msg.msg_type = MS_MSG_EXTRACTOR_COMPLETE;
 	else
 		send_msg.msg_type = MS_MSG_SCANNER_BULK_RESULT;

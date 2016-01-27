@@ -48,8 +48,8 @@
 #include "media-scanner-extract-v2.h"
 #define MAX_SCAN_COUNT 300
 
-#define DIR_SCAN_NON_SCAN 	   0
-#define DIR_SCAN_RECURSIVE 	   1
+#define DIR_SCAN_NON_SCAN		0
+#define DIR_SCAN_RECURSIVE		1
 #define DIR_SCAN_NON_RECURSIVE 2
 
 GAsyncQueue *storage_queue2;
@@ -113,8 +113,7 @@ static int __msc_set_dir_scan_cb(DIR_SCAN_CB cb)
 
 static int __msc_call_dir_scan_cb()
 {
-	if (g_dir_scan_cb != NULL)
-	{
+	if (g_dir_scan_cb != NULL) {
 		g_dir_scan_cb();
 
 		return MS_MEDIA_ERR_NONE;
@@ -545,7 +544,7 @@ static int __msc_dir_scan_for_folder(void **handle, const char *storage_id, cons
 				if (result == NULL)
 					break;
 
-				if (entry.d_name[0] == '.' ||strcmp(entry.d_name, trash) == 0)
+				if (entry.d_name[0] == '.' || strcmp(entry.d_name, trash) == 0)
 					continue;
 
 				if (ms_strappend(path, sizeof(path), "%s/%s", current_path, entry.d_name) != MS_MEDIA_ERR_NONE) {
@@ -555,7 +554,7 @@ static int __msc_dir_scan_for_folder(void **handle, const char *storage_id, cons
 
 				if (entry.d_type & DT_REG) {
 					/* insert into media DB */
-					if (ms_scan_validate_item(handle,storage_id, path, uid, &insert_count_for_partial, &set_count_for_partial) != MS_MEDIA_ERR_NONE) {
+					if (ms_scan_validate_item(handle, storage_id, path, uid, &insert_count_for_partial, &set_count_for_partial) != MS_MEDIA_ERR_NONE) {
 						MS_DBG_ERR("failed to update db : %d\n", scan_type);
 						continue;
 					} else {
@@ -653,7 +652,7 @@ static int __msc_dir_scan_for_storage(void **handle, const char *storage_id, con
 	MS_DBG_ERR("storage id [%s] start path [%s]", storage_id, start_path);
 
 	/* make new array for storing directory */
-	dir_array = g_array_new (FALSE, FALSE, sizeof (char*));
+	dir_array = g_array_new(FALSE, FALSE, sizeof(char*));
 
 	if (dir_array == NULL) {
 		MS_DBG_ERR("g_array_new failed");
@@ -666,7 +665,7 @@ static int __msc_dir_scan_for_storage(void **handle, const char *storage_id, con
 		return MS_MEDIA_ERR_OUT_OF_MEMORY;
 	}
 
-	g_array_append_val (dir_array, start_path);
+	g_array_append_val(dir_array, start_path);
 	ms_insert_folder_end(handle, uid);
 	if (ms_insert_folder(handle, storage_id, new_start_path, uid) != MS_MEDIA_ERR_NONE) {
 		MS_DBG_ERR("insert folder failed");
@@ -683,7 +682,7 @@ static int __msc_dir_scan_for_storage(void **handle, const char *storage_id, con
 		}
 		/* get the current path from directory array */
 		current_path = g_array_index(dir_array , char*, 0);
-		g_array_remove_index (dir_array, 0);
+		g_array_remove_index(dir_array, 0);
 
 		__msc_set_storage_scan_cur_path(current_path);
 
@@ -740,7 +739,7 @@ static int __msc_dir_scan_for_storage(void **handle, const char *storage_id, con
 				if (result == NULL)
 					break;
 
-				if (entry.d_name[0] == '.' ||strcmp(entry.d_name, trash) == 0)
+				if (entry.d_name[0] == '.' || strcmp(entry.d_name, trash) == 0)
 					continue;
 
 				if (ms_strappend(path, sizeof(path), "%s/%s", current_path, entry.d_name) != MS_MEDIA_ERR_NONE) {
@@ -750,7 +749,7 @@ static int __msc_dir_scan_for_storage(void **handle, const char *storage_id, con
 
 				if (entry.d_type & DT_REG) {
 					/* insert into media DB */
-					if (scan_function(handle,storage_id, path, uid, &insert_count_for_partial, &set_count_for_partial) != MS_MEDIA_ERR_NONE) {
+					if (scan_function(handle, storage_id, path, uid, &insert_count_for_partial, &set_count_for_partial) != MS_MEDIA_ERR_NONE) {
 						MS_DBG_ERR("failed to update db : %d\n", scan_type);
 						continue;
 					} else {
@@ -766,7 +765,7 @@ static int __msc_dir_scan_for_storage(void **handle, const char *storage_id, con
 					/* this request is recursive scanning */
 					/* add new directory to dir_array */
 					new_path = strdup(path);
-					g_array_append_val (dir_array, new_path);
+					g_array_append_val(dir_array, new_path);
 
 					if (ms_insert_folder(handle, storage_id, new_path, uid) != MS_MEDIA_ERR_NONE) {
 						MS_DBG_ERR("insert folder failed");
@@ -819,7 +818,7 @@ NEXT_SCAN:
 
 	/*remove invalid folder in folder table.*/
 	if (__msc_storage_mount_status(new_start_path)) {
-		if((g_directory_scan_processing2 != DIR_SCAN_NON_SCAN)
+		if ((g_directory_scan_processing2 != DIR_SCAN_NON_SCAN)
 			&& (__msc_dir_and_storage_scan_same_path(new_start_path) == MS_MEDIA_ERR_NONE)) {
 			__msc_set_dir_scan_cb(__msc_dir_scan_cb);
 			MS_DBG_ERR("storage scan pause...\n");
@@ -863,11 +862,11 @@ int __msc_get_null_scan_folder_list(void **handle, const char *stroage_id, char 
 		MS_DBG_ERR("cur_dir_array->len = [%d]", cur_dir_array->len);
 		while (cur_dir_array->len != 0) {
 			current_path = g_array_index(cur_dir_array , char*, 0);
-			g_array_remove_index (cur_dir_array, 0);
+			g_array_remove_index(cur_dir_array, 0);
 			MS_DBG("current_path = [%s]", current_path);
 
 			new_path = strdup(current_path);
-			g_array_append_val (dir_array, new_path);
+			g_array_append_val(dir_array, new_path);
 			MS_SAFE_FREE(current_path);
 		}
 	}
@@ -884,8 +883,7 @@ int __msc_check_scan_same_path(char *scan_path)
 
 	g_mutex_lock(&storage_scan_mutex2);
 
-	if (NULL == scan_path || NULL == g_storage_scan_path)
-	{
+	if (NULL == scan_path || NULL == g_storage_scan_path) {
 		g_mutex_unlock(&storage_scan_mutex2);
 
 		return MS_MEDIA_ERR_INTERNAL;
@@ -908,12 +906,9 @@ int __msc_set_storage_scan_cur_path(char *scan_path)
 
 	g_mutex_lock(&storage_scan_mutex2);
 
-	if (NULL == scan_path)
-	{
+	if (NULL == scan_path) {
 		MS_SAFE_FREE(g_storage_scan_path);
-	}
-	else
-	{
+	} else {
 		MS_SAFE_FREE(g_storage_scan_path);
 		g_storage_scan_path = strdup(scan_path);
 	}
@@ -940,8 +935,7 @@ static int __msc_dir_and_storage_scan_same_path(char *start_path)
 
 	g_mutex_lock(&dir_scan_mutex2);
 
-	if (NULL == g_dir_scan_path || NULL == storage_path)
-	{
+	if (NULL == g_dir_scan_path || NULL == storage_path) {
 		MS_SAFE_FREE(storage_path);
 		g_mutex_unlock(&dir_scan_mutex2);
 
@@ -951,12 +945,9 @@ static int __msc_dir_and_storage_scan_same_path(char *start_path)
 	storage_len = strlen(storage_path);
 	folder_len = strlen(g_dir_scan_path);
 
-	if(folder_len < storage_len)
-	{
+	if (folder_len < storage_len) {
 		ret = -1;
-	}
-	else
-	{
+	} else {
 		ret = strncmp(storage_path, g_dir_scan_path, storage_len);
 	}
 
@@ -973,12 +964,9 @@ int __msc_set_dir_scan_cur_path(char *scan_path)
 
 	g_mutex_lock(&dir_scan_mutex2);
 
-	if (NULL == scan_path)
-	{
+	if (NULL == scan_path) {
 		MS_SAFE_FREE(g_dir_scan_path);
-	}
-	else
-	{
+	} else {
 		MS_SAFE_FREE(g_dir_scan_path);
 		g_dir_scan_path = strdup(scan_path);
 	}
@@ -1002,12 +990,9 @@ static int __msc_db_update(void **handle, const char *storage_id, const ms_comm_
 	if (scan_type != MS_MSG_STORAGE_INVALID) {
 		MS_DBG_ERR("INSERT");
 		start_path = strndup(scan_data->msg, scan_data->msg_size);
-		if (scan_type == MS_MSG_DIRECTORY_SCANNING || scan_type == MS_MSG_DIRECTORY_SCANNING_NON_RECURSIVE)
-		{
+		if (scan_type == MS_MSG_DIRECTORY_SCANNING || scan_type == MS_MSG_DIRECTORY_SCANNING_NON_RECURSIVE) {
 			err = __msc_dir_scan_for_folder(handle, storage_id, start_path, storage_type, scan_type, scan_data->pid, scan_data->uid);
-		}
-		else if (scan_type == MS_MSG_STORAGE_ALL || scan_type == MS_MSG_STORAGE_PARTIAL)
-		{
+		} else if (scan_type == MS_MSG_STORAGE_ALL || scan_type == MS_MSG_STORAGE_PARTIAL) {
 			err = __msc_dir_scan_for_storage(handle, storage_id, start_path, storage_type, scan_type, scan_data->pid, scan_data->uid);
 		}
 
@@ -1168,8 +1153,7 @@ gboolean msc_directory_scan_thread(void *data)
 						goto NEXT;
 					}
 
-					if ((++index) % 3 == 0)
-					{
+					if ((++index) % 3 == 0) {
 						msc_send_result_partial(ret, MS_MSG_SCANNER_PARTIAL, scan_data->pid, scan_data->msg);
 					}
 
@@ -1219,8 +1203,7 @@ gboolean msc_directory_scan_thread(void *data)
 							goto NEXT;
 						}
 
-						if ((++index) % 3 == 0)
-						{
+						if ((++index) % 3 == 0) {
 							msc_send_result_partial(ret, MS_MSG_SCANNER_PARTIAL, scan_data->pid, scan_data->msg);
 						}
 
@@ -1233,7 +1216,7 @@ gboolean msc_directory_scan_thread(void *data)
 					index = 0;
 					MS_DBG_ERR("[%s] scan done, wait finished", scan_data->msg);
 					goto SCAN_DONE;
-				}else {
+				} else {
 					err = ms_set_folder_item_validity(handle, storage_id, scan_data->msg, MS_INVALID, MS_NON_RECURSIVE, scan_data->uid);
 				}
 			} else {
