@@ -299,9 +299,8 @@ int _ms_thumb_recv_msg(int sock, thumbMsg *msg)
 
 int _ms_thumb_set_buffer(thumbMsg *req_msg, unsigned char **buf, int *buf_size)
 {
-	if (req_msg == NULL || buf == NULL) {
+	if (req_msg == NULL || buf == NULL)
 		return -1;
-	}
 
 	int org_path_len = 0;
 	int dst_path_len = 0;
@@ -341,9 +340,8 @@ gboolean _ms_thumb_agent_recv_msg_from_server()
 
 	int sockfd = -1;
 
-	if (g_communicate_sock <= 0) {
+	if (g_communicate_sock <= 0)
 		_ms_thumb_agent_prepare_tcp_socket(&g_communicate_sock, MS_THUMB_COMM_PORT);
-	}
 
 	serv_addr_len = sizeof(serv_addr);
 
