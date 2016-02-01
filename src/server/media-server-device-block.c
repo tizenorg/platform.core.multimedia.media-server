@@ -62,6 +62,7 @@ int ms_usb_insert_handler(const char *mount_path, const char *mount_uuid)
 	char *storage_path = NULL;
 	void **handle = NULL;
 	int validity = 0;
+	bool scan = false;
 	uid_t uid;
 	ms_dir_scan_type_t scan_type = MS_SCAN_ALL;
 
@@ -75,6 +76,9 @@ int ms_usb_insert_handler(const char *mount_path, const char *mount_uuid)
 	ms_connect_db(&handle, uid);
 
 	if (mount_path != NULL && mount_uuid != NULL) {
+		/*CHECK DB HERE */
+		ret = ms_check_db_upgrade(handle, &scan, uid);
+
 		/* update storage information into media DB */
 		ret = ms_check_storage(handle, mount_uuid, NULL, &storage_path, &validity);
 		if (ret == 0) {
@@ -96,6 +100,10 @@ int ms_usb_insert_handler(const char *mount_path, const char *mount_uuid)
 		} else {
 			/* there is no information of this storage in Media DB */
 			ret = ms_insert_storage(handle, mount_uuid, NULL, mount_path, uid);
+			if (ret != MS_MEDIA_ERR_NONE) {
+				MS_DBG_ERR("ms_insert_storage failed");
+				return ret;
+			}
 		}
 
 		/* request to update media db */
@@ -219,6 +227,7 @@ int ms_mmc_insert_handler(const char *mount_path)
 	bool info_exist = FALSE;
 	char *cid = NULL;
 	uid_t uid;
+	bool scan = false;
 
 	void **db_handle = NULL;
 
@@ -240,6 +249,9 @@ int ms_mmc_insert_handler(const char *mount_path)
 	ms_present_mmc_status(MS_SDCARD_INSERTED);
 
 	ms_get_mmc_id(&cid);
+	/* CHECK DB HERE!! */
+	ret = ms_check_db_upgrade(db_handle, &scan, uid);
+
 	__ms_get_mmc_info(db_handle, &storage_name, &storage_path, &validity, &info_exist);
 
 	if (info_exist == TRUE) {
