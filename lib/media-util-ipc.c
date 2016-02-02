@@ -44,6 +44,9 @@ char MEDIA_IPC_PATH[][70] = {
 	{"/var/run/media-server/media_ipc_thumbcreator.socket"},
 	{"/var/run/media-server/media_ipc_thumbcomm.socket"},
 	{"/var/run/media-server/media_ipc_thumbdaemon.socket"},
+	{"/var/run/media-server/media_ipc_dcmcreator.socket"},
+	{"/var/run/media-server/media_ipc_dcmcomm.socket"},
+	{"/var/run/media-server/media_ipc_dcmdaemon.socket"},
 };
 
 char MEDIA_IPC_PATH_CLIENT[][80] = {
@@ -54,6 +57,9 @@ char MEDIA_IPC_PATH_CLIENT[][80] = {
 	{"/var/run/user/%i/media-server/media_ipc_thumbcreator_client%i.socket"},
 	{"/var/run/user/%i/media-server/media_ipc_thumbcomm_client%i.socket"},
 	{"/var/run/user/%i/media-server/media_ipc_thumbdaemon_client%i.socket"},
+	{"/var/run/user/%i/media-server/media_ipc_dcmcreator_client%i.socket"},
+	{"/var/run/user/%i/media-server/media_ipc_dcmcomm_client%i.socket"},
+	{"/var/run/user/%i/media-server/media_ipc_dcmdaemon_client%i.socket"},
 };
 
 char MEDIA_IPC_PATH_CLIENT_ROOT[][80] = {
@@ -64,6 +70,9 @@ char MEDIA_IPC_PATH_CLIENT_ROOT[][80] = {
 	{"/var/run/media-server/media_ipc_thumbcreator_client%i.socket"},
 	{"/var/run/media-server/media_ipc_thumbcomm_client%i.socket"},
 	{"/var/run/media-server/media_ipc_thumbdaemon_client%i.socket"},
+	{"/var/run/media-server/media_ipc_dcmcreator_client%i.socket"},
+	{"/var/run/media-server/media_ipc_dcmcomm_client%i.socket"},
+	{"/var/run/media-server/media_ipc_dcmdaemon_client%i.socket"},
 };
 
 static int _mkdir(const char *dir, mode_t mode)

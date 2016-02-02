@@ -41,6 +41,7 @@
 #include "media-server-thumb.h"
 #include "media-server-scanner.h"
 #include "media-server-device-block.h"
+#include "media-server-dcm.h"
 
 extern GMutex scanner_mutex;
 
@@ -124,11 +125,12 @@ void _power_off_cb(ms_power_info_s *power_info, void* data)
 
 void _ms_signal_handler(int n)
 {
-	int stat, pid, thumb_pid;
+	int stat, pid, thumb_pid, dcm_pid;
 	int scanner_pid;
 
 	thumb_pid = ms_thumb_get_server_pid();
 	scanner_pid = ms_get_scanner_pid();
+	dcm_pid = ms_dcm_get_server_pid();
 
 	while ((pid = waitpid(-1, &stat, WNOHANG)) > 0) {
 		/* check pid of child process of thumbnail thread */
@@ -138,6 +140,9 @@ void _ms_signal_handler(int n)
 		} else if (pid == scanner_pid) {
 			MS_DBG_ERR("[%d] Scanner is stopped by media-server", pid);
 			ms_reset_scanner_status();
+		} else if (pid == dcm_pid) {
+			MS_DBG_ERR("[%d] DCM is stopped by media-server", pid);
+			ms_dcm_reset_server_status();
 		} else {
 			MS_DBG_ERR("[%d] is stopped", pid);
 		}
@@ -237,6 +242,7 @@ int main(int argc, char **argv)
 {
 	GThread *db_thread = NULL;
 	GThread *thumb_thread = NULL;
+	GThread *dcm_thread = NULL;
 	GIOChannel *channel = NULL;
 
 	power_off = FALSE;
@@ -261,6 +267,7 @@ int main(int argc, char **argv)
 	/*create each threads*/
 	db_thread = g_thread_new("db_thread", (GThreadFunc)ms_db_thread, NULL);
 	thumb_thread = g_thread_new("thumb_agent_thread", (GThreadFunc)ms_thumb_agent_start_thread, NULL);
+	dcm_thread = g_thread_new("dcm_agent_thread", (GThreadFunc)ms_dcm_agent_start_thread, NULL);
 
 	/*clear previous data of sdcard on media database and check db status for updating*/
 	while (!ms_db_get_thread_status()) {
@@ -276,6 +283,7 @@ int main(int argc, char **argv)
 
 	/*Read ini file */
 	ms_thumb_get_config();
+	ms_dcm_get_config();
 
 	MS_DBG_ERR("*** Media Server is running ***");
 
@@ -283,6 +291,7 @@ int main(int argc, char **argv)
 
 	g_thread_join(db_thread);
 	g_thread_join(thumb_thread);
+	g_thread_join(dcm_thread);
 
 	ms_cynara_finish();
 
