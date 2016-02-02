@@ -1208,7 +1208,7 @@ int ms_set_all_storage_validity(void **handle, int validity, uid_t uid)
 	return res;
 }
 
-int ms_update_meta_batch(void **handle, const char *path, uid_t uid)
+int ms_update_meta_batch(void **handle, const char *path, const char *storage_id, uid_t uid)
 {
 	int lib_index;
 	int res = MS_MEDIA_ERR_NONE;
@@ -1221,7 +1221,7 @@ int ms_update_meta_batch(void **handle, const char *path, uid_t uid)
 	MS_DBG_FENTER();
 
 	for (lib_index = 0; lib_index < lib_num; lib_index++) {
-		ret = ((UPDATE_ITEM_META)func_array[lib_index][eUPDATE_ITEM_META])(handle[lib_index], path, storage_type, uid, &err_msg); /*dlopen*/
+		ret = ((UPDATE_ITEM_META)func_array[lib_index][eUPDATE_ITEM_META])(handle[lib_index], path, storage_id, storage_type, uid, &err_msg); /*dlopen*/
 		if (ret != 0) {
 			MS_DBG_ERR("error : %s [%s] %s", g_array_index(so_array, char*, lib_index), err_msg, path);
 			MS_SAFE_FREE(err_msg);

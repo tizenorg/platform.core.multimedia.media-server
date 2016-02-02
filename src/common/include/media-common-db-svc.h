@@ -103,7 +103,7 @@ typedef int (*DELETE_STORAGE)(void *, const char *, const char *, uid_t, char **
 typedef int (*SET_STORAGE_VALIDITY)(void *, const char *, int, uid_t uid, char **);
 typedef int (*SET_ALL_STORAGE_VALIDITY)(void *, int, uid_t, char **);
 
-typedef int (*UPDATE_ITEM_META)(void *, const char *, int, uid_t, char **);
+typedef int (*UPDATE_ITEM_META)(void *, const char *, const char *, int, uid_t, char **);
 typedef int (*UPDATE_ITEM_BEGIN)(void *, int, char **);
 typedef int (*UPDATE_ITEM_END)(void *, uid_t, char **);
 
@@ -157,7 +157,7 @@ int ms_update_storage(void **handle, const char *storage_id, const char *storage
 int ms_delete_storage(void **handle, const char *storage_id, const char *storage_name, uid_t uid);
 int ms_set_storage_validity(void **handle, const char *storage_id, int validity, uid_t uid);
 int ms_set_all_storage_validity(void **handle, int validity, uid_t uid);
-int ms_update_meta_batch(void **handle, const char *path, uid_t uid);
+int ms_update_meta_batch(void **handle, const char *path, const char *storage_id, uid_t uid);
 int ms_delete_invalid_folder_by_path(void **handle, const char *storage_id, const char *folder_path, uid_t uid, int *delete_count);
 int ms_check_folder_exist(void **handle, const char *storage_id, const char *folder_path);
 int ms_check_subfolder_count(void **handle, const char *storage_id, const char *folder_path, int *count);

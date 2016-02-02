@@ -1579,7 +1579,7 @@ int msc_set_cancel_path(const char *cancel_path)
 	return MS_MEDIA_ERR_NONE;
 }
 
-static int __msc_dir_scan_meta_update(void **handle, const char*start_path, ms_storage_type_t storage_type, uid_t uid)
+static int __msc_dir_scan_meta_update(void **handle, const char*start_path, const char *storage_id, ms_storage_type_t storage_type, uid_t uid)
 {
 	DIR *dp = NULL;
 	GArray *dir_array = NULL;
@@ -1589,7 +1589,7 @@ static int __msc_dir_scan_meta_update(void **handle, const char*start_path, ms_s
 	char *new_path = NULL;
 	char *current_path = NULL;
 	char path[MS_FILE_PATH_LEN_MAX] = { 0 };
-	int (*scan_function)(void **, const char*, uid_t) = ms_update_meta_batch;
+	int (*scan_function)(void **, const char *, const char*, uid_t) = ms_update_meta_batch;
 
 	/* make new array for storing directory */
 	dir_array = g_array_new(FALSE, FALSE, sizeof(char*));
@@ -1642,7 +1642,7 @@ static int __msc_dir_scan_meta_update(void **handle, const char*start_path, ms_s
 
 					/* insert into media DB */
 					MS_DBG_ERR("%s", path);
-					if (scan_function(handle, path, uid) != MS_MEDIA_ERR_NONE) {
+					if (scan_function(handle, path, storage_id, uid) != MS_MEDIA_ERR_NONE) {
 						MS_DBG_ERR("failed to update db");
 						continue;
 					}
@@ -1703,7 +1703,7 @@ gboolean msc_metadata_update(void *data)
 	}
 
 	start_path = strdup(usr_path);
-	ret = __msc_dir_scan_meta_update(handle, start_path, storage_type, scan_data->uid);
+	ret = __msc_dir_scan_meta_update(handle, start_path, INTERNAL_STORAGE_ID, storage_type, scan_data->uid);
 	MS_SAFE_FREE(usr_path);
 
 	/* send notification */
@@ -1714,7 +1714,7 @@ gboolean msc_metadata_update(void *data)
 		if (MS_STRING_VALID(MEDIA_ROOT_PATH_SDCARD)) {
 			start_path = strdup(MEDIA_ROOT_PATH_SDCARD);
 			if (MS_STRING_VALID(start_path)) {
-				ret = __msc_dir_scan_meta_update(handle, start_path, storage_type, scan_data->uid);
+				ret = __msc_dir_scan_meta_update(handle, start_path, INTERNAL_STORAGE_ID, storage_type, scan_data->uid);
 				/* send notification */
 				ms_send_dir_update_noti(handle, MMC_STORAGE_ID, MEDIA_ROOT_PATH_SDCARD, NULL, MS_ITEM_UPDATE, scan_data->pid);
 			}
