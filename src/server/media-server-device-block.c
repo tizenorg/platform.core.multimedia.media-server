@@ -62,7 +62,6 @@ int ms_usb_insert_handler(const char *mount_path, const char *mount_uuid)
 	char *storage_path = NULL;
 	void **handle = NULL;
 	int validity = 0;
-	bool scan = false;
 	uid_t uid;
 	ms_dir_scan_type_t scan_type = MS_SCAN_ALL;
 
@@ -77,7 +76,7 @@ int ms_usb_insert_handler(const char *mount_path, const char *mount_uuid)
 
 	if (mount_path != NULL && mount_uuid != NULL) {
 		/*CHECK DB HERE */
-		ret = ms_check_db_upgrade(handle, &scan, uid);
+		ret = ms_check_db_upgrade(handle, uid);
 		if (ret != MS_MEDIA_ERR_NONE) {
 			MS_DBG_ERR("ms_check_db_upgrade failed");
 			goto ERROR;
@@ -231,7 +230,6 @@ int ms_mmc_insert_handler(const char *mount_path)
 	bool info_exist = FALSE;
 	char *cid = NULL;
 	uid_t uid;
-	bool scan = false;
 
 	void **db_handle = NULL;
 
@@ -254,7 +252,7 @@ int ms_mmc_insert_handler(const char *mount_path)
 
 	ms_get_mmc_id(&cid);
 	/* CHECK DB HERE!! */
-	ret = ms_check_db_upgrade(db_handle, &scan, uid);
+	ret = ms_check_db_upgrade(db_handle, uid);
 	if (ret != MS_MEDIA_ERR_NONE) {
 		MS_DBG_ERR("ms_check_db_upgrade failed [%d]", ret);
 		ms_disconnect_db(&db_handle);

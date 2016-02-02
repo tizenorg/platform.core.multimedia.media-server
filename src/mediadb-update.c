@@ -38,7 +38,7 @@ GMainLoop * mainloop = NULL;
 
 int (*svc_connect)				(void ** handle, uid_t uid, char ** err_msg);
 int (*svc_disconnect)			(void * handle, char ** err_msg);
-int (*svc_check_db)			(void * handle, bool *, uid_t uid, char ** err_msg);
+int (*svc_check_db)			(void * handle, uid_t uid, char ** err_msg);
 int (*svc_get_storage_id)		(void * handle, const char *path, char *storage_id, uid_t uid, char ** err_msg);
 
 void callback(media_request_result_s * result, void *user_data)
@@ -72,7 +72,6 @@ static void __check_media_db(void)
 	void *db_handle = NULL;
 	char *err_msg = NULL;
 	int ret = 0;
-	bool fscan = false;
 
 	funcHandle = dlopen("/usr/lib/libmedia-content-plugin.so", RTLD_LAZY);
 	if (funcHandle == NULL) {
@@ -88,7 +87,7 @@ static void __check_media_db(void)
 	if (ret < 0)
 		printf("Error svc_connect\n");
 
-	ret = svc_check_db(db_handle, &fscan, tzplatform_getuid(TZ_USER_NAME), &err_msg);
+	ret = svc_check_db(db_handle, tzplatform_getuid(TZ_USER_NAME), &err_msg);
 	if (ret < 0)
 		printf("Error svc_check_db\n");
 

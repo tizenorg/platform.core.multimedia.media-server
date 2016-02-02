@@ -1014,25 +1014,23 @@ int ms_set_folder_validity(void **handle, const char *storage_id, const char *pa
 	return res;
 }
 
-int ms_check_db_upgrade(void **handle, bool *need_full_scan, uid_t uid)
+int ms_check_db_upgrade(void **handle, uid_t uid)
 {
 	int lib_index = 0;
 	int res = MS_MEDIA_ERR_NONE;
 	int ret;
-	bool full_scan = false;
 	char *err_msg = NULL;
 
 	MS_DBG_FENTER();
 
 	for (lib_index = 0; lib_index < lib_num; lib_index++) {
-		ret = ((CHECK_DB)func_array[lib_index][eCHECK_DB])(handle[lib_index], &full_scan, uid, &err_msg);
+		ret = ((CHECK_DB)func_array[lib_index][eCHECK_DB])(handle[lib_index], uid, &err_msg);
 		if (ret != 0) {
 			MS_DBG_ERR("error : %s [%s]", g_array_index(so_array, char*, lib_index), err_msg);
 			MS_SAFE_FREE(err_msg);
 			res = MS_MEDIA_ERR_DB_UPDATE_FAIL;
 		}
 	}
-	*need_full_scan = full_scan;
 	MS_DBG_FLEAVE();
 
 	return res;

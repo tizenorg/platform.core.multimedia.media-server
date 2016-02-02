@@ -93,7 +93,7 @@ typedef int (*GET_NULL_SCAN_FOLDER_LIST)(void *, const char *, const char *, cha
 typedef int (*CHANGE_VALIDITY_ITEM_BATCH)(void *, const char *, const char *, int, int, uid_t, char **);
 //typedef int (*GET_SCAN_DONE_ITEMS)(void *, const char *, const char *, int, int *, char **);
 
-typedef int (*CHECK_DB)(void*, bool*, uid_t, char **);
+typedef int (*CHECK_DB)(void*, uid_t, char **);
 typedef int (*GET_UUID)(void *, char **, char **);
 typedef int (*GET_MMC_INFO)(void *, char **, char **, int *, bool *, char **);
 typedef int (*CHECK_STORAGE)(void *, const char *, const char *, char **, int *, char **);
@@ -148,7 +148,7 @@ int ms_get_null_scan_folder_list(void **handle, const char *stroage_id, const ch
 int ms_change_validity_item_batch(void **handle, const char *storage_id, const char *path, int des_validity, int src_validity, uid_t uid);
 //int ms_get_scan_done_items(void **handle, const char *storage_id, const char *path, int validity, int *count);
 
-int ms_check_db_upgrade(void **handle, bool *need_full_scan, uid_t uid);
+int ms_check_db_upgrade(void **handle, uid_t uid);
 int ms_genarate_uuid(void **handle, char **uuid);
 int ms_get_mmc_info(void **handle, char **storage_name, char **storage_path, int *validity, bool *info_exist);
 int ms_check_storage(void **handle, const char *storage_id, const char *storage_name, char **storage_path, int *validity);
