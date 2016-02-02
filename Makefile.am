@@ -67,7 +67,8 @@ libmedia_utils_la_SOURCES = lib/media-util-noti-internal.c \
                             lib/media-util-ipc.c \
                             lib/media-util-db.c \
                             lib/media-util-register.c \
-                            lib/media-util-cynara.c
+                            lib/media-util-cynara.c \
+                            lib/media-util-dcm.c
 
 libmedia_utils_la_CFLAGS = -I${srcdir}/lib/include \
                               $(GLIB_CFLAGS) \
@@ -112,6 +113,7 @@ media_server_SOURCES = src/common/media-common-utils.c \
                        src/server/media-server-thumb.c \
                        src/server/media-server-scanner.c \
 		       src/server/media-server-device-block.c \
+                       src/server/media-server-dcm.c \
                        src/server/media-server-main.c
 
 media_server_CFLAGS = -I${srcdir}/src/server/include \
@@ -198,4 +200,5 @@ includeheaders_HEADERS = lib/include/media-util-noti-common.h \
                          lib/include/media-util-ipc.h \
                          lib/include/media-util-cynara.h \
                          lib/include/media-util.h \
-                         lib/include/media-server-ipc.h
+                         lib/include/media-server-ipc.h \
+                         lib/include/media-util-dcm.h
