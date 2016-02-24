@@ -93,7 +93,7 @@ static void __msc_insert_register_request(GArray *register_array, ms_comm_msg_s 
 static void __msc_bacth_commit_enable(void* handle, bool ins_status, bool valid_status, bool noti_enable, int pid);
 static void __msc_bacth_commit_disable(void* handle, bool ins_status, bool valid_status, int result, uid_t uid);
 static int __msc_dir_scan_for_folder(void **handle, const char *storage_id, const char*start_path, ms_storage_type_t storage_type, int scan_type, int pid, uid_t uid);
-static int __msc_dir_scan_for_storage(void **handle, const char *storage_id, const char*start_path, ms_storage_type_t storage_type, int scan_type, int pid, uid_t uid);
+static int __msc_dir_scan_for_storage(void **handle, const char *storage_id, const char*start_path, ms_storage_type_t storage_type, int scan_type, uid_t uid);
 static bool __msc_storage_mount_status(const char* start_path);
 static char* __msc_get_path(uid_t uid);
 
@@ -630,7 +630,7 @@ STOP_SCAN:
 	return ret;
 }
 
-static int __msc_dir_scan_for_storage(void **handle, const char *storage_id, const char*start_path, ms_storage_type_t storage_type, int scan_type, int pid, uid_t uid)
+static int __msc_dir_scan_for_storage(void **handle, const char *storage_id, const char*start_path, ms_storage_type_t storage_type, int scan_type, uid_t uid)
 {
 	GArray *dir_array = NULL;
 	int ret = MS_MEDIA_ERR_NONE;
@@ -993,7 +993,7 @@ static int __msc_db_update(void **handle, const char *storage_id, const ms_comm_
 		if (scan_type == MS_MSG_DIRECTORY_SCANNING || scan_type == MS_MSG_DIRECTORY_SCANNING_NON_RECURSIVE) {
 			err = __msc_dir_scan_for_folder(handle, storage_id, start_path, storage_type, scan_type, scan_data->pid, scan_data->uid);
 		} else if (scan_type == MS_MSG_STORAGE_ALL || scan_type == MS_MSG_STORAGE_PARTIAL) {
-			err = __msc_dir_scan_for_storage(handle, storage_id, start_path, storage_type, scan_type, scan_data->pid, scan_data->uid);
+			err = __msc_dir_scan_for_storage(handle, storage_id, start_path, storage_type, scan_type, scan_data->uid);
 		}
 
 		if (err != MS_MEDIA_ERR_NONE) {
