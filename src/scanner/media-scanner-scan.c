@@ -24,7 +24,7 @@
 #include <dirent.h>
 #include <errno.h>
 #include <malloc.h>
-#include <pmapi.h>
+#include <dd-display.h>
 #include <vconf.h>
 #include <grp.h>
 #include <pwd.h>
@@ -129,12 +129,12 @@ static int __msc_set_power_mode(ms_db_status_type_t status)
 
 	switch (status) {
 	case MS_DB_UPDATING:
-		err = pm_lock_state(LCD_OFF, STAY_CUR_STATE, 0);
+		err = display_lock_state(LCD_OFF, STAY_CUR_STATE, 0);
 		if (err != 0)
 			res = MS_MEDIA_ERR_INTERNAL;
 		break;
 	case MS_DB_UPDATED:
-		err = pm_unlock_state(LCD_OFF, STAY_CUR_STATE);
+		err = display_unlock_state(LCD_OFF, PM_RESET_TIMER);
 		if (err != 0)
 			res = MS_MEDIA_ERR_INTERNAL;
 		break;

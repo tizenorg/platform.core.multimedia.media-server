@@ -24,7 +24,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <errno.h>
-#include <pmapi.h>
+#include <dd-display.h>
 
 #include "media-common-utils.h"
 #include "media-common-external-storage.h"
@@ -136,7 +136,7 @@ int main(int argc, char **argv)
 
 	msc_get_power_status(&power_off_status);
 	if (power_off_status) {
-		pm_unlock_state(LCD_OFF, STAY_CUR_STATE);
+		display_unlock_state(LCD_OFF, PM_RESET_TIMER);
 	}
 
 	msc_deinit_extract_thread();

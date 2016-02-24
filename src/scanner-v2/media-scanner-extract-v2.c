@@ -31,7 +31,6 @@
 #include <dirent.h>
 #include <errno.h>
 #include <malloc.h>
-#include <pmapi.h>
 #include <vconf.h>
 
 #include "media-util.h"
