@@ -1669,9 +1669,12 @@ gboolean msc_metadata_update(void *data)
 {
 	ms_comm_msg_s *scan_data = data;
 	int ret = MS_MEDIA_ERR_NONE;
+	int idx = 0;
 	void **handle = NULL;
 	char *start_path = NULL;
 	ms_storage_type_t storage_type = MS_STORAGE_INTERNAL;
+	GArray *storage_list = NULL;
+	ms_stg_info_s *stg_info = NULL;
 
 	MS_DBG_INFO("META UPDATE START");
 
@@ -1712,6 +1715,26 @@ gboolean msc_metadata_update(void *data)
 
 	/*FIX ME*/
 	/*__msc_dir_scan_meta_update For Each USB Storage*/
+	ret = ms_get_storage_list(handle, &storage_list);
+	if (ret != MS_MEDIA_ERR_NONE) {
+		MS_DBG_ERR("ms_get_storage_list() fail");
+		if (handle) ms_disconnect_db(&handle);
+		return MS_MEDIA_ERR_INTERNAL;
+	}
+
+	for (idx = 0; idx < storage_list->len; idx++) {
+		stg_info = g_array_index(storage_list, ms_stg_info_s *, idx);
+
+		ret = __msc_dir_scan_meta_update(handle, stg_info->stg_path, stg_info->storage_id, storage_type, scan_data->uid);
+		/* send notification */
+		ms_send_dir_update_noti(handle, stg_info->storage_id, stg_info->storage_id, NULL, MS_ITEM_UPDATE, scan_data->pid);
+
+		MS_SAFE_FREE(stg_info->stg_path);
+		MS_SAFE_FREE(stg_info->storage_id);
+		MS_SAFE_FREE(stg_info);
+	}
+
+	g_array_free(storage_list, FALSE);
 
 	/*call for bundle commit*/
 	ms_update_end(handle, scan_data->uid);
