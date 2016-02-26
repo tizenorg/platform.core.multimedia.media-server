@@ -376,7 +376,7 @@ static int __msc_read_dir(void **handle, GArray *dir_array, const char *start_pa
 						continue;
 					}
 				} else if (entry.d_type & DT_DIR) {
-					if	(scan_type != MS_MSG_DIRECTORY_SCANNING_NON_RECURSIVE) {
+					if (scan_type != MS_MSG_DIRECTORY_SCANNING_NON_RECURSIVE) {
 						/* this request is recursive scanning */
 						/* add new directory to dir_array */
 						new_path = strdup(path);
@@ -588,6 +588,7 @@ static int __msc_stg_scan(void **handle, const char *storage_id, const char*star
 
 STOP_SCAN:
 	if (dp) closedir(dp);
+	dp = NULL;
 
 	MS_SAFE_FREE(new_start_path);
 
@@ -1201,8 +1202,7 @@ static int __msc_check_file_path(const char *file_path, uid_t uid)
 	/* check the file exits actually */
 	exist = open(file_path, O_RDONLY);
 	if (exist < 0) {
-		MS_DBG_STRERROR("Open failed");
-		MS_DBG_ERR("error path [%s]", file_path);
+		MS_DBG_ERR("[%s]open files");
 		return MS_MEDIA_ERR_INVALID_PATH;
 	}
 	close(exist);
@@ -1828,7 +1828,7 @@ int msc_push_scan_request(ms_scan_type_e scan_type, ms_comm_msg_s *recv_msg)
 
 int msc_send_power_off_request(void)
 {
-	ms_comm_msg_s *data;
+	ms_comm_msg_s *data = NULL;
 
 	power_off = true;
 
@@ -1839,7 +1839,7 @@ int msc_send_power_off_request(void)
 			data->pid = POWEROFF;
 			msc_push_scan_request(MS_SCAN_DIRECTORY, data);
 		} else {
-			MS_DBG_ERR("memory allocation fail");
+			MS_DBG_ERR("memory allocation failed");
 		}
 	}
 
@@ -1850,7 +1850,7 @@ int msc_send_power_off_request(void)
 			data->pid = POWEROFF;
 			msc_push_scan_request(MS_SCAN_REGISTER, data);
 		} else {
-			MS_DBG_ERR("memory allocation fail");
+			MS_DBG_ERR("memory allocation failed");
 		}
 	}
 
@@ -1861,7 +1861,7 @@ int msc_send_power_off_request(void)
 			data->pid = POWEROFF;
 			msc_push_scan_request(MS_SCAN_STORAGE, data);
 		} else {
-			MS_DBG_ERR("memory allocation fail");
+			MS_DBG_ERR("memory allocation failed");
 		}
 	}
 

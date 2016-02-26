@@ -232,6 +232,7 @@ int msc_send_result(int result, ms_comm_msg_s *res_data)
 	send_msg.pid = res_data->pid;
 	send_msg.result = result;
 	send_msg.msg_size = res_data->msg_size;
+	send_msg.uid = res_data->uid;
 	strncpy(send_msg.msg, res_data->msg, send_msg.msg_size);
 
 	/* send ready message */
