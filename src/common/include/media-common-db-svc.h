@@ -58,7 +58,7 @@ typedef int (*INSERT_ITEM_END)(void*, uid_t, char **);
 typedef int (*SET_ITEM_VALIDITY_BEGIN)(void*, int, char **);
 typedef int (*SET_ITEM_VALIDITY_END)(void*, uid_t, char **);
 typedef int (*UPDATE_BEGIN)(void);
-typedef int (*UPDATE_END)(const char *, uid_t);
+typedef int (*UPDATE_END)(uid_t);
 
 typedef int (*SEND_DIR_UPDATE_NOTI)(void *, const char *, const char *, const char *, int, int, char **);
 typedef int (*CHECK_ITEM_EXIST)(void*, const char *, const char *, bool *, char **);
@@ -169,7 +169,7 @@ void ms_reset_delete_count();
 FOR BULK COMMIT
 *****************************************************************************************************/
 void ms_register_start(void **handle, ms_noti_switch_e noti_status, int pid);
-void ms_register_end(void **handle, const char *start_path, uid_t uid);
+void ms_register_end(void **handle, uid_t uid);
 void ms_validate_start(void **handle);
 void ms_validate_end(void **handle, uid_t uid);
 void ms_insert_folder_start(void **handle);

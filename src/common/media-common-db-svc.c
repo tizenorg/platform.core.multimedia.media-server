@@ -1341,7 +1341,7 @@ void ms_register_start(void **handle, ms_noti_switch_e noti_status, int pid)
 	}
 }
 
-void ms_register_end(void **handle, const char *start_path, uid_t uid)
+void ms_register_end(void **handle, uid_t uid)
 {
 	int lib_index;
 	int ret = 0;
@@ -1356,7 +1356,7 @@ void ms_register_end(void **handle, const char *start_path, uid_t uid)
 	}
 
 	for (lib_index = 0; lib_index < lib_num; lib_index++) {
-		ret = ((UPDATE_END)func_array[lib_index][eUPDATE_END])(start_path, uid);/*dlopen*/
+		ret = ((UPDATE_END)func_array[lib_index][eUPDATE_END])(uid);/*dlopen*/
 		if (ret != 0) {
 			MS_DBG_ERR("error : %s [%s]", g_array_index(so_array, char*, lib_index), err_msg);
 			MS_SAFE_FREE(err_msg);

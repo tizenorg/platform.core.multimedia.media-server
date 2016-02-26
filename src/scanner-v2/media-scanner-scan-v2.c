@@ -91,7 +91,7 @@ static bool __msc_is_valid_path(const char *path, uid_t uid);
 static void __msc_trim_dir_path(char *dir_path);
 static void __msc_insert_register_request(GArray *register_array, ms_comm_msg_s *insert_data);
 static void __msc_bacth_commit_enable(void* handle, bool ins_status, bool valid_status, bool noti_enable, int pid);
-static void __msc_bacth_commit_disable(void* handle, bool ins_status, bool valid_status, const char *path, int result, uid_t uid);
+static void __msc_bacth_commit_disable(void* handle, bool ins_status, bool valid_status, int result, uid_t uid);
 static int __msc_dir_scan_for_folder(void **handle, const char *storage_id, const char*start_path, ms_storage_type_t storage_type, int scan_type, int pid, uid_t uid);
 static int __msc_dir_scan_for_storage(void **handle, const char *storage_id, const char*start_path, ms_storage_type_t storage_type, int scan_type, int pid, uid_t uid);
 static bool __msc_storage_mount_status(const char* start_path);
@@ -1246,7 +1246,7 @@ gboolean msc_directory_scan_thread(void *data)
 		msc_del_cancel_path();
 
 		/*call for bundle commit*/
-		__msc_bacth_commit_disable(handle, TRUE, TRUE, scan_data->msg, ret, scan_data->uid);
+		__msc_bacth_commit_disable(handle, TRUE, TRUE, ret, scan_data->uid);
 
 		MS_DBG_ERR("folder scan done, sent cb event path = [%s]", scan_data->msg);
 		__msc_call_dir_scan_cb();
@@ -1586,7 +1586,7 @@ gboolean msc_storage_scan_thread(void *data)
 
 		/*call for bundle commit*/
 		if (scan_type != MS_MSG_STORAGE_INVALID) {
-			__msc_bacth_commit_disable(handle, TRUE, valid_status, scan_data->msg, ret, scan_data->uid);
+			__msc_bacth_commit_disable(handle, TRUE, valid_status, ret, scan_data->uid);
 		}
 
 		if (scan_type == MS_MSG_STORAGE_PARTIAL && ret == MS_MEDIA_ERR_NONE) {
@@ -1898,7 +1898,7 @@ static int __msc_batch_insert(ms_msg_type_e current_msg, int pid, GArray *path_a
 	}
 
 	/*call for bundle commit*/
-	__msc_bacth_commit_disable(handle, TRUE, FALSE, NULL, MS_MEDIA_ERR_NONE, uid);
+	__msc_bacth_commit_disable(handle, TRUE, FALSE, MS_MEDIA_ERR_NONE, uid);
 
 	/*disconnect form media db*/
 	if (handle) ms_disconnect_db(&handle);
@@ -2036,11 +2036,11 @@ static void __msc_bacth_commit_enable(void* handle, bool ins_status, bool valid_
 	return;
 }
 
-static void __msc_bacth_commit_disable(void* handle, bool ins_status, bool valid_status, const char *path, int result, uid_t uid)
+static void __msc_bacth_commit_disable(void* handle, bool ins_status, bool valid_status, int result, uid_t uid)
 {
 	/*call for bundle commit*/
 	if (valid_status) ms_validate_end(handle, uid);
-	if (ins_status) ms_register_end(handle, path, uid);
+	if (ins_status) ms_register_end(handle, uid);
 
 	return;
 }

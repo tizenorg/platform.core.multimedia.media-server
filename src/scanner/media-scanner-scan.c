@@ -79,7 +79,7 @@ static bool __msc_is_valid_path(const char *path, uid_t uid);
 static void __msc_trim_dir_path(char *dir_path);
 static void __msc_insert_register_request(GArray *register_array, ms_comm_msg_s *insert_data);
 static void __msc_bacth_commit_enable(void* handle, bool ins_status, bool valid_status, bool noti_enable, int pid);
-static void __msc_bacth_commit_disable(void* handle, bool ins_status, bool valid_status, const char *path, uid_t uid);
+static void __msc_bacth_commit_disable(void* handle, bool ins_status, bool valid_status, uid_t uid);
 static int __msc_set_storage_scan_status(ms_storage_scan_status_e status);
 //static int __msc_get_storage_scan_status(ms_storage_scan_status_e *status, uid_t uid);
 //static bool __msc_storage_mount_status(const char* start_path);
@@ -418,15 +418,6 @@ static int __msc_dir_scan(void **handle, const char *storage_id, const char*star
 {
 	GArray *dir_array = NULL;
 	int ret = MS_MEDIA_ERR_NONE;
-	char *new_start_path = NULL;
-
-	new_start_path = strdup(start_path);
-	if (new_start_path == NULL) {
-		MS_DBG_ERR("g_array_new failed");
-		return MS_MEDIA_ERR_OUT_OF_MEMORY;
-	}
-
-	MS_DBG_ERR("[No-Error] start path [%s]", new_start_path);
 
 	/*call for bundle commit*/
 	__msc_bacth_commit_enable(handle, TRUE, TRUE, MS_NOTI_SWITCH_OFF, 0);
@@ -434,9 +425,7 @@ static int __msc_dir_scan(void **handle, const char *storage_id, const char*star
 	__msc_read_dir(handle, dir_array, start_path, storage_id, storage_type, scan_type, uid);
 
 	/*call for bundle commit*/
-	__msc_bacth_commit_disable(handle, TRUE, TRUE, new_start_path, uid);
-
-	MS_SAFE_FREE(new_start_path);
+	__msc_bacth_commit_disable(handle, TRUE, TRUE, uid);
 
 	MS_DBG_INFO("ret : %d", ret);
 
@@ -1081,7 +1070,7 @@ gboolean msc_storage_scan_thread(void *data)
 		}
 
 		/*call for bundle commit*/
-		__msc_bacth_commit_disable(handle, TRUE, valid_status, scan_data->msg, scan_data->uid);
+		__msc_bacth_commit_disable(handle, TRUE, valid_status, scan_data->uid);
 
 		if (scan_type == MS_MSG_STORAGE_PARTIAL && ret == MS_MEDIA_ERR_NONE) {
 			int del_count = 0;
@@ -1413,13 +1402,13 @@ static int __msc_batch_insert(ms_msg_type_e current_msg, int pid, GArray *path_a
 		if (power_off) {
 			MS_DBG_ERR("power off");
 			/*call for bundle commit*/
-			ms_register_end(handle, NULL, uid);
+			ms_register_end(handle, uid);
 			break;
 		}
 	}
 
 	/*call for bundle commit*/
-	__msc_bacth_commit_disable(handle, TRUE, FALSE, NULL, uid);
+	__msc_bacth_commit_disable(handle, TRUE, FALSE, uid);
 
 	/*disconnect form media db*/
 	if (handle) ms_disconnect_db(&handle);
@@ -1557,10 +1546,10 @@ static void __msc_bacth_commit_enable(void* handle, bool ins_status, bool valid_
 	return;
 }
 
-static void __msc_bacth_commit_disable(void* handle, bool ins_status, bool valid_status, const char *path, uid_t uid)
+static void __msc_bacth_commit_disable(void* handle, bool ins_status, bool valid_status, uid_t uid)
 {
 	/*call for bundle commit*/
-	if (ins_status) ms_register_end(handle, path, uid);
+	if (ins_status) ms_register_end(handle, uid);
 	if (valid_status) ms_validate_end(handle, uid);
 
 	return;
