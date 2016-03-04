@@ -33,6 +33,7 @@
 #include "media-util.h"
 
 #include <tzplatform_config.h>
+#define CONFIG_PATH "/usr/etc/media-server-plugin"
 
 GMainLoop * mainloop = NULL;
 
@@ -72,8 +73,22 @@ static void __check_media_db(void)
 	void *db_handle = NULL;
 	char *err_msg = NULL;
 	int ret = 0;
+	FILE *fp;
+	char buf[256] = {0, };
 
-	funcHandle = dlopen("/usr/lib/libmedia-content-plugin.so", RTLD_LAZY);
+	fp = fopen(CONFIG_PATH, "rt");
+	if (fp == NULL) {
+		printf("fp is NULL\n");
+		return;
+	}
+
+	if ( fgets (buf , 256 , fp) != NULL ) {
+		printf("so file : [%s]\n", buf);
+	}
+
+	fclose(fp);
+	
+	funcHandle = dlopen(buf, RTLD_LAZY);
 	if (funcHandle == NULL) {
 		printf("Error when open plug-in\n");
 		return;
