@@ -210,7 +210,10 @@ static int __media_db_request_update_tcp(ms_msg_type_e msg_type, const char *req
 	if (connect(sockfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0) {
 		MSAPI_DBG_STRERROR("connect error");
 		close(sockfd);
-		return MS_MEDIA_ERR_SOCKET_CONN;
+		if (errno == EACCES)
+			return MS_MEDIA_ERR_PERMISSION_DENIED;
+		else
+			return MS_MEDIA_ERR_SOCKET_CONN;
 	}
 
 	/* Send request */
