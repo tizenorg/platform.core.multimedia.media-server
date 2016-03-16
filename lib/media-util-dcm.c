@@ -20,6 +20,7 @@
  */
 
 #include <glib.h>
+#include <unistd.h>
 #include <media-server-ipc.h>
 #include <media-util-dbg.h>
 #include <media-util-dcm.h>

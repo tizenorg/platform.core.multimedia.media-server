@@ -154,8 +154,6 @@ gboolean _ms_dcm_agent_recv_msg_from_server()
 	struct sockaddr_un serv_addr;
 	unsigned int serv_addr_len;
 
-	struct timeval tv_timeout = { 0, 500000 };
-
 	int sockfd = -1;
 	int retry = 10;
 	MS_DBG("_ms_dcm_agent_recv_msg_from_server in");
