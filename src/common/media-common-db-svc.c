@@ -27,7 +27,7 @@
 #include "media-common-dbg.h"
 #include <tzplatform_config.h>
 
-#define CONFIG_PATH "/usr/etc/media-server-plugin"
+#define CONFIG_PATH SYSCONFDIR"/multimedia/media-server-plugin"
 #define EXT ".so"
 #define EXT_LEN 3
 #define MSC_REGISTER_COUNT 300 /*For bundle commit*/

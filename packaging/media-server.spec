@@ -1,6 +1,6 @@
 Name:       media-server
 Summary:    A server for media content management
-Version:    0.2.71
+Version:    0.2.72
 Release:    0
 Group:      Multimedia/Service
 License:    Apache-2.0
@@ -54,11 +54,13 @@ cp %{SOURCE1001} %{SOURCE1002} %{SOURCE1003} .
 cp po/* .
 
 %build
+export CFLAGS="$CFLAGS -DTIZEN_DEBUG_ENABLE -DSYSCONFDIR=\\\"%{_sysconfdir}\\\""
 rm -rf autom4te.cache
 rm -f aclocal.m4 ltmain.sh
 mkdir -p m4
 %reconfigure --prefix=%{_prefix} --disable-static
 %__make %{?jobs:-j%jobs}
+
 
 #install .po files
 /usr/bin/msgfmt -o ar.mo ar.po
@@ -214,9 +216,9 @@ install -m 644 %{SOURCE2} %{buildroot}%{_unitdir_user}/media-server-user.service
 install -m 644 %{SOURCE3} %{buildroot}%{_unitdir_user}/media-server-user.path
 ln -s ../media-server.service %{buildroot}%{_unitdir}/multi-user.target.wants/media-server.service
 #ini file
-mkdir -p %{buildroot}/usr/etc
-cp -rf %{_builddir}/%{name}-%{version}/media_content_config.ini %{buildroot}/usr/etc/
-cp -rf %{_builddir}/%{name}-%{version}/media-server-plugin %{buildroot}/usr/etc/media-server-plugin
+mkdir -p %{buildroot}/etc/multimedia
+cp -rf %{_builddir}/%{name}-%{version}/media_content_config.ini %{buildroot}/etc/multimedia/media_content_config.ini
+cp -rf %{_builddir}/%{name}-%{version}/media-server-plugin %{buildroot}/etc/multimedia/media-server-plugin
 
 %post
 # setup dbupdate in user session
@@ -241,8 +243,8 @@ ln -sf ../media-server-user.path  %{_unitdir_user}/default.target.wants/
 %{_unitdir}/multi-user.target.wants/media-server.service
 %{_unitdir_user}/media-server-user.service
 %{_unitdir_user}/media-server-user.path
-/usr/etc/media_content_config.ini
-/usr/etc/media-server-plugin
+/etc/multimedia/media_content_config.ini
+/etc/multimedia/media-server-plugin
 %{_datadir}/locale/*/LC_MESSAGES/*
 %license LICENSE.APLv2.0
 
