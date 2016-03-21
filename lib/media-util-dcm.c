@@ -26,6 +26,7 @@
 #include <media-util-dcm.h>
 #include <media-util-err.h>
 #include <media-util-ipc.h>
+#include <tzplatform_config.h>
 
 #define DCM_MSG_MAX_SIZE 4096
 
@@ -54,7 +55,7 @@ int _media_dcm_request(int msg_type, const char *path, uid_t uid)
 	memset(&serv_addr, 0, sizeof(serv_addr));
 	sock = sock_info.sock_fd;
 	serv_addr.sun_family = AF_UNIX;
-	strncpy(serv_addr.sun_path, MEDIA_IPC_PATH[sock_info.port], strlen(MEDIA_IPC_PATH[sock_info.port]));
+	strncpy(serv_addr.sun_path, tzplatform_mkpath(TZ_SYS_RUN, MEDIA_IPC_PATH[sock_info.port]), strlen(tzplatform_mkpath(TZ_SYS_RUN, MEDIA_IPC_PATH[sock_info.port])));
 
 	/* Connecting to the thumbnail server */
 	if (connect(sock, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0) {

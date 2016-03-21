@@ -311,7 +311,7 @@ static void __ms_add_requst_receiver(GMainLoop *mainloop, GIOChannel **channel)
 
 	/*prepare socket*/
 	/* create dir socket */
-	_mkdir("/var/run/media-server", S_IRWXU | S_IRWXG | S_IRWXO);
+	_mkdir(tzplatform_mkpath(TZ_SYS_RUN, "media-server"), S_IRWXU | S_IRWXG | S_IRWXO);
 
 	/* Create and bind new UDP socket */
 	if (ms_ipc_create_server_socket(MS_PROTOCOL_TCP, MS_SCANNER_PORT, &sockfd) != MS_MEDIA_ERR_NONE) {

@@ -300,7 +300,7 @@ gboolean _ms_dcm_agent_send_msg_to_dcm_server(dcmMsg *recv_msg, dcmMsg *res_msg)
 	memset(&serv_addr, 0, sizeof(serv_addr));
 	sock = sock_info.sock_fd;
 	serv_addr.sun_family = AF_UNIX;
-	strncpy(serv_addr.sun_path, MEDIA_IPC_PATH[MS_DCM_DAEMON_PORT], strlen(MEDIA_IPC_PATH[MS_DCM_DAEMON_PORT]));
+	strncpy(serv_addr.sun_path, tzplatform_mkpath(TZ_SYS_RUN, MEDIA_IPC_PATH[MS_DCM_DAEMON_PORT]), strlen(tzplatform_mkpath(TZ_SYS_RUN, MEDIA_IPC_PATH[MS_DCM_DAEMON_PORT])));
 
 	/* Connecting to the DCM service */
 	if (connect(sock, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0) {
