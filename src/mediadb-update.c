@@ -103,17 +103,22 @@ static void __check_media_db(void)
 	dlclose(funcHandle);
 }
 
-static void __get_storage_id(const char *path, char *storage_id, uid_t uid)
+static int __get_storage_id(const char *path, char *storage_id, uid_t uid)
 {
 	void *funcHandle = NULL;
 	void *db_handle = NULL;
 	char *err_msg = NULL;
 	int ret = 0;
 
+	if (strncmp(tzplatform_getenv(TZ_USER_HOME), path, strlen(tzplatform_getenv(TZ_USER_HOME))) != 0 && strncmp(tzplatform_getenv(TZ_SYS_STORAGE), path, strlen(tzplatform_getenv(TZ_SYS_STORAGE))) != 0) {
+		printf("Not support path[%s]\n", path);
+		return -1;
+	}
+
 	funcHandle = dlopen("/usr/lib/libmedia-content-plugin.so", RTLD_LAZY);
 	if (funcHandle == NULL) {
 		printf("Error when open plug-in\n");
-		return;
+		return -1;
 	}
 
 	svc_connect			= dlsym(funcHandle, "connect_db");
@@ -121,36 +126,48 @@ static void __get_storage_id(const char *path, char *storage_id, uid_t uid)
 	svc_get_storage_id	= dlsym(funcHandle, "get_storage_id");
 
 	ret = svc_connect(&db_handle, uid, &err_msg);
-	if (ret < 0)
+	if (ret < 0) {
 		printf("Error svc_connect\n");
+		return -1;
+	}
 
 	ret = svc_get_storage_id(db_handle, path, storage_id, uid, &err_msg);
-	if (ret < 0)
+	if (ret < 0) {
 		printf("Error svc_get_storage_id\n");
-
+		return -1;
+	}
 	ret = svc_disconnect(db_handle, &err_msg);
-	if (ret < 0)
+	if (ret < 0) {
 		printf("Error svc_disconnect\n");
-
+		return -1;
+	}
 	printf("Start Scanning for [%s][%s]\n", path, storage_id);
 
 	dlclose(funcHandle);
+
+	return 0;
 }
 
 int dir_scan_non_recursive(const char *path)
 {
+	int ret = 0;
 	char storage_id[36+1] = {0,};
 
-	__get_storage_id(path, storage_id, tzplatform_getuid(TZ_USER_NAME));
+	ret = __get_storage_id(path, storage_id, tzplatform_getuid(TZ_USER_NAME));
+	if (ret < 0)
+		return -1;
 
 	return media_directory_scanning_async(path, storage_id, FALSE, callback, NULL, tzplatform_getuid(TZ_USER_NAME));
 }
 
 int dir_scan_recursive(char *path)
 {
+	int ret = 0;
 	char storage_id[36+1] = {0,};
 
-	__get_storage_id(path, storage_id, tzplatform_getuid(TZ_USER_NAME));
+	ret = __get_storage_id(path, storage_id, tzplatform_getuid(TZ_USER_NAME));
+	if (ret < 0)
+		return -1;
 
 	return media_directory_scanning_async(path, storage_id, TRUE, callback, NULL, tzplatform_getuid(TZ_USER_NAME));
 }
