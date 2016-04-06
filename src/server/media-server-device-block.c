@@ -147,7 +147,21 @@ int ms_usb_remove_handler(const char *mount_path, const char *mount_uuid)
 		ms_disconnect_db(&handle);
 
 		ms_unload_functions();
-	}
+  	} else if (strncmp(mount_path, USB_STORAGE_REMOVED, strlen(USB_STORAGE_REMOVED)) == 0 && mount_uuid  == NULL) {
+		ret = ms_load_functions();
+		if (ret != MS_MEDIA_ERR_NONE) {
+			MS_DBG_ERR("ms_load_functions failed [%d]", ret);
+			return ret;
+		}
+
+		ms_sys_get_uid(&uid);
+		ms_connect_db(&handle, uid);
+		ms_set_all_storage_validity(handle, 0, uid);
+
+		ms_disconnect_db(&handle);
+
+		ms_unload_functions();
+  	}
 
 	return ret;
 }

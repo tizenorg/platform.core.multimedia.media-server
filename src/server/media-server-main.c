@@ -468,6 +468,7 @@ static int __ms_check_usb_status(void)
 			ms_sys_release_device_list(&dev_list);
 		} else {
 			MS_DBG_ERR("USB NOT FOUND");
+			ms_usb_remove_handler(USB_STORAGE_REMOVED, NULL);
 		}
 	} else {
 		MS_DBG_ERR("ms_sys_get_device_list failed");

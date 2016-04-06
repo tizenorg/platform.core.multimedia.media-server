@@ -27,6 +27,7 @@
 
 #define INTERNAL_STORAGE_ID	"media"
 #define MMC_STORAGE_ID		"media"
+#define USB_STORAGE_REMOVED "usb_removed"
 
 typedef struct ms_dir_info_s {
 	char *dir_path;
