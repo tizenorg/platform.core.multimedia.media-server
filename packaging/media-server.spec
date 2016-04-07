@@ -1,6 +1,6 @@
 Name:       media-server
 Summary:    A server for media content management
-Version:    0.2.76
+Version:    0.2.77
 Release:    0
 Group:      Multimedia/Service
 License:    Apache-2.0
@@ -60,7 +60,6 @@ rm -f aclocal.m4 ltmain.sh
 mkdir -p m4
 %reconfigure --prefix=%{_prefix} --disable-static
 %__make %{?jobs:-j%jobs}
-
 
 #install .po files
 /usr/bin/msgfmt -o ar.mo ar.po

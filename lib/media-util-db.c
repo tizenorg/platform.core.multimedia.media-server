@@ -113,7 +113,7 @@ static int __media_db_connect_db_with_handle(sqlite3 **db_handle, uid_t uid, boo
 	if (need_write) {
 		ret = db_util_open_with_options(db_info, db_handle, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE, NULL);
 	} else {
-		ret = db_util_open_with_options(db_info, db_handle, SQLITE_OPEN_READONLY, NULL);
+		ret = db_util_open_with_options(db_info, db_handle, SQLITE_OPEN_READWRITE, NULL);
 	}
 	MS_SAFE_FREE(db_info);
 	if (SQLITE_OK != ret) {
