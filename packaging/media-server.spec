@@ -1,6 +1,6 @@
 Name:       media-server
 Summary:    A server for media content management
-Version:    0.2.77
+Version:    0.2.78
 Release:    0
 Group:      Multimedia/Service
 License:    Apache-2.0
@@ -11,7 +11,6 @@ Source3:    media-server-user.path
 Source1001:     %{name}.manifest
 Source1002:     libmedia-utils.manifest
 Source1003:     libmedia-utils-devel.manifest
-Requires(post): /usr/bin/vconftool
 BuildRequires:  pkgconfig(glib-2.0)
 BuildRequires:  pkgconfig(vconf)
 BuildRequires:  pkgconfig(dlog)
