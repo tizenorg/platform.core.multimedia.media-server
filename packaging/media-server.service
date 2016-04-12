@@ -4,6 +4,9 @@ Description=Media server
 [Service]
 Type=simple
 ExecStart=/usr/bin/media-server
+Restart=always
+RestartSec=0
+MemoryLimit=100M
 
 [Install]
 WantedBy=multi-user.target

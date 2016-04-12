@@ -1,6 +1,6 @@
 Name:       media-server
 Summary:    A server for media content management
-Version:    0.2.78
+Version:    0.2.79
 Release:    0
 Group:      Multimedia/Service
 License:    Apache-2.0
@@ -234,9 +234,6 @@ ln -sf ../media-server-user.path  %{_unitdir_user}/default.target.wants/
 %{_bindir}/media-scanner
 %{_bindir}/media-scanner-v2
 %{_bindir}/mediadb-update
-%exclude %attr(755,-,-) %{_sysconfdir}/rc.d/init.d/mediasvr
-%exclude /etc/rc.d/rc3.d/S46mediasvr
-%exclude /etc/rc.d/rc5.d/S46mediasvr
 %{_unitdir}/media-server.service
 %{_unitdir}/multi-user.target.wants/media-server.service
 %{_unitdir_user}/media-server-user.service

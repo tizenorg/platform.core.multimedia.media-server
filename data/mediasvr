@@ -1,6 +1,0 @@
-#!/bin/sh
-
-source /etc/tizen-platform.conf
-
-${TZ_SYS_BIN}/media-server&
-
