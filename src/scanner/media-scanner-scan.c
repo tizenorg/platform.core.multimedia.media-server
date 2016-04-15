@@ -87,6 +87,7 @@ static char* __msc_get_path(uid_t uid);
 
 static char* __msc_get_path(uid_t uid)
 {
+	int len = 0;
 	char *result_passwd = NULL;
 	struct group *grpinfo = NULL;
 	if (uid == getuid()) {
@@ -115,8 +116,9 @@ static char* __msc_get_path(uid_t uid)
 			return NULL;
 		}
 
-		snprintf(passwd_str, sizeof(passwd_str), "%s/%s", userinfo->pw_dir, MEDIA_CONTENT_PATH);
-		result_passwd = g_strdup(passwd_str);
+		len = snprintf(passwd_str, sizeof(passwd_str), "%s/%s", userinfo->pw_dir, MEDIA_CONTENT_PATH);
+		if (len > 0)
+			result_passwd = strndup(passwd_str, len);
 	}
 
 	return result_passwd;

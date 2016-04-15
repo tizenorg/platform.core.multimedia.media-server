@@ -65,6 +65,7 @@ static int __media_db_busy_handler(void *pData, int count)
 
 static char* __media_get_media_DB(uid_t uid)
 {
+	int len = 0;
 	char *result_passwd = NULL;
 	struct group *grpinfo = NULL;
 	if (uid == getuid()) {
@@ -92,8 +93,9 @@ static char* __media_get_media_DB(uid_t uid)
 			MSAPI_DBG_ERR("UID [%d] does not belong to 'users' group!", uid);
 			return NULL;
 		}
-		snprintf(passwd_str, sizeof(passwd_str), "%s/.applications/dbspace/.media.db", userinfo->pw_dir);
-		result_passwd = g_strdup(passwd_str);
+		len = snprintf(passwd_str, sizeof(passwd_str), "%s/.applications/dbspace/.media.db", userinfo->pw_dir);
+		if (len > 0)
+			result_passwd = strndup(passwd_str, len);
 	}
 
 	return result_passwd;
