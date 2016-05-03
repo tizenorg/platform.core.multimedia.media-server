@@ -66,7 +66,6 @@ int ms_usb_insert_handler(const char *mount_path, const char *mount_uuid)
 	uid_t uid;
 	ms_dir_scan_type_t scan_type = MS_SCAN_ALL;
 
-	uuid = strndup(mount_uuid, strlen(mount_uuid));
 	ret = ms_load_functions();
 	if (ret != MS_MEDIA_ERR_NONE) {
 		MS_DBG_ERR("ms_load_functions failed [%d]", ret);
@@ -77,6 +76,7 @@ int ms_usb_insert_handler(const char *mount_path, const char *mount_uuid)
 	ms_connect_db(&handle, uid);
 
 	if (mount_path != NULL && mount_uuid != NULL) {
+		uuid = strndup(mount_uuid, strlen(mount_uuid));
 		/*CHECK DB HERE */
 		ret = ms_check_db_upgrade(handle, uid);
 		if (ret != MS_MEDIA_ERR_NONE) {
@@ -99,6 +99,7 @@ int ms_usb_insert_handler(const char *mount_path, const char *mount_uuid)
 			}
 			scan_type = MS_SCAN_PART;
 			ms_set_storage_validity(handle, mount_uuid, 1, uid);
+
 			if (ms_set_storage_scan_status(handle, uuid, MEDIA_SCAN_PREPARE, uid) != MS_MEDIA_ERR_NONE) {
 				MS_DBG_ERR("ms_set_storage_scan_status failed");
 			}
