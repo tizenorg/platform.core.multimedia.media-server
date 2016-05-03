@@ -470,7 +470,7 @@ gboolean _ms_thumb_agent_send_msg_to_thumb_server(thumbMsg *recv_msg, thumbMsg *
 	memset(&serv_addr, 0, sizeof(serv_addr));
 	sock = sock_info.sock_fd;
 	serv_addr.sun_family = AF_UNIX;
-	strncpy(serv_addr.sun_path, tzplatform_mkpath(TZ_SYS_RUN, MEDIA_IPC_PATH[MS_THUMB_DAEMON_PORT]), strlen(tzplatform_mkpath(TZ_SYS_RUN, MEDIA_IPC_PATH[MS_THUMB_DAEMON_PORT])));
+	strncpy(serv_addr.sun_path, MEDIA_IPC_PATH[MS_THUMB_DAEMON_PORT], strlen(MEDIA_IPC_PATH[MS_THUMB_DAEMON_PORT]));
 
 	/* Connecting to the thumbnail server */
 	if (connect(sock, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0) {

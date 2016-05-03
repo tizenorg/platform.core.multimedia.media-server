@@ -37,16 +37,16 @@
 #define MS_SOCK_UDP_BLOCK_SIZE 512
 
 char MEDIA_IPC_PATH[][70] = {
-	{"media-server/media_ipc_dbbatchupdate.socket"},
-	{"media-server/media_ipc_scandaemon.socket"},
-	{"media-server/media_ipc_scanner.socket"},
-	{"media-server/media_ipc_dbupdate.socket"},
-	{"media-server/media_ipc_thumbcreator.socket"},
-	{"media-server/media_ipc_thumbcomm.socket"},
-	{"media-server/media_ipc_thumbdaemon.socket"},
-	{"media-server/media_ipc_dcmcreator.socket"},
-	{"media-server/media_ipc_dcmcomm.socket"},
-	{"media-server/media_ipc_dcmdaemon.socket"},
+	{"/tmp/media-server/media_ipc_dbbatchupdate.socket"},
+	{"/tmp/media-server/media_ipc_scandaemon.socket"},
+	{"/tmp/media-server/media_ipc_scanner.socket"},
+	{"/tmp/media-server/media_ipc_dbupdate.socket"},
+	{"/tmp/media-server/media_ipc_thumbcreator.socket"},
+	{"/tmp/media-server/media_ipc_thumbcomm.socket"},
+	{"/tmp/media-server/media_ipc_thumbdaemon.socket"},
+	{"/tmp/media-server/media_ipc_dcmcreator.socket"},
+	{"/tmp/media-server/media_ipc_dcmcomm.socket"},
+	{"/tmp/media-server/media_ipc_dcmdaemon.socket"},
 };
 
 char MEDIA_IPC_PATH_CLIENT[][80] = {
@@ -208,9 +208,8 @@ int ms_ipc_create_server_socket(ms_protocol_e protocol, ms_msg_port_type_e port,
 	memset(&serv_addr, 0, sizeof(serv_addr));
 
 	serv_addr.sun_family = AF_UNIX;
-//	MSAPI_DBG_SLOG("%s", tzplatform_mkpath(TZ_SYS_RUN, MEDIA_IPC_PATH[serv_port]));
-	unlink(tzplatform_mkpath(TZ_SYS_RUN, MEDIA_IPC_PATH[serv_port]));
-	strncpy(serv_addr.sun_path, tzplatform_mkpath(TZ_SYS_RUN, MEDIA_IPC_PATH[serv_port]), strlen(tzplatform_mkpath(TZ_SYS_RUN, MEDIA_IPC_PATH[serv_port])));
+	unlink(MEDIA_IPC_PATH[serv_port]);
+	strncpy(serv_addr.sun_path, MEDIA_IPC_PATH[serv_port], strlen(MEDIA_IPC_PATH[serv_port]));
 
 	/* Bind to the local address */
 	for (i = 0; i < 100; i++) {
@@ -242,7 +241,7 @@ int ms_ipc_create_server_socket(ms_protocol_e protocol, ms_msg_port_type_e port,
 	}
 
 	/*change permission of sock file*/
-	if (chmod(tzplatform_mkpath(TZ_SYS_RUN, MEDIA_IPC_PATH[serv_port]), 0777) < 0)
+	if (chmod(MEDIA_IPC_PATH[serv_port], 0777) < 0)
 		MSAPI_DBG_STRERROR("chmod failed");
 
 	*sock_fd = sock;
@@ -258,7 +257,7 @@ int ms_ipc_send_msg_to_server(int sockfd, ms_msg_port_type_e port, ms_comm_msg_s
 	/* Set server Address */
 	memset(&addr, 0, sizeof(addr));
 	addr.sun_family = AF_UNIX;
-	strncpy(addr.sun_path, tzplatform_mkpath(TZ_SYS_RUN, MEDIA_IPC_PATH[port]), strlen(tzplatform_mkpath(TZ_SYS_RUN, MEDIA_IPC_PATH[port])));
+	strncpy(addr.sun_path, MEDIA_IPC_PATH[port], strlen(MEDIA_IPC_PATH[port]));
 //	MSAPI_DBG_SLOG("%s", addr.sun_path);
 
 	if (sendto(sockfd, send_msg, sizeof(*(send_msg)), 0, (struct sockaddr *)&addr, sizeof(addr)) != sizeof(*(send_msg))) {
@@ -283,7 +282,7 @@ int ms_ipc_send_msg_to_server_tcp(int sockfd, ms_msg_port_type_e port, ms_comm_m
 	memset(&addr, 0, sizeof(addr));
 
 	addr.sun_family = AF_UNIX;
-	strncpy(addr.sun_path, tzplatform_mkpath(TZ_SYS_RUN, MEDIA_IPC_PATH[port]), strlen(tzplatform_mkpath(TZ_SYS_RUN, MEDIA_IPC_PATH[port])));
+	strncpy(addr.sun_path, MEDIA_IPC_PATH[port], strlen(MEDIA_IPC_PATH[port]));
 //	MSAPI_DBG("%s", addr.sun_path);
 
 	/* Connecting to the media db server */

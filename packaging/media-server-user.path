@@ -2,4 +2,4 @@
 Description=media-server-user path activation
 
 [Path]
-PathExists=/run/media-server/media_ipc_dbbatchupdate.socket
+PathExists=/tmp/media-server/media_ipc_dbbatchupdate.socket
