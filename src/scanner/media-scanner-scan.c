@@ -1281,9 +1281,9 @@ static int __msc_check_ignore_dir(const char *full_path, uid_t uid)
 		/*If root path, Stop Scanning*/
 		if (strcmp(dir_path, usr_path) == 0)
 			break;
-		else if (MS_STRING_VALID(MEDIA_ROOT_PATH_SDCARD) && (strcmp(dir_path, MEDIA_ROOT_PATH_SDCARD) == 0))
+		else if (MS_STRING_VALID(MEDIA_ROOT_PATH_SDCARD) && (strncmp(dir_path, MEDIA_ROOT_PATH_SDCARD, strlen(MEDIA_ROOT_PATH_SDCARD)) == 0))
 			break;
-		else if (MS_STRING_VALID(MEDIA_ROOT_PATH_USB) && (strcmp(dir_path, MEDIA_ROOT_PATH_USB) == 0))
+		else if (MS_STRING_VALID(MEDIA_ROOT_PATH_USB) && (strncmp(dir_path, MEDIA_ROOT_PATH_USB, strlen(MEDIA_ROOT_PATH_USB)) == 0))
 			break;
 
 		leaf_path = strrchr(dir_path, '/');
@@ -1703,19 +1703,7 @@ gboolean msc_metadata_update(void *data)
 	/* send notification */
 	ms_send_dir_update_noti(handle, INTERNAL_STORAGE_ID, start_path, NULL, MS_ITEM_UPDATE, scan_data->pid);
 
-	if (mmc_state == MS_STG_INSERTED) {
-		storage_type = MS_STORAGE_EXTERNAL;
-		if (MS_STRING_VALID(MEDIA_ROOT_PATH_SDCARD)) {
-			start_path = strdup(MEDIA_ROOT_PATH_SDCARD);
-			if (MS_STRING_VALID(start_path)) {
-				ret = __msc_dir_scan_meta_update(handle, start_path, INTERNAL_STORAGE_ID, storage_type, scan_data->uid);
-				/* send notification */
-				ms_send_dir_update_noti(handle, MMC_STORAGE_ID, MEDIA_ROOT_PATH_SDCARD, NULL, MS_ITEM_UPDATE, scan_data->pid);
-			}
-		}
-	}
-
-	/*__msc_dir_scan_meta_update For Each USB Storage*/
+	/*__msc_dir_scan_meta_update For Each External Storage*/
 	ret = ms_get_storage_list(handle, &storage_list);
 	if (ret != MS_MEDIA_ERR_NONE) {
 		MS_DBG_ERR("ms_get_storage_list() fail");

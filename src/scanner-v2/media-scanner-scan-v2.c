@@ -1770,9 +1770,9 @@ static int __msc_check_ignore_dir(const char *full_path, uid_t uid)
 
 		if (strcmp(dir_path, user_path) == 0)
 			break;
-		else if (MS_STRING_VALID(MEDIA_ROOT_PATH_SDCARD) && (strcmp(dir_path, MEDIA_ROOT_PATH_SDCARD) == 0))
+		else if (MS_STRING_VALID(MEDIA_ROOT_PATH_SDCARD) && (strncmp(dir_path, MEDIA_ROOT_PATH_SDCARD, strlen(MEDIA_ROOT_PATH_SDCARD)) == 0))
 			break;
-		else if (MS_STRING_VALID(MEDIA_ROOT_PATH_USB) && (strcmp(dir_path, MEDIA_ROOT_PATH_USB) == 0))
+		else if (MS_STRING_VALID(MEDIA_ROOT_PATH_USB) && (strncmp(dir_path, MEDIA_ROOT_PATH_USB, strlen(MEDIA_ROOT_PATH_USB)) == 0))
 			break;
 
 		leaf_path = strrchr(dir_path, '/');
