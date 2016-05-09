@@ -220,7 +220,7 @@ static int __ms_gdbus_method_sync(const char *dest, const char *path, const char
 	GVariant *reply_var = NULL;
 	GVariantIter *iter = NULL;
 	char *type_str = NULL;
-	int val_int[3] = {0, };
+	int val_int[5] = {0, };
 	char *val_str[7] = {NULL, };
 	gboolean val_bool = FALSE;
 
@@ -274,8 +274,8 @@ static int __ms_gdbus_method_sync(const char *dest, const char *path, const char
 
 	g_variant_get(reply_var, type_str, &iter);
 
-	while (g_variant_iter_loop(iter, "(issssssisib)", &val_int[0], &val_str[0], &val_str[1], &val_str[2]
-		, &val_str[3], &val_str[4], &val_str[5], &val_int[1], &val_str[6], &val_int[2], &val_bool)) {
+	while (g_variant_iter_loop(iter, "(issssssisibii)", &val_int[0], &val_str[0], &val_str[1], &val_str[2]
+		, &val_str[3], &val_str[4], &val_str[5], &val_int[1], &val_str[6], &val_int[2], &val_bool, &val_int[3], &val_int[4])) {
 		result++;
 		int i = 0;
 		ms_block_info_s *data = NULL;
@@ -304,6 +304,8 @@ static int __ms_gdbus_method_sync(const char *dest, const char *path, const char
 		MS_DBG("\tmount point(%s)", val_str[6]);
 		MS_DBG("\tstate(%d)", val_int[2]);
 		MS_DBG("\tprimary(%s)", val_bool ? "true" : "false");
+		MS_DBG("\tflags(%d)", val_int[3]);
+		MS_DBG("\tstorage_id(%d)", val_int[4]);
 
 		for (i = 0; i < 7; i++) {
 			MS_SAFE_FREE(val_str[i]);
