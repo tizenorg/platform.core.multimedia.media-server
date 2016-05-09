@@ -128,17 +128,20 @@ static int __get_storage_id(const char *path, char *storage_id, uid_t uid)
 	ret = svc_connect(&db_handle, uid, &err_msg);
 	if (ret < 0) {
 		printf("Error svc_connect\n");
+		dlclose(funcHandle);
 		return -1;
 	}
 
 	ret = svc_get_storage_id(db_handle, path, storage_id, uid, &err_msg);
 	if (ret < 0) {
 		printf("Error svc_get_storage_id\n");
+		dlclose(funcHandle);
 		return -1;
 	}
 	ret = svc_disconnect(db_handle, &err_msg);
 	if (ret < 0) {
 		printf("Error svc_disconnect\n");
+		dlclose(funcHandle);
 		return -1;
 	}
 	printf("Start Scanning for [%s][%s]\n", path, storage_id);
