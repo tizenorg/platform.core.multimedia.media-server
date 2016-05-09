@@ -205,7 +205,8 @@ static int __media_db_request_update_tcp(ms_msg_type_e msg_type, const char *req
 	/*Set server Address*/
 	memset(&serv_addr, 0, sizeof(serv_addr));
 	serv_addr.sun_family = AF_UNIX;
-	strncpy(serv_addr.sun_path, MEDIA_IPC_PATH[sock_info.port], strlen(MEDIA_IPC_PATH[sock_info.port]));
+//	MSAPI_DBG_SLOG("%s", MEDIA_IPC_PATH[port]);
+	strncpy(serv_addr.sun_path, tzplatform_mkpath(TZ_SYS_RUN, MEDIA_IPC_PATH[sock_info.port]), strlen(tzplatform_mkpath(TZ_SYS_RUN, MEDIA_IPC_PATH[sock_info.port])));
 
 	/* Connecting to the media db server */
 	if (connect(sockfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0) {
@@ -286,7 +287,8 @@ static int __media_db_prepare_tcp_client_socket()
 	/*Set server Address*/
 	memset(&serv_addr, 0, sizeof(serv_addr));
 	serv_addr.sun_family = AF_UNIX;
-	strncpy(serv_addr.sun_path, MEDIA_IPC_PATH[sock_info.port], strlen(MEDIA_IPC_PATH[sock_info.port]));
+//	MSAPI_DBG_SLOG("%s", MEDIA_IPC_PATH[port]);
+	strncpy(serv_addr.sun_path, tzplatform_mkpath(TZ_SYS_RUN, MEDIA_IPC_PATH[sock_info.port]), strlen(tzplatform_mkpath(TZ_SYS_RUN, MEDIA_IPC_PATH[sock_info.port])));
 
 	/* Connecting to the media db server */
 	if (connect(sockfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0) {

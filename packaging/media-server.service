@@ -2,8 +2,6 @@
 Description=Media server
 
 [Service]
-User=multimedia_fw
-Group=multimedia_fw
 Type=simple
 ExecStart=/usr/bin/media-server
 Restart=always
