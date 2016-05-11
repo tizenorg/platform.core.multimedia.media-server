@@ -276,36 +276,41 @@ static int __ms_gdbus_method_sync(const char *dest, const char *path, const char
 
 	while (g_variant_iter_loop(iter, "(issssssisibii)", &val_int[0], &val_str[0], &val_str[1], &val_str[2]
 		, &val_str[3], &val_str[4], &val_str[5], &val_int[1], &val_str[6], &val_int[2], &val_bool, &val_int[3], &val_int[4])) {
-		result++;
 		int i = 0;
 		ms_block_info_s *data = NULL;
-		data = malloc(sizeof(ms_block_info_s));
 
-		data->block_type = val_int[0];
-		data->mount_path = strdup(val_str[6]);
-		data->state = val_int[2];
-		data->mount_uuid = strdup(val_str[5]);
+		if (val_int[2] == 0) {
+			MS_DBG("Block device is unmounted[%d]. So, skip this.", val_int[2]);
+		} else {
+			result++;
+			data = malloc(sizeof(ms_block_info_s));
 
-		if (*dev_list == NULL) {
-			MS_DBG_ERR("DEV LIST IS NULL");
-			*dev_list = g_array_new(FALSE, FALSE, sizeof(ms_block_info_s*));
+			data->block_type = val_int[0];
+			data->mount_path = strdup(val_str[6]);
+			data->state = val_int[2];
+			data->mount_uuid = strdup(val_str[5]);
+
+			if (*dev_list == NULL) {
+				MS_DBG_ERR("DEV LIST IS NULL");
+				*dev_list = g_array_new(FALSE, FALSE, sizeof(ms_block_info_s*));
+			}
+			g_array_append_val(*dev_list, data);
+
+			MS_DBG("(%d)th block device information", result);
+			MS_DBG("\tType(%d)", val_int[0]);
+			MS_DBG("\tdevnode(%s)", val_str[0]);
+			MS_DBG("\tsyspath(%s)", val_str[1]);
+			MS_DBG("\tfs_usage(%s)", val_str[2]);
+			MS_DBG("\tfs_type(%s)", val_str[3]);
+			MS_DBG("\tfs_version(%s)", val_str[4]);
+			MS_DBG("\tfs_uuid_enc(%s)", val_str[5]);
+			MS_DBG("\treadonly(%d)", val_int[1]);
+			MS_DBG("\tmount point(%s)", val_str[6]);
+			MS_DBG("\tstate(%d)", val_int[2]);
+			MS_DBG("\tprimary(%s)", val_bool ? "true" : "false");
+			MS_DBG("\tflags(%d)", val_int[3]);
+			MS_DBG("\tstorage_id(%d)", val_int[4]);
 		}
-		g_array_append_val(*dev_list, data);
-
-		MS_DBG("(%d)th block device information", result);
-		MS_DBG("\tType(%d)", val_int[0]);
-		MS_DBG("\tdevnode(%s)", val_str[0]);
-		MS_DBG("\tsyspath(%s)", val_str[1]);
-		MS_DBG("\tfs_usage(%s)", val_str[2]);
-		MS_DBG("\tfs_type(%s)", val_str[3]);
-		MS_DBG("\tfs_version(%s)", val_str[4]);
-		MS_DBG("\tfs_uuid_enc(%s)", val_str[5]);
-		MS_DBG("\treadonly(%d)", val_int[1]);
-		MS_DBG("\tmount point(%s)", val_str[6]);
-		MS_DBG("\tstate(%d)", val_int[2]);
-		MS_DBG("\tprimary(%s)", val_bool ? "true" : "false");
-		MS_DBG("\tflags(%d)", val_int[3]);
-		MS_DBG("\tstorage_id(%d)", val_int[4]);
 
 		for (i = 0; i < 7; i++) {
 			MS_SAFE_FREE(val_str[i]);
