@@ -36,7 +36,7 @@
 
 #define MEDIA_ROOT_PATH_INTERNAL	tzplatform_getenv(TZ_USER_HOME)
 #define MEDIA_ROOT_PATH_EXTERNAL	tzplatform_getenv(TZ_SYS_STORAGE)
-#define MEDIA_ROOT_PATH_SDCARD	tzplatform_mkpath(TZ_SYS_STORAGE, "Sdcard")
+#define MEDIA_ROOT_PATH_SDCARD	tzplatform_mkpath(TZ_SYS_STORAGE, "SDCard")
 #define MEDIA_ROOT_PATH_USB		tzplatform_getenv(TZ_SYS_STORAGE)
 #define MEDIA_ROOT_PATH_CLOUD	tzplatform_mkpath(TZ_SYS_STORAGE, "tnfs/cloud")
 #define MEDIA_DATA_PATH		tzplatform_mkpath(TZ_SYS_DATA, "file-manager-service")
