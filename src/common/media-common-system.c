@@ -441,9 +441,9 @@ static int __ms_gdbus_get_uid(const char *dest, const char *path, const char *in
 	while (g_variant_iter_loop(iter, "(uso)", &val_int, &val_str, &val_str2)) {
 		result++;
 		MS_DBG("(%d)th block device information", result);
-		MS_DBG("\tType(%d)", val_int);
-		MS_DBG("\tdevnode(%s)", val_str);
-		MS_DBG("\tsyspath(%s)", val_str2);
+		MS_DBG("\tUID(%d)", val_int);
+		MS_DBG("\tNAME(%s)", val_str);
+		MS_DBG("\tPATH(%s)", val_str2);
 		*uid = (uid_t) val_int;
 		MS_SAFE_FREE(val_str);
 		MS_SAFE_FREE(val_str2);

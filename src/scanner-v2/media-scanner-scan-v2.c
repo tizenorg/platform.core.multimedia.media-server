@@ -1304,7 +1304,6 @@ SCAN_DONE:
 			goto _POWEROFF;
 		}
 
-
 NEXT:
 		/*Active flush */
 		malloc_trim(0);
