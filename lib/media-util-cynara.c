@@ -55,6 +55,7 @@
 #endif
 
 static cynara *_cynara = NULL;
+static cynara_configuration *_p_conf = NULL;
 G_LOCK_DEFINE_STATIC(cynara_mutex);
 
 static void ms_cynara_dbg_err(const char *prefix, int error_code)
@@ -73,11 +74,25 @@ static void ms_cynara_dbg_err(const char *prefix, int error_code)
 
 int ms_cynara_initialize(void)
 {
-	int ret = cynara_initialize(&_cynara, NULL);
-	if (ret != CYNARA_API_SUCCESS) {
+	int ret = 0;
+
+	ret = cynara_configuration_create(&_p_conf);
+	if (ret != CYNARA_API_SUCCESS)  {
+		ms_cynara_dbg_err("cynara_configuration_create", ret);
+		return MS_MEDIA_ERR_INTERNAL;
+	}
+	ret = cynara_configuration_set_cache_size(_p_conf, 100);
+	if (ret != CYNARA_API_SUCCESS)  {
+		ms_cynara_dbg_err("cynara_configuration_set_cache_size", ret);
+		return MS_MEDIA_ERR_INTERNAL;
+	}
+	ret = cynara_initialize(&_cynara, _p_conf);
+	if (ret  != CYNARA_API_SUCCESS) {
 		ms_cynara_dbg_err("cynara_initialize", ret);
 		return MS_MEDIA_ERR_INTERNAL;
 	}
+
+	cynara_configuration_destroy(_p_conf);
 
 	return MS_MEDIA_ERR_NONE;
 }
