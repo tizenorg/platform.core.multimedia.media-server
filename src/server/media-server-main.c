@@ -52,8 +52,8 @@ static void __ms_check_mediadb(void);
 static void __ms_add_signal_handler(void);
 static void __ms_remove_event_receiver(void);
 static void __ms_add_event_receiver(GIOChannel *channel);
-static void __ms_remove_requst_receiver(GIOChannel *channel);
-static void __ms_add_requst_receiver(GMainLoop *mainloop, GIOChannel **channel);
+static void __ms_remove_request_receiver(GIOChannel *channel);
+static void __ms_add_request_receiver(GMainLoop *mainloop, GIOChannel **channel);
 static int __ms_check_mmc_status(void);
 static int __ms_check_usb_status(void);
 
@@ -118,7 +118,7 @@ void _power_off_cb(ms_power_info_s *power_info, void* data)
 		g_main_loop_quit(db_mainloop);
 	}
 
-	__ms_remove_requst_receiver(channel);
+	__ms_remove_request_receiver(channel);
 
 	__ms_remove_event_receiver();
 
@@ -259,7 +259,7 @@ int main(int argc, char **argv)
 		return -1;
 	}
 
-	__ms_add_requst_receiver(mainloop, &channel);
+	__ms_add_request_receiver(mainloop, &channel);
 
 	/* recevie event from other modules */
 	__ms_add_event_receiver(channel);
@@ -304,7 +304,7 @@ int main(int argc, char **argv)
 	return 0;
 }
 
-static void __ms_add_requst_receiver(GMainLoop *mainloop, GIOChannel **channel)
+static void __ms_add_request_receiver(GMainLoop *mainloop, GIOChannel **channel)
 {
 
 	int sockfd = -1;
@@ -336,7 +336,7 @@ static void __ms_add_requst_receiver(GMainLoop *mainloop, GIOChannel **channel)
 	}
 }
 
-static void __ms_remove_requst_receiver(GIOChannel *channel)
+static void __ms_remove_request_receiver(GIOChannel *channel)
 {
 	int fd = -1;
 
