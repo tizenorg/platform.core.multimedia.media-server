@@ -29,6 +29,8 @@
 #define MS_MEDIA_ERR_INVALID_PARAMETER 			-2	/* Invalid parameter(s) */
 #define MS_MEDIA_ERR_INVALID_PATH 				-3	/* Invalid path */
 #define MS_MEDIA_ERR_OUT_OF_MEMORY				-4	/* Out of memory */
+#define MS_MEDIA_ERR_NOT_ENOUGH_SPACE 			-5   /* not enough space in storage */
+#define MS_MEDIA_ERR_DB_RESET			 			-6   /* media DB is reset */
 
 /* DB operation error*/
 #define MS_MEDIA_ERR_DB_CONNECT_FAIL	 			-101	/* connecting database fails */
@@ -44,6 +46,7 @@
 #define MS_MEDIA_ERR_DB_CORRUPT					-112	/* DB corrut error */
 #define MS_MEDIA_ERR_DB_PERMISSION				-113	/* DB permission error */
 #define MS_MEDIA_ERR_DB_FULL_FAIL					-114	/* DB storage full error */
+#define MS_MEDIA_ERR_DB_READ_FAIL					-115	/* read record fails*/
 #define MS_MEDIA_ERR_DB_INTERNAL					-150	/* DB internal error */
 
 /* IPC operation error*/
@@ -59,6 +62,7 @@
 #define MS_MEDIA_ERR_DIR_OPEN_FAIL 				-501	/* direcotry opennig fails */
 #define MS_MEDIA_ERR_DIR_CLOSE_FAIL				-502	/* directory closing fails */
 #define MS_MEDIA_ERR_DIR_READ_FAIL 				-503	/* directory reading fails */
+#define MS_MEDIA_ERR_DIR_NOT_EXIST 				-504	/* directory does not exist */
 
 /* FILE error*/
 #define MS_MEDIA_ERR_FILE_OPEN_FAIL 				-601	/* file opennig fails */
@@ -66,6 +70,7 @@
 #define MS_MEDIA_ERR_FILE_READ_FAIL 				-603	/* file reading fails */
 #define MS_MEDIA_ERR_FILE_WRITE_FAIL 				-604	/* file writing fails */
 #define MS_MEDIA_ERR_FILE_NOT_EXIST 				-605	/* file does not exist */
+#define MS_MEDIA_ERR_FILE_IO						-606	/* file does not exist */
 
 /* MEDIA SERVER error*/
 #define MS_MEDIA_ERR_SCANNER_FORCE_STOP			-701	/* scanning is stopped forcely */
@@ -84,6 +89,8 @@
 #define MS_MEDIA_ERR_DATA_TAINTED				-906	/* received data is tainted */
 #define MS_MEDIA_ERR_SEND_NOTI_FAIL				-907	/* sending notification is failed */
 #define MS_MEDIA_ERR_USB_UNMOUNTED				-908	/* USB unmounted */
+#define MS_MEDIA_ERR_DB_LIMIT_1					-909
+#define MS_MEDIA_ERR_DB_LIMIT_2					-910
 
 #define MS_MEDIA_ERR_MAX							-999
 
