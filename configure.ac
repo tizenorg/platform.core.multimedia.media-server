@@ -123,10 +123,22 @@ PKG_CHECK_MODULES(CYNARA_SESSION, cynara-session)
 AC_SUBST(CYNARA_SESSION_CFLAGS)
 AC_SUBST(CYNARA_SESSION_LIBS)
 
-#ticker noti library
-PKG_CHECK_MODULES(STATUS, notification)
-AC_SUBST(STATUS_CFLAGS)
-AC_SUBST(STATUS_LIBS)
+dnl use notification --------------------------------------------------------------------------
+AC_ARG_ENABLE(notification, AC_HELP_STRING([--enable-notification], [using notification]),
+[
+   case "${enableval}" in
+       yes) USE_NOTIFICATION=yes ;;
+        no) USE_NOTIFICATION=no ;;
+         *) AC_MSG_ERROR(bad value ${enableval} for --enable-notification) ;;
+   esac
+],[USE_NOTIFICATION=yes])
+if test "x$USE_NOTIFICATION" = "xyes"; then
+	#ticker noti library
+	PKG_CHECK_MODULES(STATUS, notification)
+	AC_SUBST(STATUS_CFLAGS)
+	AC_SUBST(STATUS_LIBS)
+fi
+AM_CONDITIONAL(USE_NOTIFICATION, test "x$USE_NOTIFICATION" = "xyes")
 
 #Checks for header files.
 AC_HEADER_DIRENT
