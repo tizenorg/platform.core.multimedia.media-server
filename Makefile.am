@@ -22,7 +22,9 @@ COMMON_CFLAGS = -I${srcdir}/lib/include \
 		$(SECURITY_CFLAGS) \
 		$(SMACK_CFLAGS)
 
+if USE_NOTIFICATION
 COMMON_CFLAGS += $(STATUS_CFLAGS)
+endif
 
 COMMON_LDADD =	libmedia-utils.la \
 		$(GLIB_LIBS) \
@@ -35,7 +37,9 @@ COMMON_LDADD =	libmedia-utils.la \
 		$(SMACK_LIBS) \
 		-ldl
 
+if USE_NOTIFICATION
 COMMON_LDADD += $(STATUS_LIBS)
+endif
 
 ######################################################
 #pkgconfig

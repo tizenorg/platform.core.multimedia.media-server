@@ -4,6 +4,7 @@ Description=Media server
 [Service]
 User=multimedia_fw
 Group=multimedia_fw
+SupplementaryGroups=priv_mediastorage
 Type=simple
 ExecStart=/usr/bin/media-server
 Restart=always
