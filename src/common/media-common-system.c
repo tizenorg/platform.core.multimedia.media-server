@@ -38,8 +38,8 @@
 /// CHECK THE STORATE(MMC, USB) STATE
 //////////////////////////////////////////////////////////////////////////////
 
-#define DEVICED_BUS_NAME       "org.tizen.system.deviced"
-#define DEVICED_OBJECT_PATH    "/Org/Tizen/System/DeviceD"
+#define DEVICED_BUS_NAME       "org.tizen.system.storage"
+#define DEVICED_OBJECT_PATH    "/Org/Tizen/System/Storage"
 #define DEVICED_INTERFACE_NAME DEVICED_BUS_NAME
 
 #define DEVICED_PATH_BLOCK                  DEVICED_OBJECT_PATH"/Block"
