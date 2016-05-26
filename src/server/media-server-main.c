@@ -28,6 +28,8 @@
 #include <vconf.h>
 #include <grp.h>
 #include <pwd.h>
+#include <iniparser.h>
+#include <system_info.h>
 
 #include "media-util.h"
 #include "media-common-utils.h"
@@ -56,6 +58,7 @@ static void __ms_remove_request_receiver(GIOChannel *channel);
 static void __ms_add_request_receiver(GMainLoop *mainloop, GIOChannel **channel);
 static int __ms_check_mmc_status(void);
 static int __ms_check_usb_status(void);
+static bool __ms_is_dcm_supported(void);
 
 static char *priv_lang = NULL;
 
@@ -246,6 +249,7 @@ int main(int argc, char **argv)
 	GThread *thumb_thread = NULL;
 	GThread *dcm_thread = NULL;
 	GIOChannel *channel = NULL;
+	bool is_dcm_supported = __ms_is_dcm_supported();
 
 	power_off = FALSE;
 
@@ -269,7 +273,8 @@ int main(int argc, char **argv)
 	/*create each threads*/
 	db_thread = g_thread_new("db_thread", (GThreadFunc)ms_db_thread, NULL);
 	thumb_thread = g_thread_new("thumb_agent_thread", (GThreadFunc)ms_thumb_agent_start_thread, NULL);
-	dcm_thread = g_thread_new("dcm_agent_thread", (GThreadFunc)ms_dcm_agent_start_thread, NULL);
+	if (is_dcm_supported)
+		dcm_thread = g_thread_new("dcm_agent_thread", (GThreadFunc)ms_dcm_agent_start_thread, NULL);
 
 	/*clear previous data of sdcard on media database and check db status for updating*/
 	while (!ms_db_get_thread_status()) {
@@ -285,7 +290,6 @@ int main(int argc, char **argv)
 
 	/*Read ini file */
 	ms_thumb_get_config();
-	ms_dcm_get_config();
 
 	MS_DBG_ERR("*** Media Server is running ***");
 
@@ -293,7 +297,8 @@ int main(int argc, char **argv)
 
 	g_thread_join(db_thread);
 	g_thread_join(thumb_thread);
-	g_thread_join(dcm_thread);
+	if (is_dcm_supported)
+		g_thread_join(dcm_thread);
 
 	ms_cynara_finish();
 
@@ -477,5 +482,33 @@ static int __ms_check_usb_status(void)
 	}
 
 	return MS_MEDIA_ERR_NONE;
+}
+
+static bool __ms_is_dcm_supported()
+{
+	bool isFaceRecognitionSupported = FALSE;	/* face_recognition feature supported */
+	int dcm_service_mode = -1;					/* media-content-config:dcm_activation */
+
+	const int nRetVal = system_info_get_platform_bool("http://tizen.org/feature/vision.face_recognition", &isFaceRecognitionSupported);
+
+	if (nRetVal != SYSTEM_INFO_ERROR_NONE) {
+		MS_DBG_ERR("SYSTEM_INFO_ERROR: vision.face_recognition [%d]", nRetVal);
+		return FALSE;
+	}
+
+	dictionary *dict = NULL;
+
+	dict = iniparser_load(MS_INI_DEFAULT_PATH);
+	if (!dict) {
+		MS_DBG_ERR("%s load failed", MS_INI_DEFAULT_PATH);
+		return -1;
+	}
+
+	dcm_service_mode = iniparser_getint(dict, "media-content-config:dcm_activation", 0);
+	MS_DBG("Dcm-service activation level = %d", dcm_service_mode);
+
+	iniparser_freedict(dict);
+
+	return (isFaceRecognitionSupported && (dcm_service_mode == 1)) ? TRUE : FALSE;
 }
 

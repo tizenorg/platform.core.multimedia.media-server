@@ -36,12 +36,6 @@
 
 #define LOG_TAG "MEDIA_SERVER_DCM"
 
-#define MS_SOCK_BLOCK_SIZE 512
-#define MS_INI_GET_INT(dict, key, value, default) \
-	do { \
-		value = iniparser_getint(dict, key, default); \
-		MS_DBG("get %s = %d", key, value); \
-	} while (0)
 #define DCM_SERVER_PATH tzplatform_mkpath(TZ_SYS_BIN, "dcm-svc")
 
 static GMainLoop *g_dcm_agent_loop = NULL;
@@ -558,18 +552,6 @@ gboolean _ms_dcm_agent_read_socket(GIOChannel *src,
 		MS_DBG_ERR("credential information error");
 	}
 
-	if (g_dcm_service_active != 1) {
-		MS_DBG_ERR("dcm is not activated!");
-		dcmMsg res_msg;
-		memset((void *)&res_msg, 0, sizeof(res_msg));
-		if (send(client_sock, &res_msg, sizeof(dcmMsg), 0) != sizeof(dcmMsg))
-			MS_DBG_STRERROR("sendto failed");
-		else
-			MS_DBG("Sent Refuse msg from %s", recv_msg->msg);
-		close(client_sock);
-		return FALSE;
-	}
-
 	if (getuid() != cr.uid)
 		recv_msg->uid = cr.uid;
 
@@ -640,23 +622,6 @@ gboolean _ms_dcm_agent_prepare_tcp_socket(int *sock_fd, unsigned short serv_port
 	*sock_fd = sock;
 
 	return TRUE;
-}
-
-int ms_dcm_get_config()
-{
-	dictionary *dict = NULL;
-
-	dict = iniparser_load(MS_INI_DEFAULT_PATH);
-	if (!dict) {
-		MS_DBG_ERR("%s load failed", MS_INI_DEFAULT_PATH);
-		return -1;
-	}
-
-	MS_INI_GET_INT(dict, "media-content-config:dcm_activation", g_dcm_service_active, 0);
-	MS_DBG("Thumb-server activation level = %d", g_dcm_service_active);
-
-	iniparser_freedict(dict);
-	return 0;
 }
 
 gpointer ms_dcm_agent_start_thread(gpointer data)
