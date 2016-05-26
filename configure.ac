@@ -123,6 +123,11 @@ PKG_CHECK_MODULES(CYNARA_SESSION, cynara-session)
 AC_SUBST(CYNARA_SESSION_CFLAGS)
 AC_SUBST(CYNARA_SESSION_LIBS)
 
+#capi-system-info
+PKG_CHECK_MODULES(CAPI_SYSTEM_INFO, capi-system-info)
+AC_SUBST(CAPI_SYSTEM_INFO_CFLAGS)
+AC_SUBST(CAPI_SYSTEM_INFO_LIBS)
+
 dnl use notification --------------------------------------------------------------------------
 AC_ARG_ENABLE(notification, AC_HELP_STRING([--enable-notification], [using notification]),
 [
