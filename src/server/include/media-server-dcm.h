@@ -22,7 +22,6 @@
 #include <glib.h>
 #include <sys/un.h>
 #include <arpa/inet.h>
-#include <iniparser.h>
 #include "media-common-types.h"
 #include "media-server-ipc.h"
 
@@ -34,7 +33,6 @@
 int ms_dcm_get_server_pid();
 void ms_dcm_reset_server_status();
 gpointer ms_dcm_agent_start_thread(gpointer data);
-int ms_dcm_get_config();
 
 
 #endif /*_MEDIA_SERVER_DCM_H_*/
