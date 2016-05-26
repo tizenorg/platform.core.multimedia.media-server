@@ -107,14 +107,16 @@ media_server_SOURCES = src/common/media-common-utils.c \
 
 media_server_CFLAGS = -I${srcdir}/src/server/include \
 			$(COMMON_CFLAGS) \
-                        $(PHONESTATUS_CFLAGS)
+                        $(PHONESTATUS_CFLAGS) \
+                        $(CAPI_SYSTEM_INFO_CFLAGS)
 
 media_server_CFLAGS += -fPIE
 
 media_server_LDFLAGS = -pie
 
 media_server_LDADD = $(COMMON_LDADD) \
-		     $(PHONESTATUS_LIBS)
+		     $(PHONESTATUS_LIBS) \
+		     $(CAPI_SYSTEM_INFO_LIBS)
 
 ######################################################
 #media scanner v1
