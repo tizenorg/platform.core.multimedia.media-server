@@ -25,6 +25,7 @@ BuildRequires:  pkgconfig(libsmack)
 BuildRequires:  pkgconfig(libtzplatform-config)
 BuildRequires:  pkgconfig(cynara-client)
 BuildRequires:  pkgconfig(cynara-session)
+BuildRequires:  pkgconfig(capi-system-info)
 BuildRequires:  gettext-tools
 
 %description
