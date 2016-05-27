@@ -1,0 +1,8 @@
+#!/bin/sh -e
+
+NEW_USER=$1
+export `tzplatform-get --user $NEW_USER TZ_USER_SHARE`
+
+mkdir -p $TZ_USER_SHARE/media/.thumb/phone
+mkdir -p $TZ_USER_SHARE/media/.thumb/mmc
+chown -R multimedia_fw:multimedia_fw $TZ_USER_SHARE/media/.thumb
