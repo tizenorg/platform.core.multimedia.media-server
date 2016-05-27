@@ -1,6 +1,6 @@
 Name:       media-server
 Summary:    A server for media content management
-Version:    0.2.85
+Version:    0.2.86
 Release:    0
 Group:      Multimedia/Service
 License:    Apache-2.0
@@ -217,11 +217,14 @@ ln -s ../media-server.service %{buildroot}%{_unitdir}/multi-user.target.wants/me
 mkdir -p %{buildroot}/etc/multimedia
 cp -rf %{_builddir}/%{name}-%{version}/media_content_config.ini %{buildroot}/etc/multimedia/media_content_config.ini
 cp -rf %{_builddir}/%{name}-%{version}/media-server-plugin %{buildroot}/etc/multimedia/media-server-plugin
+mkdir -p %{buildroot}/etc/gumd/useradd.d
+cp -rf %{_builddir}/%{name}-%{version}/30_media-server-add.post %{buildroot}/etc/gumd/useradd.d/30_media-server-add.post
 
 %post
 # setup dbupdate in user session
 mkdir -p %{_unitdir_user}/default.target.wants/
 ln -sf ../media-server-user.path  %{_unitdir_user}/default.target.wants/
+chmod 755 /etc/gumd/useradd.d/30_media-server-add.post
 
 %post -n libmedia-utils -p /sbin/ldconfig
 
@@ -240,6 +243,7 @@ ln -sf ../media-server-user.path  %{_unitdir_user}/default.target.wants/
 %{_unitdir_user}/media-server-user.path
 /etc/multimedia/media_content_config.ini
 /etc/multimedia/media-server-plugin
+/etc/gumd/useradd.d/30_media-server-add.post
 %{_datadir}/locale/*/LC_MESSAGES/*
 %license LICENSE.APLv2.0
 
