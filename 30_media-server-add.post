@@ -5,4 +5,5 @@ export `tzplatform-get --user $NEW_USER TZ_USER_SHARE`
 
 mkdir -p $TZ_USER_SHARE/media/.thumb/phone
 mkdir -p $TZ_USER_SHARE/media/.thumb/mmc
-chown -R multimedia_fw:multimedia_fw $TZ_USER_SHARE/media/.thumb
+chown -R multimedia_fw:multimedia_fw $TZ_USER_SHARE/media
+find $NEW_USER $TZ_USER_SHARE/media -type d -exec /usr/bin/chsmack -a 'User::App::Shared' -t {} + -exec chmod 2775 {} +
