@@ -53,7 +53,8 @@ cp %{SOURCE1001} %{SOURCE1002} %{SOURCE1003} .
 cp po/* .
 
 %build
-export CFLAGS="$CFLAGS -DTIZEN_DEBUG_ENABLE -DSYSCONFDIR=\\\"%{_sysconfdir}\\\""
+%restore_fcommon
+export CFLAGS="$CFLAGS -DTIZEN_DEBUG_ENABLE -DSYSCONFDIR=\\\"%{_sysconfdir}\\\" "
 rm -rf autom4te.cache
 rm -f aclocal.m4 ltmain.sh
 mkdir -p m4
@@ -260,4 +261,3 @@ chmod 755 /etc/gumd/useradd.d/30_media-server-add.post
 %{_libdir}/libmedia-utils.so
 %{_libdir}/pkgconfig/libmedia-utils.pc
 %{_includedir}/media-utils/*.h
-
