@@ -118,6 +118,10 @@ static void __ms_block_changed(GDBusConnection* connection,
 	block_info->state = g_variant_get_int32(tmp);
 	MS_DBG_ERR("state : %d", block_info->state);
 
+	tmp = g_variant_get_child_value(parameters, 11);
+	block_info->flags = g_variant_get_int32(tmp);
+	MS_DBG_ERR("flags : %d", block_info->flags);
+
 	((block_changed_cb)usr_cb)(block_info, usr_data);
 	MS_SAFE_FREE(block_info->mount_path);
 	MS_SAFE_FREE(block_info->mount_uuid);
@@ -289,6 +293,7 @@ static int __ms_gdbus_method_sync(const char *dest, const char *path, const char
 			data->mount_path = strdup(val_str[6]);
 			data->state = val_int[2];
 			data->mount_uuid = strdup(val_str[5]);
+			data->flags = val_int[3];
 
 			if (*dev_list == NULL) {
 				MS_DBG_ERR("DEV LIST IS NULL");

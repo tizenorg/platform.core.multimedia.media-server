@@ -40,6 +40,7 @@ typedef struct ms_block_info_s{
 	char *mount_path;
 	int state;
 	int block_type;
+	int flags;
 	char *mount_uuid;
 } ms_block_info_s;
 
