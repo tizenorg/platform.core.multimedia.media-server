@@ -390,7 +390,7 @@ static int __ms_gdbus_get_uid(const char *dest, const char *path, const char *in
 	GDBusMessage *message = NULL;
 	GDBusMessage *reply = NULL;
 	GVariant *reply_var = NULL;
-	GVariantIter *iter;
+	GVariantIter *iter = NULL;
 	char *type_str = NULL;
 	int val_int = 0;
 	char *val_str = NULL;
