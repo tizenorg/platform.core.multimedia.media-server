@@ -26,6 +26,7 @@
 #include <gio/gio.h>
 #include <dbus/dbus.h>
 #include <sys/stat.h>
+#include <systemd/sd-login.h>
 
 #include "media-util.h"
 
@@ -378,120 +379,19 @@ int ms_sys_release_device_list(GArray **dev_list)
 //////////////////////////////////////////////////////////////////////////////
 /// GET ACTIVATE USER ID
 //////////////////////////////////////////////////////////////////////////////
-#define UID_DBUS_NAME		 "org.freedesktop.login1"
-#define UID_DBUS_PATH		 "/org/freedesktop/login1"
-#define UID_DBUS_INTERFACE	 UID_DBUS_NAME".Manager"
-#define UID_DBUS_METHOD		 "ListUsers"
-
-static int __ms_gdbus_get_uid(const char *dest, const char *path, const char *interface, const char *method, uid_t *uid)
-{
-	GDBusConnection *gdbus = NULL;
-	GError *error = NULL;
-	GDBusMessage *message = NULL;
-	GDBusMessage *reply = NULL;
-	GVariant *reply_var = NULL;
-	GVariantIter *iter = NULL;
-	char *type_str = NULL;
-	int val_int = 0;
-	char *val_str = NULL;
-	char *val_str2 = NULL;
-
-	int result = 0;
-	int ret = MS_MEDIA_ERR_NONE;
-
-	MS_DBG_FENTER();
-
-	if (gdbus == NULL) {
-		gdbus = g_bus_get_sync(G_BUS_TYPE_SYSTEM, NULL, &error);
-		if (!gdbus) {
-			MS_DBG_ERR("Failed to connect to the g D-BUS daemon: %s", error ? error->message : "none");
-			g_error_free(error);
-			ret = MS_MEDIA_ERR_INTERNAL;
-			goto ERROR;
-		}
-	}
-
-	message = g_dbus_message_new_method_call(dest, path, interface, method);
-	if (!message) {
-		MS_DBG_ERR("g_dbus_message_new_method_call(%s:%s-%s)",
-		path, interface, method);
-		ret = MS_MEDIA_ERR_INTERNAL;
-		goto ERROR;
-	}
-
-	reply = g_dbus_connection_send_message_with_reply_sync(gdbus, message, G_DBUS_SEND_MESSAGE_FLAGS_NONE, DBUS_REPLY_TIMEOUT, NULL, NULL, &error);
-	if (!reply) {
-		MS_DBG_ERR("Failed to connect to the g D-BUS daemon: %s", error ? error->message : "none");
-		g_error_free(error);
-		ret = MS_MEDIA_ERR_INTERNAL;
-		goto ERROR;
-	}
-
-	reply_var = g_dbus_message_get_body(reply);
-	if (!reply_var) {
-		MS_DBG_ERR("Failed to get the body of message");
-		ret = MS_MEDIA_ERR_INTERNAL;
-		goto ERROR;
-	}
-
-	type_str = strdup((char *)g_variant_get_type_string(reply_var));
-	if (!type_str) {
-		MS_DBG_ERR("Failed to get the type-string of message");
-		ret = MS_MEDIA_ERR_INTERNAL;
-		goto ERROR;
-	}
-
-	g_variant_get(reply_var, type_str, &iter);
-
-	while (g_variant_iter_loop(iter, "(uso)", &val_int, &val_str, &val_str2)) {
-		result++;
-		MS_DBG("(%d)th block device information", result);
-		MS_DBG("\tUID(%d)", val_int);
-		MS_DBG("\tNAME(%s)", val_str);
-		MS_DBG("\tPATH(%s)", val_str2);
-		*uid = (uid_t) val_int;
-		MS_SAFE_FREE(val_str);
-		MS_SAFE_FREE(val_str2);
-	}
-
-ERROR:
-
-	if (iter != NULL)
-		g_variant_iter_free(iter);
-
-	if (reply_var != NULL)
-		g_variant_unref(reply_var);
-
-	if (message != NULL)
-		g_object_unref(message);
-
-	if (reply != NULL)
-		g_object_unref(reply);
-
-	if (gdbus != NULL)
-		g_object_unref(gdbus);
-
-	MS_SAFE_FREE(type_str);
-
-	MS_DBG_FLEAVE();
-
-	if (ret != MS_MEDIA_ERR_NONE)
-		return ret;
-
-	return result;
-}
-
 int ms_sys_get_uid(uid_t *uid)
 {
-	int ret;
-
-	ret = __ms_gdbus_get_uid(UID_DBUS_NAME, UID_DBUS_PATH, UID_DBUS_INTERFACE, UID_DBUS_METHOD, uid);
-	if (ret < 0) {
-		MS_DBG("Failed to send dbus (%d)", ret);
+	uid_t *list = NULL;
+	int users = -1;
+	users = sd_get_uids(&list);
+	if (users > 0) {
+		*uid = list[0];
+		MS_SAFE_FREE(list);
 	} else {
-		MS_DBG("%d get UID[%d]", ret, *uid);
+		MS_DBG_ERR("No login user!.");
+		MS_SAFE_FREE(list);
+		return MS_MEDIA_ERR_INTERNAL;
 	}
-
 	return MS_MEDIA_ERR_NONE;
 }
 

@@ -19,6 +19,7 @@ COMMON_CFLAGS = -I${srcdir}/lib/include \
 		$(INIPARSER_CFLAGS) \
 		$(DBUS_CFLAGS) \
 		$(LIBPMCONTROL_CFLAGS) \
+		$(LIBSYSTEMDLOGIN_CFLAGS) \
 		$(SECURITY_CFLAGS) \
 		$(SMACK_CFLAGS)
 
@@ -33,6 +34,7 @@ COMMON_LDADD =	libmedia-utils.la \
 		$(INIPARSER_LIBS) \
 		$(DBUS_LIBS) \
 		$(LIBPMCONTROL_LIBS) \
+		$(LIBSYSTEMDLOGIN_LIBS) \
 		$(SECURITY_LIBS) \
 		$(SMACK_LIBS) \
 		-ldl

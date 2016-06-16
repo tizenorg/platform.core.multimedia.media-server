@@ -1,6 +1,6 @@
 Name:       media-server
 Summary:    A server for media content management
-Version:    0.2.88
+Version:    0.2.89
 Release:    0
 Group:      Multimedia/Service
 License:    Apache-2.0
@@ -22,6 +22,7 @@ BuildRequires:  pkgconfig(db-util)
 BuildRequires:  pkgconfig(notification)
 BuildRequires:  pkgconfig(iniparser)
 BuildRequires:  pkgconfig(libsmack)
+BuildRequires:  pkgconfig(libsystemd-login)
 BuildRequires:  pkgconfig(libtzplatform-config)
 BuildRequires:  pkgconfig(cynara-client)
 BuildRequires:  pkgconfig(cynara-session)
