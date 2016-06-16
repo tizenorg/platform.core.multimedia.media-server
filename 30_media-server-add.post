@@ -8,4 +8,5 @@ mkdir -p $TZ_USER_SHARE/media/.thumb/mmc
 chown -R multimedia_fw:multimedia_fw $TZ_USER_SHARE/media
 /usr/bin/chsmack -a 'User::App::Shared' -t
 chmod 2775 $TZ_USER_SHARE/media
+chmod -R 2777 $TZ_USER_SHARE/media/.thumb
 find $NEW_USER $TZ_USER_SHARE/media/.thumb -type d -exec /usr/bin/chsmack -a 'User::App::Shared' -t {} +
