@@ -76,8 +76,8 @@ int ms_usb_insert_handler(const char *mount_path, const char *mount_uuid)
 	ms_connect_db(&handle, uid);
 
 	if (mount_path != NULL && mount_uuid != NULL) {
-		uuid = strndup(mount_uuid, strlen(mount_uuid));
 		/*CHECK DB HERE */
+		uuid = strndup(mount_uuid, strlen(mount_uuid));
 		ret = ms_check_db_upgrade(handle, uid);
 		if (ret != MS_MEDIA_ERR_NONE) {
 			MS_DBG_ERR("ms_check_db_upgrade failed");

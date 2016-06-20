@@ -206,7 +206,7 @@ gboolean _read_socket(GIOChannel *src, GIOCondition condition, gpointer data)
 		req_result.request_type = MEDIA_REQUEST_EXTRACT_COMPLETE;
 	} else {
 		MSAPI_DBG("The message is invalid!");
-		return FALSE;
+		return TRUE;
 	}
 
 	MSAPI_DBG("pid :%d", req_result.pid);
