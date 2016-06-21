@@ -138,6 +138,7 @@ typedef struct {
 	uid_t uid;
 	size_t msg_size;
 	char msg[MAX_FILEPATH_LEN];
+	int result;
 } dcmMsg;
 
 #endif /*_MEDIA_SERVER_IPC_H_*/

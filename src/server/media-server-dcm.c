@@ -441,6 +441,8 @@ gboolean _ms_dcm_request_to_server(gpointer data)
 	dcmRequest *req = NULL;
 	req = (dcmRequest *)g_queue_pop_head(g_dcm_request_queue);
 
+	MS_DBG("Pop request %d %p", req->recv_msg->msg_type);
+
 	if (req == NULL) {
 		MS_DBG_ERR("Failed to get a request job from queue");
 		return TRUE;
@@ -474,7 +476,9 @@ gboolean _ms_dcm_request_to_server(gpointer data)
 
 				res_msg.msg_type = recv_msg->msg_type;
 				res_msg.msg_size = strlen(recv_msg->msg);
-				strncpy(res_msg.msg, recv_msg->msg, res_msg.msg_size);
+				if (res_msg.msg_size > 0)
+					strncpy(res_msg.msg, recv_msg->msg, res_msg.msg_size);
+				res_msg.result = recv_msg->result;
 
 				if (send(client_sock, &res_msg, sizeof(res_msg), 0) != sizeof(res_msg))
 					MS_DBG_STRERROR("sendto failed");

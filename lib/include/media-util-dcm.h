@@ -18,7 +18,19 @@
 #ifndef _MEDIA_UTIL_DCM_H_
 #define _MEDIA_UTIL_DCM_H_
 
-int dcm_svc_request_extract_all(uid_t uid);
-int dcm_svc_request_extract_media(const char *path, uid_t uid);
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+typedef int (*FaceFunc) (int error_code, int count, void* data);
+
+int dcm_request_extract_all(uid_t uid);
+int dcm_request_extract_media(const char *path, uid_t uid);
+int dcm_request_extract_face_async(const unsigned int request_id, const char *path, FaceFunc func, void *user_data, uid_t uid);
+int dcm_request_cancel_face(const unsigned int request_id, const char *path);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* _MEDIA_UTIL_DCM_H_ */
