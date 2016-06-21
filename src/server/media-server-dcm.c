@@ -441,7 +441,7 @@ gboolean _ms_dcm_request_to_server(gpointer data)
 	dcmRequest *req = NULL;
 	req = (dcmRequest *)g_queue_pop_head(g_dcm_request_queue);
 
-	MS_DBG("Pop request %d %p", req->recv_msg->msg_type);
+//	MS_DBG("Pop request %d %p", req->recv_msg->msg_type);
 
 	if (req == NULL) {
 		MS_DBG_ERR("Failed to get a request job from queue");
