@@ -597,7 +597,7 @@ int dcm_request_extract_face_async(const unsigned int request_id, const char *pa
 	userData->user_data = user_data;
 
 	/* Request for image file to the daemon "Dcm generator" */
-	err = _media_dcm_request_async(DCM_REQUEST_MEDIA/*DCM_REQUEST_INSERT_FACE*/, request_id, path, user_data, uid);
+	err = _media_dcm_request_async(DCM_REQUEST_MEDIA/*DCM_REQUEST_INSERT_FACE*/, request_id, path, userData, uid);
 	if (err != MS_MEDIA_ERR_NONE) {
 		MSAPI_DBG_ERR("_media_dcm_request failed : %d", err);
 		return err;
