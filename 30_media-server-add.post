@@ -2,6 +2,11 @@
 
 NEW_USER=$1
 export `tzplatform-get --user $NEW_USER TZ_USER_SHARE`
+export `tzplatform-get --user $NEW_USER TZ_USER_DB`
+
+/usr/bin/touch $TZ_USER_DB/.media.db
+chown multimedia_fw:multimedia_fw $TZ_USER_DB/.media.db
+chmod 2644 $TZ_USER_DB/.media.db
 
 mkdir -p $TZ_USER_SHARE/media/.thumb/phone
 mkdir -p $TZ_USER_SHARE/media/.thumb/mmc
