@@ -171,7 +171,9 @@ mediadb_update_SOURCES = src/mediadb-update.c
 
 mediadb_update_CFLAGS = -I${srcdir}/lib/include \
 			$(GTHREAD_CFLAGS) \
-			$(GLIB_CFLAGS)
+			$(GLIB_CFLAGS) \
+			$(GIO_CFLAGS) \
+			$(DBUS_CFLAGS)
 
 mediadb_update_CFLAGS += -fPIE
 
@@ -180,6 +182,8 @@ mediadb_update_LDFLAGS = -pie
 mediadb_update_LDADD = libmedia-utils.la \
 			$(GLIB_LIBS) \
 			$(GTHREAD_LIBS) \
+			$(GIO_LIBS) \
+			$(DBUS_LIBS) \
 			-ldl
 
 ### includeheaders ###
