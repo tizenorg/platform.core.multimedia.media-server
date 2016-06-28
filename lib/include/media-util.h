@@ -39,7 +39,6 @@
 #define MEDIA_ROOT_PATH_SDCARD	tzplatform_mkpath(TZ_SYS_STORAGE, "SDCard")
 #define MEDIA_ROOT_PATH_USB		tzplatform_getenv(TZ_SYS_STORAGE)
 #define MEDIA_ROOT_PATH_CLOUD	tzplatform_mkpath(TZ_SYS_STORAGE, "tnfs/cloud")
-#define MEDIA_DATA_PATH		tzplatform_mkpath(TZ_SYS_DATA, "file-manager-service")
 #define MEDIA_DB_NAME		tzplatform_mkpath(TZ_USER_DB, ".media.db")		/**<  media db name*/
 #define MEDIA_CONTENT_PATH		"content"		/**<  user content folder name*/
 
