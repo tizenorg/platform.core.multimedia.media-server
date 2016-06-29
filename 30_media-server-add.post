@@ -8,11 +8,12 @@ export `tzplatform-get --user $NEW_USER TZ_USER_DB`
 /usr/bin/touch $TZ_USER_DB/.media.db
 /usr/bin/chown multimedia_fw:multimedia_fw $TZ_USER_DB/.media.db
 /usr/bin/chmod 2644 $TZ_USER_DB/.media.db
+/usr/bin/chsmack -a 'User::Home' $TZ_USER_DB/.media.db
 
 /usr/bin/mkdir -p $TZ_USER_SHARE/media/.thumb/phone
 /usr/bin/mkdir -p $TZ_USER_SHARE/media/.thumb/mmc
 /usr/bin/chown -R multimedia_fw:multimedia_fw $TZ_USER_SHARE/media
-/usr/bin/chsmack -a 'User::App::Shared' -t
+/usr/bin/chsmack -a 'User::App::Shared' -t $TZ_USER_SHARE/media
 /usr/bin/chmod 2775 $TZ_USER_SHARE/media
 /usr/bin/chmod -R 2777 $TZ_USER_SHARE/media/.thumb
 /usr/bin/find $NEW_USER $TZ_USER_SHARE/media/.thumb -type d -exec /usr/bin/chsmack -a 'User::App::Shared' -t {} +
