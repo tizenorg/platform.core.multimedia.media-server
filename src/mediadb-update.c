@@ -479,7 +479,7 @@ int main(int argc, char **argv)
 
 	if (argc > 3 || argc < 2) {
 		print_help();
-		exit(1);
+		exit(0);
 	}
 
 	argv1 = strdup(argv[1]);
@@ -489,17 +489,17 @@ int main(int argc, char **argv)
 	if (argc == 2) {
 		if (strcmp(argv1 , "--help") == 0) {
 			print_help();
-			exit(1);
+			exit(0);
 		}
 
 		if (strcmp(argv1 , "check_db") == 0) {
 			__check_media_db();
-			exit(1);
+			exit(0);
 		}
 
 		if (strcmp(argv1 , "check_mmc") == 0) {
 			__check_mmc();
-			exit(1);
+			exit(0);
 		}
 
 		if (check_path(argv1) == DIRECTORY_OK) {
@@ -513,12 +513,12 @@ int main(int argc, char **argv)
 			ret = dir_scan_non_recursive(req_path);
 			if (ret != 0) {
 				printf("error : %d\n", ret);
-				exit(1);
+				exit(0);
 			}
 		} else {
 			printf("[%d]invalid path\n", __LINE__);
 			print_help();
-			exit(1);
+			exit(0);
 		}
 	} else if (argc == 3) {
 		argv2 = strdup(argv[2]);
@@ -534,17 +534,17 @@ int main(int argc, char **argv)
 				ret = dir_scan_recursive(req_path);
 				if (ret != 0) {
 					printf("error : %d\n", ret);
-					exit(1);
+					exit(0);
 				}
 			} else {
 				printf("[%d]invalid path\n", __LINE__);
 				print_help();
-				exit(1);
+				exit(0);
 			}
 		} else {
 			printf("[%d] invalide option\n", __LINE__);
 			print_help();
-			exit(1);
+			exit(0);
 		}
 	}
 
