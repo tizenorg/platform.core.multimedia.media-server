@@ -313,11 +313,12 @@ static void __check_mmc(void)
 	}
 
 	ret = svc_disconnect(db_handle, &err_msg);
-	if (ret < 0) {
+	if (ret < 0)
 		printf("Error svc_disconnect\n");
-		dlclose(funcHandle);
-		return;
-	}
+
+	printf("Check mmc done\n");
+
+	dlclose(funcHandle);
 }
 
 static void __check_media_db(void)
