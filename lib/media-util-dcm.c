@@ -194,19 +194,14 @@ gboolean __media_dcm_write_socket(GIOChannel *src, GIOCondition condition, gpoin
 		return FALSE;
 	}
 
-	MSAPI_DBG("Completed.. %s", recv_msg.msg);
-
-	if (recv_msg.msg_type != 0) {
-		MSAPI_DBG_ERR("Failed to run dcm(%d)", recv_msg.msg_type);
-		err = MS_MEDIA_ERR_INTERNAL;
-	}
+	MSAPI_DBG("Completed.. %d, %s, %d", recv_msg.msg_type, recv_msg.msg, recv_msg.result);
 
 	if (__media_dcm_check_cancel()) {
 		MSAPI_DBG_ERR("__media_dcm_check_cancel is true");
 		if (data) {
 			faceUserData* cb = (faceUserData*)data;
 			if (cb->func != NULL) {
-				cb->func(err, (int)(recv_msg.result), cb->user_data);
+				cb->func(recv_msg.msg_type, (int)(recv_msg.result), cb->user_data);
 			}
 		}
 	}
