@@ -50,7 +50,6 @@ static int g_dcm_service_pid = 0;
 
 static GQueue *g_dcm_request_queue = NULL;
 static int g_dcm_queue_work = 0;
-static int g_dcm_service_active = -1;
 
 typedef struct {
 	int client_sock;
