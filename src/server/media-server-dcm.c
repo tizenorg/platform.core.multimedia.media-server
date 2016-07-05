@@ -316,7 +316,7 @@ gboolean _ms_dcm_agent_send_msg_to_dcm_server(dcmMsg *recv_msg, dcmMsg *res_msg)
 		return FALSE;
 	}
 
-	MS_DBG_SLOG("recv %s from DCM daemon is successful", res_msg->msg);
+	MS_DBG_SLOG("recv %s(%d, %d) from DCM daemon is successful", res_msg->msg, res_msg->msg_type, res_msg->result);
 	ms_ipc_delete_client_socket(&sock_info);
 
 	if (res_msg->msg_type == 1 && g_dcm_comm_sock > 0) { /* DCM_REQUEST_ALL_MEDIA */
