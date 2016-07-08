@@ -292,9 +292,18 @@ static void __check_mmc(void)
 			for (i = 0; i < dev_num; i++) {
 				block_info = (block_info_s *)g_array_index(dev_list, int *, i);
 				if (info_exist) {
-					ret = svc_delete_storage(db_handle, "media", storage_name, tzplatform_getuid(TZ_USER_NAME), &err_msg);
 					__get_mmc_id(&insert_stg_id);
-					ret = svc_insert_storage(db_handle, "media", 1, insert_stg_id, block_info->mount_path, tzplatform_getuid(TZ_USER_NAME), &err_msg);
+
+					if (strncmp(storage_name, insert_stg_id, strlen(insert_stg_id)) == 0 && strncmp(storage_path, block_info->mount_path, strlen(block_info->mount_path)) == 0) {
+						if (validity == 0) {
+							ret = svc_set_storage_validity(db_handle, "media", 1, tzplatform_getuid(TZ_USER_NAME), &err_msg);
+							if (ret < 0)
+								printf("Error svc_set_storage_validity\n");
+						}
+					} else {
+						ret = svc_delete_storage(db_handle, "media", storage_name, tzplatform_getuid(TZ_USER_NAME), &err_msg);
+						ret = svc_insert_storage(db_handle, "media", 1, insert_stg_id, block_info->mount_path, tzplatform_getuid(TZ_USER_NAME), &err_msg);
+					}
 					MU_SAFE_FREE(insert_stg_id);
 				} else {
 					__get_mmc_id(&insert_stg_id);
@@ -304,9 +313,11 @@ static void __check_mmc(void)
 			}
 			__release_device_list(&dev_list);
 		} else {
-			ret = svc_set_storage_validity(db_handle, "media", 0, tzplatform_getuid(TZ_USER_NAME), &err_msg);
-			if (ret < 0)
-				printf("Error svc_set_storage_validity\n");
+			if (validity == 1) {
+				ret = svc_set_storage_validity(db_handle, "media", 0, tzplatform_getuid(TZ_USER_NAME), &err_msg);
+				if (ret < 0)
+					printf("Error svc_set_storage_validity\n");
+			}
 		}
 	} else {
 		printf("__get_device_list failed\n");
