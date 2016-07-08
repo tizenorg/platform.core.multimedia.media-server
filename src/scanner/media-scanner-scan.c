@@ -1579,8 +1579,11 @@ static int __msc_dir_scan_meta_update(void **handle, const char*start_path, cons
 	int ret = MS_MEDIA_ERR_NONE;
 	char *new_path = NULL;
 	char *current_path = NULL;
+	char *tmp_path = NULL;
 	char path[MS_FILE_PATH_LEN_MAX] = { 0 };
 	int (*scan_function)(void **, const char *, const char*, uid_t) = ms_update_meta_batch;
+
+	tmp_path = strdup(start_path);
 
 	/* make new array for storing directory */
 	dir_array = g_array_new(FALSE, FALSE, sizeof(char*));
@@ -1589,7 +1592,7 @@ static int __msc_dir_scan_meta_update(void **handle, const char*start_path, cons
 		return MS_MEDIA_ERR_OUT_OF_MEMORY;
 	}
 	/* add first direcotiry to directory array */
-	g_array_append_val(dir_array, start_path);
+	g_array_append_val(dir_array, tmp_path);
 
 	/*start db update. the number of element in the array , db update is complete.*/
 	while (dir_array->len != 0) {
@@ -1673,7 +1676,6 @@ gboolean msc_metadata_update(void *data)
 	int ret = MS_MEDIA_ERR_NONE;
 	int idx = 0;
 	void **handle = NULL;
-	char *start_path = NULL;
 	ms_storage_type_t storage_type = MS_STORAGE_INTERNAL;
 	GArray *storage_list = NULL;
 	ms_stg_info_s *stg_info = NULL;
@@ -1696,9 +1698,7 @@ gboolean msc_metadata_update(void *data)
 		return MS_MEDIA_ERR_INTERNAL;
 	}
 
-	start_path = strdup(usr_path);
-	ret = __msc_dir_scan_meta_update(handle, start_path, INTERNAL_STORAGE_ID, storage_type, scan_data->uid);
-
+	ret = __msc_dir_scan_meta_update(handle, usr_path, INTERNAL_STORAGE_ID, storage_type, scan_data->uid);
 	/* send notification */
 	ms_send_dir_update_noti(handle, INTERNAL_STORAGE_ID, usr_path, NULL, MS_ITEM_UPDATE, scan_data->pid);
 	MS_SAFE_FREE(usr_path);
@@ -1723,11 +1723,7 @@ gboolean msc_metadata_update(void *data)
 			continue;
 		}
 
-		MS_SAFE_FREE(start_path);
-		if (MS_STRING_VALID(stg_info->stg_path))
-			start_path = strndup(stg_info->stg_path, strlen(stg_info->stg_path));
-
-		ret = __msc_dir_scan_meta_update(handle, start_path, stg_info->storage_id, storage_type, scan_data->uid);
+		ret = __msc_dir_scan_meta_update(handle, stg_info->stg_path, stg_info->storage_id, storage_type, scan_data->uid);
 		/* send notification */
 		ms_send_dir_update_noti(handle, stg_info->storage_id, stg_info->stg_path, NULL, MS_ITEM_UPDATE, scan_data->pid);
 
