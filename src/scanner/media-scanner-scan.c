@@ -1698,10 +1698,10 @@ gboolean msc_metadata_update(void *data)
 
 	start_path = strdup(usr_path);
 	ret = __msc_dir_scan_meta_update(handle, start_path, INTERNAL_STORAGE_ID, storage_type, scan_data->uid);
-	MS_SAFE_FREE(usr_path);
 
 	/* send notification */
-	ms_send_dir_update_noti(handle, INTERNAL_STORAGE_ID, start_path, NULL, MS_ITEM_UPDATE, scan_data->pid);
+	ms_send_dir_update_noti(handle, INTERNAL_STORAGE_ID, usr_path, NULL, MS_ITEM_UPDATE, scan_data->pid);
+	MS_SAFE_FREE(usr_path);
 
 	/*__msc_dir_scan_meta_update For Each External Storage*/
 	ret = ms_get_storage_list(handle, &storage_list);
@@ -1723,7 +1723,11 @@ gboolean msc_metadata_update(void *data)
 			continue;
 		}
 
-		ret = __msc_dir_scan_meta_update(handle, stg_info->stg_path, stg_info->storage_id, storage_type, scan_data->uid);
+		MS_SAFE_FREE(start_path);
+		if (MS_STRING_VALID(stg_info->stg_path))
+			start_path = strndup(stg_info->stg_path, strlen(stg_info->stg_path));
+
+		ret = __msc_dir_scan_meta_update(handle, start_path, stg_info->storage_id, storage_type, scan_data->uid);
 		/* send notification */
 		ms_send_dir_update_noti(handle, stg_info->storage_id, stg_info->stg_path, NULL, MS_ITEM_UPDATE, scan_data->pid);
 
