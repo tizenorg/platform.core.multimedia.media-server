@@ -713,15 +713,25 @@ int ms_send_dir_update_noti(void **handle, const char* storage_id, const char*pa
 	int lib_index;
 	int ret;
 	char *err_msg = NULL;
+	char *get_path = NULL;
+
+	if (MS_STRING_VALID(path)) {
+		get_path = strndup(path, strlen(path));
+	} else {
+		MS_DBG_ERR("path is invalid string");
+		return MS_MEDIA_ERR_SEND_NOTI_FAIL;
+	}
 
 	for (lib_index = 0; lib_index < lib_num; lib_index++) {
-		ret = ((SEND_DIR_UPDATE_NOTI)func_array[lib_index][eSEND_DIR_UPDATE_NOTI])(handle[lib_index], storage_id, path, folder_id, (int)noti_type, pid, &err_msg); /*dlopen*/
+		ret = ((SEND_DIR_UPDATE_NOTI)func_array[lib_index][eSEND_DIR_UPDATE_NOTI])(handle[lib_index], storage_id, get_path, folder_id, (int)noti_type, pid, &err_msg); /*dlopen*/
 		if (ret != 0) {
 			MS_DBG_ERR("error : %s [%s]", g_array_index(so_array, char*, lib_index), err_msg);
 			MS_SAFE_FREE(err_msg);
+			MS_SAFE_FREE(get_path);
 			return MS_MEDIA_ERR_SEND_NOTI_FAIL;
 		}
 	}
+	MS_SAFE_FREE(get_path);
 
 	return MS_MEDIA_ERR_NONE;
 }

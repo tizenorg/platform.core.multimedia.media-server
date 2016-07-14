@@ -1583,7 +1583,12 @@ static int __msc_dir_scan_meta_update(void **handle, const char*start_path, cons
 	char path[MS_FILE_PATH_LEN_MAX] = { 0 };
 	int (*scan_function)(void **, const char *, const char*, uid_t) = ms_update_meta_batch;
 
-	tmp_path = strdup(start_path);
+	if (MS_STRING_VALID(start_path)) {
+		tmp_path = strndup(start_path, strlen(start_path));
+	} else {
+		MS_DBG_ERR("start_path is invalid parameter");
+		return MS_MEDIA_ERR_INVALID_PATH;
+	}
 
 	/* make new array for storing directory */
 	dir_array = g_array_new(FALSE, FALSE, sizeof(char*));
