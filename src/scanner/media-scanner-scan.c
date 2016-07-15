@@ -1024,7 +1024,11 @@ gboolean msc_storage_scan_thread(void *data)
 		else
 			storage_id = strdup("media");
 
-		ms_set_storage_scan_status(handle, storage_id, MEDIA_SCAN_PROCESSING, scan_data->uid);
+		ret = ms_set_storage_scan_status(handle, storage_id, MEDIA_SCAN_PROCESSING, scan_data->uid);
+		if (ret != MS_MEDIA_ERR_NONE) {
+			MS_DBG_ERR("ms_set_storage_scan_status[%d]", ret);
+			goto NEXT;
+		}
 
 		/*start db updating */
 		__msc_set_db_status(MS_DB_UPDATING, storage_type);

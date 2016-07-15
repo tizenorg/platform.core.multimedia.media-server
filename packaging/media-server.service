@@ -1,5 +1,7 @@
 [Unit]
 Description=Media server
+After=user@5001.service
+After=systemd-logind.service
 
 [Service]
 User=multimedia_fw
