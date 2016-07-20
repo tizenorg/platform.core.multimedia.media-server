@@ -6,6 +6,7 @@ After=systemd-logind.service
 [Service]
 User=multimedia_fw
 Group=multimedia_fw
+SmackProcessLabel=System
 SupplementaryGroups=priv_mediastorage priv_externalstorage
 Type=simple
 ExecStart=/usr/bin/media-server
