@@ -410,6 +410,7 @@ static void __ms_add_signal_handler(void)
 
 static void __ms_check_mediadb(void)
 {
+#if 0
 	uid_t uid = 0;
 
 	ms_sys_get_uid(&uid);
@@ -418,6 +419,7 @@ static void __ms_check_mediadb(void)
 	/* update external storage */
 	__ms_check_mmc_status();
 	__ms_check_usb_status();
+#endif
 }
 
 
