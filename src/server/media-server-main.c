@@ -45,6 +45,8 @@
 #include "media-server-device-block.h"
 #include "media-server-dcm.h"
 
+#define DO_SCAN_ON_BOOT 0 /* 0: Don't scan on boot, 1: Do scan on boot */
+
 extern GMutex scanner_mutex;
 
 GMainLoop *mainloop = NULL;
@@ -56,50 +58,9 @@ static void __ms_remove_event_receiver(void);
 static void __ms_add_event_receiver(GIOChannel *channel);
 static void __ms_remove_request_receiver(GIOChannel *channel);
 static void __ms_add_request_receiver(GMainLoop *mainloop, GIOChannel **channel);
-static int __ms_check_mmc_status(void);
-static int __ms_check_usb_status(void);
 static bool __ms_is_dcm_supported(void);
 
 static char *priv_lang = NULL;
-
-static char* __ms_get_path(uid_t uid)
-{
-	int len = 0;
-	char *result_passwd = NULL;
-	struct group *grpinfo = NULL;
-	if (uid == getuid()) {
-		grpinfo = getgrnam("users");
-		if (grpinfo == NULL) {
-			MS_DBG_ERR("getgrnam(users) returns NULL !");
-			return NULL;
-		}
-		if (MS_STRING_VALID(MEDIA_ROOT_PATH_INTERNAL))
-			result_passwd = strndup(MEDIA_ROOT_PATH_INTERNAL, strlen(MEDIA_ROOT_PATH_INTERNAL));
-	} else {
-		char passwd_str[MAX_FILEPATH_LEN] = {0, };
-		struct passwd *userinfo = getpwuid(uid);
-		if (userinfo == NULL) {
-			MS_DBG_ERR("getpwuid(%d) returns NULL !", uid);
-			return NULL;
-		}
-		grpinfo = getgrnam("users");
-		if (grpinfo == NULL) {
-			MS_DBG_ERR("getgrnam(users) returns NULL !");
-			return NULL;
-		}
-		// Compare git_t type and not group name
-		if (grpinfo->gr_gid != userinfo->pw_gid) {
-			MS_DBG_ERR("UID [%d] does not belong to 'users' group!", uid);
-			return NULL;
-		}
-
-		len = snprintf(passwd_str, sizeof(passwd_str), "%s/%s", userinfo->pw_dir, MEDIA_CONTENT_PATH);
-		if (len > 0)
-			result_passwd = strndup(passwd_str, len);
-	}
-
-	return result_passwd;
-}
 
 void _power_off_cb(ms_power_info_s *power_info, void* data)
 {
@@ -282,8 +243,10 @@ int main(int argc, char **argv)
 		sleep(1);
 	}
 
+#if DO_SCAN_ON_BOOT == 1
 	/* update media DB */
 	__ms_check_mediadb();
+#endif
 
 	/*Active flush */
 	malloc_trim(0);
@@ -408,22 +371,47 @@ static void __ms_add_signal_handler(void)
 	signal(SIGPIPE, SIG_IGN);
 }
 
-static void __ms_check_mediadb(void)
+////////////////////////////////////////////////////////////////////
+#if DO_SCAN_ON_BOOT == 1
+static char* __ms_get_path(uid_t uid)
 {
-#if 0
-	uid_t uid = 0;
+	int len = 0;
+	char *result_passwd = NULL;
+	struct group *grpinfo = NULL;
+	if (uid == getuid()) {
+		grpinfo = getgrnam("users");
+		if (grpinfo == NULL) {
+			MS_DBG_ERR("getgrnam(users) returns NULL !");
+			return NULL;
+		}
+		if (MS_STRING_VALID(MEDIA_ROOT_PATH_INTERNAL))
+			result_passwd = strndup(MEDIA_ROOT_PATH_INTERNAL, strlen(MEDIA_ROOT_PATH_INTERNAL));
+	} else {
+		char passwd_str[MAX_FILEPATH_LEN] = {0, };
+		struct passwd *userinfo = getpwuid(uid);
+		if (userinfo == NULL) {
+			MS_DBG_ERR("getpwuid(%d) returns NULL !", uid);
+			return NULL;
+		}
+		grpinfo = getgrnam("users");
+		if (grpinfo == NULL) {
+			MS_DBG_ERR("getgrnam(users) returns NULL !");
+			return NULL;
+		}
+		// Compare git_t type and not group name
+		if (grpinfo->gr_gid != userinfo->pw_gid) {
+			MS_DBG_ERR("UID [%d] does not belong to 'users' group!", uid);
+			return NULL;
+		}
 
-	ms_sys_get_uid(&uid);
-	ms_send_storage_scan_request(__ms_get_path(uid), INTERNAL_STORAGE_ID, MS_SCAN_PART, uid);
+		len = snprintf(passwd_str, sizeof(passwd_str), "%s/%s", userinfo->pw_dir, MEDIA_CONTENT_PATH);
+		if (len > 0)
+			result_passwd = strndup(passwd_str, len);
+	}
 
-	/* update external storage */
-	__ms_check_mmc_status();
-	__ms_check_usb_status();
-#endif
+	return result_passwd;
 }
 
-
-////////////////////////////////////////////////////////////////////
 static int __ms_check_mmc_status(void)
 {
 	int ret = MS_MEDIA_ERR_NONE;
@@ -485,6 +473,19 @@ static int __ms_check_usb_status(void)
 
 	return MS_MEDIA_ERR_NONE;
 }
+
+static void __ms_check_mediadb(void)
+{
+	uid_t uid = 0;
+
+	ms_sys_get_uid(&uid);
+	ms_send_storage_scan_request(__ms_get_path(uid), INTERNAL_STORAGE_ID, MS_SCAN_PART, uid);
+
+	/* update external storage */
+	__ms_check_mmc_status();
+	__ms_check_usb_status();
+}
+#endif
 
 static bool __ms_is_dcm_supported()
 {

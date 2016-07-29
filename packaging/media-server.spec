@@ -1,6 +1,6 @@
 Name:       media-server
 Summary:    A server for media content management
-Version:    0.2.100
+Version:    0.2.101
 Release:    0
 Group:      Multimedia/Service
 License:    Apache-2.0
