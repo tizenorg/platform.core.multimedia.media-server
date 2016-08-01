@@ -569,7 +569,7 @@ static int __msc_stg_scan(void **handle, const char *storage_id, const char*star
 
 		/*remove invalid folder in folder table.*/
 	if (__msc_check_mount_storage(new_start_path)) {
-		if (ms_delete_invalid_folder(handle, storage_id, uid) != MS_MEDIA_ERR_NONE) {
+		if (ms_delete_invalid_folder(handle, storage_id, storage_type, uid) != MS_MEDIA_ERR_NONE) {
 			MS_DBG_ERR("delete invalid folder failed");
 			ret = MS_MEDIA_ERR_DB_DELETE_FAIL;
 		}

@@ -81,7 +81,7 @@ typedef int (*GET_STORAGE_SCAN_STATUS)(void *, const char *, int *, char **);
 typedef int (*SET_STORAGE_SCAN_STATUS)(void *, const char *, int, uid_t, char **);
 typedef int (*GET_STORAGE_LIST)(void *, char ***, char ***, int **, int *, char **);
 typedef int (*INSERT_FOLDER)(void *, const char *, const char *, int, uid_t, char **);
-typedef int (*DELETE_INVALID_FOLDER)(void *, const char *, uid_t, char **);
+typedef int (*DELETE_INVALID_FOLDER)(void *, const char *, int, uid_t, char **);
 typedef int (*SET_FOLDER_VALIDITY)(void *, const char *, const char *, int, bool, uid_t, char **);
 typedef int (*INSERT_FOLDER_BEGIN)(void *, int, char **);
 typedef int (*INSERT_FOLDER_END)(void *, uid_t, char **);
@@ -138,7 +138,7 @@ int ms_get_storage_scan_status(void **handle, char *storage_id, media_scan_statu
 int ms_set_storage_scan_status(void **handle, char *storage_id, media_scan_status_e scan_status, uid_t uid);
 int ms_get_storage_list(void **handle, GArray **storage_array);
 int ms_insert_folder(void **handle, const char *storage_id, const char *path, uid_t uid);
-int ms_delete_invalid_folder(void **handle, const char *storage_id, uid_t uid);
+int ms_delete_invalid_folder(void **handle, const char *storage_id, int storage_type, uid_t uid);
 int ms_set_folder_validity(void **handle, const char *storage_id, const char *start_path, int validity, bool is_recursive, uid_t uid);
 int ms_scan_item_batch(void **handle, const char *storage_id, const char *path, uid_t uid, int *insert_count_for_partial, int *set_count_for_partial);
 int ms_scan_validate_item(void **handle, const char *storage_id, const char *path, uid_t uid, int *insert_count_for_partial, int *set_count_for_partial);

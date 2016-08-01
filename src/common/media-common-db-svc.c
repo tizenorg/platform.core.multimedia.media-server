@@ -986,7 +986,7 @@ int ms_insert_folder(void **handle, const char *storage_id, const char *path, ui
 	return res;
 }
 
-int ms_delete_invalid_folder(void **handle, const char *storage_id, uid_t uid)
+int ms_delete_invalid_folder(void **handle, const char *storage_id, int storage_type, uid_t uid)
 {
 	int lib_index;
 	int res = MS_MEDIA_ERR_NONE;
@@ -994,7 +994,7 @@ int ms_delete_invalid_folder(void **handle, const char *storage_id, uid_t uid)
 	char *err_msg = NULL;
 
 	for (lib_index = 0; lib_index < lib_num; lib_index++) {
-		ret = ((DELETE_INVALID_FOLDER)func_array[lib_index][eDELETE_INVALID_FOLDER])(handle[lib_index], storage_id, uid, &err_msg); /*dlopen*/
+		ret = ((DELETE_INVALID_FOLDER)func_array[lib_index][eDELETE_INVALID_FOLDER])(handle[lib_index], storage_id, storage_type, uid, &err_msg); /*dlopen*/
 		if (ret != 0) {
 			MS_DBG_ERR("error : %s [%s] %s", g_array_index(so_array, char*, lib_index), err_msg, storage_id);
 			MS_SAFE_FREE(err_msg);

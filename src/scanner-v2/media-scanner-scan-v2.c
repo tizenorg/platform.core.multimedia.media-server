@@ -830,7 +830,7 @@ NEXT_SCAN:
 
 			__msc_remove_dir_scan_cb();
 		}
-		if (ms_delete_invalid_folder(handle, storage_id, uid) != MS_MEDIA_ERR_NONE) {
+		if (ms_delete_invalid_folder(handle, storage_id, storage_type, uid) != MS_MEDIA_ERR_NONE) {
 			MS_DBG_ERR("delete invalid folder failed");
 			ret = MS_MEDIA_ERR_DB_DELETE_FAIL;
 		}
