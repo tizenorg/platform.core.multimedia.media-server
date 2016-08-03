@@ -43,9 +43,7 @@
 #define DBUS_REPLY_TIMEOUT (-1)
 
 #define PATH_BLOCK                  OBJECT_PATH"/Block"
-#define PATH_BLOCK_DEVICES          PATH_BLOCK"/Devices"
 #define PATH_BLOCK_MANAGER          PATH_BLOCK"/Manager"
-#define INTERFACE_BLOCK             INTERFACE_NAME".Block"
 #define INTERFACE_BLOCK_MANAGER     INTERFACE_NAME".BlockManager"
 
 #define DEVICE_METHOD "GetDeviceList"

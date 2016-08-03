@@ -44,13 +44,8 @@
 #define DEVICED_INTERFACE_NAME DEVICED_BUS_NAME
 
 #define DEVICED_PATH_BLOCK                  DEVICED_OBJECT_PATH"/Block"
-#define DEVICED_PATH_BLOCK_DEVICES          DEVICED_PATH_BLOCK"/Devices"
 #define DEVICED_PATH_BLOCK_MANAGER          DEVICED_PATH_BLOCK"/Manager"
-#define DEVICED_INTERFACE_BLOCK             DEVICED_INTERFACE_NAME".Block"
 #define DEVICED_INTERFACE_BLOCK_MANAGER     DEVICED_INTERFACE_NAME".BlockManager"
-
-#define BLOCK_OBJECT_ADDED      "ObjectAdded"
-#define BLOCK_OBJECT_REMOVED    "ObjectRemoved"
 #define BLOCK_DEVICE_CHANGED    "DeviceChanged"
 
 #define BLOCK_DEVICE_METHOD "GetDeviceList"
@@ -161,7 +156,7 @@ static int __ms_sys_subscribe_device_block_event(block_changed_cb usr_callback, 
 	g_usb_handler = g_dbus_connection_signal_subscribe(
 					g_usb_bus,
 					NULL,
-					DEVICED_INTERFACE_BLOCK,
+					DEVICED_INTERFACE_BLOCK_MANAGER,
 					BLOCK_DEVICE_CHANGED,
 					NULL,
 					NULL,
